@@ -5,5 +5,5 @@ export const Colours = {
   text: "#FFFFFF",
   secondaryText: "#878787",
   cardHighlight: "#262626",
-  fadedBrand: "B24A00",
+  fadedBrand: "#B24A00",
 };
