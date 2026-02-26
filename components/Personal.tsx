@@ -3,8 +3,8 @@ import { Text, View } from "react-native";
 
 export default function Personal() {
   return (
-    <View>
-      <Text>Personal</Text>
+    <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+      <Text style={{ color: "white", fontSize: 32 }}>Personal</Text>
     </View>
   );
 }
