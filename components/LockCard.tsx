@@ -2,6 +2,7 @@ import React from "react";
 import { View, Text, Pressable, StyleSheet, Dimensions } from "react-native";
 import { Colours } from "../constants/Colours";
 import { Fonts } from "../constants/Fonts";
+import GoalIcon from "./GoalIcon";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 const GRID_PADDING = 19;
@@ -21,7 +22,7 @@ export default function LockCard({ appName, appIcon, timeRemaining, size }: Lock
     <View style={[styles.card, size === "large" ? styles.large : styles.small]}>
       <View style={styles.header}>
         <View style={styles.appIconContainer}>
-          <Text style={styles.appIconEmoji}>{appIcon}</Text>
+          <GoalIcon name={appIcon} size={35} />
         </View>
         <Text style={styles.appName}>{appName}</Text>
       </View>
@@ -65,9 +66,6 @@ const styles = StyleSheet.create({
     padding: 2,
     alignItems: "center",
     justifyContent: "center",
-  },
-  appIconEmoji: {
-    fontSize: 22,
   },
   appName: {
     color: Colours.secondaryText,

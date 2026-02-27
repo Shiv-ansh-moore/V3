@@ -2,6 +2,7 @@ import React from "react";
 import { View, Text, StyleSheet, Dimensions } from "react-native";
 import { Colours } from "../constants/Colours";
 import { Fonts } from "../constants/Fonts";
+import GoalIcon from "./GoalIcon";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 const GRID_PADDING = 19;
@@ -22,7 +23,7 @@ export default function GoalTile({ icon, title, duration, status, size }: GoalTi
     return (
       <View style={styles.doneTile}>
         <View style={styles.doneIconContainer}>
-          <Text style={styles.doneIconText}>{icon}</Text>
+          <GoalIcon name={icon} size={20} />
         </View>
         <Text style={styles.doneTitle} numberOfLines={1}>
           {title}
@@ -40,7 +41,7 @@ export default function GoalTile({ icon, title, duration, status, size }: GoalTi
     <View style={[styles.tile, size === "large" ? styles.large : styles.small]}>
       <View style={styles.topRow}>
         <View style={styles.iconContainer}>
-          <Text style={styles.iconText}>{icon}</Text>
+          <GoalIcon name={icon} size={40} />
         </View>
         <View style={styles.checkboxOuter}>
           <View style={styles.checkboxCircle} />
@@ -83,9 +84,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  iconText: {
-    fontSize: 28,
-  },
   checkboxOuter: {
     width: 24,
     height: 24,
@@ -127,9 +125,6 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
-  },
-  doneIconText: {
-    fontSize: 20,
   },
   doneTitle: {
     flex: 1,
