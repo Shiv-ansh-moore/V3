@@ -21,7 +21,7 @@ export default function Personal() {
         showsVerticalScrollIndicator={false}
       >
         {hasLocks ? (
-          <View style={styles.lockRow}>
+          <View style={styles.grid}>
             {mockLocks.map((lock) => (
               <LockCard
                 key={lock.id}
@@ -87,53 +87,47 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 19,
     paddingTop: 16,
     paddingBottom: 80,
-  },
-  lockRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 12,
-    marginBottom: 16,
   },
   grid: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 12,
+    marginBottom: 12,
   },
   divider: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    marginVertical: 20,
+    marginVertical: 8,
   },
   dividerLine: {
     flex: 1,
-    height: 1,
-    backgroundColor: "#333",
+    height: 2,
+    backgroundColor: Colours.card,
   },
   dividerText: {
-    color: Colours.secondaryText,
-    fontFamily: Fonts.semiBold,
-    fontSize: 12,
-    letterSpacing: 1.5,
+    color: Colours.card,
+    fontFamily: Fonts.medium,
+    fontSize: 14,
   },
   fab: {
     position: "absolute",
     bottom: 28,
-    right: 20,
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    right: 19,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     backgroundColor: Colours.brand,
     alignItems: "center",
     justifyContent: "center",
   },
   fabText: {
     color: Colours.text,
-    fontSize: 30,
-    fontFamily: Fonts.regular,
+    fontSize: 40,
+    fontFamily: Fonts.medium,
     marginTop: -2,
   },
 });

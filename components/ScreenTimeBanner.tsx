@@ -6,10 +6,8 @@ import { Fonts } from "../constants/Fonts";
 export default function ScreenTimeBanner() {
   return (
     <View style={styles.container}>
-      <View style={styles.banner}>
-        <View style={styles.dot} />
-        <Text style={styles.text}>All apps locked · 0m today</Text>
-      </View>
+      <View style={styles.dot} />
+      <Text style={styles.text}>All apps locked · 0m today</Text>
     </View>
   );
 }
@@ -18,14 +16,9 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center", // ← this centres it
-  },
-  banner: {
-    flexDirection: "row",
-    alignItems: "center",
+    justifyContent: "center",
     gap: 8,
     paddingVertical: 12,
-    paddingHorizontal: 4,
   },
   dot: {
     width: 8,

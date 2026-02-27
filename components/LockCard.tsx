@@ -1,7 +1,13 @@
 import React from "react";
-import { View, Text, Pressable, StyleSheet } from "react-native";
+import { View, Text, Pressable, StyleSheet, Dimensions } from "react-native";
 import { Colours } from "../constants/Colours";
 import { Fonts } from "../constants/Fonts";
+
+const SCREEN_WIDTH = Dimensions.get("window").width;
+const GRID_PADDING = 19;
+const GRID_GAP = 12;
+const CONTENT_WIDTH = SCREEN_WIDTH - GRID_PADDING * 2;
+const HALF_WIDTH = (CONTENT_WIDTH - GRID_GAP) / 2;
 
 interface LockCardProps {
   appName: string;
@@ -14,7 +20,9 @@ export default function LockCard({ appName, appIcon, timeRemaining, size }: Lock
   return (
     <View style={[styles.card, size === "large" ? styles.large : styles.small]}>
       <View style={styles.header}>
-        <Text style={styles.appIcon}>{appIcon}</Text>
+        <View style={styles.appIconContainer}>
+          <Text style={styles.appIconEmoji}>{appIcon}</Text>
+        </View>
         <Text style={styles.appName}>{appName}</Text>
       </View>
       <Text style={styles.timer}>{timeRemaining}</Text>
@@ -32,67 +40,73 @@ export default function LockCard({ appName, appIcon, timeRemaining, size }: Lock
 const styles = StyleSheet.create({
   card: {
     backgroundColor: Colours.card,
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: "#222",
-    justifyContent: "space-between",
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    height: 205,
+    gap: 6,
   },
   small: {
-    width: "48%",
+    width: HALF_WIDTH,
   },
   large: {
-    width: "100%",
+    width: CONTENT_WIDTH,
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
   },
-  appIcon: {
-    fontSize: 20,
+  appIconContainer: {
+    width: 40,
+    height: 40,
+    backgroundColor: Colours.cardHighlight,
+    borderRadius: 10,
+    padding: 2,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  appIconEmoji: {
+    fontSize: 22,
   },
   appName: {
     color: Colours.secondaryText,
-    fontFamily: Fonts.medium,
-    fontSize: 13,
+    fontFamily: Fonts.regular,
+    fontSize: 12,
   },
   timer: {
     color: Colours.text,
-    fontFamily: Fonts.bold,
-    fontSize: 36,
-    marginTop: 8,
+    fontFamily: Fonts.semiBold,
+    fontSize: 32,
   },
   remaining: {
     color: Colours.secondaryText,
-    fontFamily: Fonts.regular,
-    fontSize: 11,
-    marginTop: 2,
+    fontFamily: Fonts.extraLight,
+    fontSize: 10,
   },
   progressTrack: {
-    height: 6,
-    backgroundColor: "#333",
-    borderRadius: 3,
-    marginTop: 10,
+    height: 5,
+    backgroundColor: Colours.cardHighlight,
+    borderRadius: 20,
     overflow: "hidden",
   },
   progressFill: {
     width: "60%",
     height: "100%",
     backgroundColor: Colours.brand,
-    borderRadius: 3,
+    borderRadius: 20,
   },
   lockButton: {
     backgroundColor: Colours.brand,
     borderRadius: 10,
-    paddingVertical: 12,
+    height: 36,
     alignItems: "center",
-    marginTop: 12,
+    justifyContent: "center",
+    marginTop: "auto",
   },
   lockButtonText: {
     color: Colours.text,
-    fontFamily: Fonts.semiBold,
+    fontFamily: Fonts.bold,
     fontSize: 14,
-    letterSpacing: 1,
   },
 });
