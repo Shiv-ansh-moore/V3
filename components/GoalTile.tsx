@@ -19,8 +19,7 @@ export default function GoalTile({ icon, title, duration, status, size }: GoalTi
       style={[
         styles.tile,
         size === "large" ? styles.large : styles.small,
-        isDone && styles.doneTile,
-        !isDone && styles.activeBorder,
+        isDone ? styles.doneTile : styles.activeBorder,
       ]}
     >
       <View style={styles.topRow}>
@@ -47,8 +46,8 @@ export default function GoalTile({ icon, title, duration, status, size }: GoalTi
 const styles = StyleSheet.create({
   tile: {
     backgroundColor: Colours.card,
-    borderRadius: 12,
-    padding: 14,
+    borderRadius: 16,
+    padding: 16,
     justifyContent: "space-between",
   },
   small: {
@@ -60,11 +59,11 @@ const styles = StyleSheet.create({
     aspectRatio: 2.2,
   },
   activeBorder: {
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: Colours.brand,
   },
   doneTile: {
-    opacity: 0.5,
+    opacity: 0.45,
     borderWidth: 1,
     borderColor: "#222",
   },
@@ -74,13 +73,13 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
   },
   icon: {
-    fontSize: 28,
+    fontSize: 32,
   },
   checkbox: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    borderWidth: 2,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 1.5,
     borderColor: "#444",
     alignItems: "center",
     justifyContent: "center",
@@ -91,7 +90,7 @@ const styles = StyleSheet.create({
   },
   checkmark: {
     color: Colours.text,
-    fontSize: 14,
+    fontSize: 13,
     fontFamily: Fonts.bold,
   },
   bottomRow: {
@@ -110,6 +109,6 @@ const styles = StyleSheet.create({
     color: Colours.secondaryText,
     fontFamily: Fonts.regular,
     fontSize: 13,
-    marginTop: 2,
+    marginTop: 4,
   },
 });

@@ -17,7 +17,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    paddingVertical: 12,
+    paddingVertical: 14,
     paddingHorizontal: 4,
   },
   dot: {
@@ -29,6 +29,6 @@ const styles = StyleSheet.create({
   text: {
     color: Colours.secondaryText,
     fontFamily: Fonts.medium,
-    fontSize: 13,
+    fontSize: 14,
   },
 });

@@ -32,8 +32,8 @@ export default function LockCard({ appName, appIcon, timeRemaining, size }: Lock
 const styles = StyleSheet.create({
   card: {
     backgroundColor: Colours.card,
-    borderRadius: 12,
-    padding: 14,
+    borderRadius: 16,
+    padding: 16,
     borderWidth: 1,
     borderColor: "#222",
     justifyContent: "space-between",
@@ -50,7 +50,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   appIcon: {
-    fontSize: 18,
+    fontSize: 20,
   },
   appName: {
     color: Colours.secondaryText,
@@ -60,19 +60,19 @@ const styles = StyleSheet.create({
   timer: {
     color: Colours.text,
     fontFamily: Fonts.bold,
-    fontSize: 32,
+    fontSize: 36,
     marginTop: 8,
   },
   remaining: {
     color: Colours.secondaryText,
     fontFamily: Fonts.regular,
-    fontSize: 12,
+    fontSize: 11,
     marginTop: 2,
   },
   progressTrack: {
-    height: 4,
+    height: 6,
     backgroundColor: "#333",
-    borderRadius: 2,
+    borderRadius: 3,
     marginTop: 10,
     overflow: "hidden",
   },
@@ -80,18 +80,19 @@ const styles = StyleSheet.create({
     width: "60%",
     height: "100%",
     backgroundColor: Colours.brand,
-    borderRadius: 2,
+    borderRadius: 3,
   },
   lockButton: {
     backgroundColor: Colours.brand,
-    borderRadius: 8,
-    paddingVertical: 10,
+    borderRadius: 10,
+    paddingVertical: 12,
     alignItems: "center",
     marginTop: 12,
   },
   lockButtonText: {
     color: Colours.text,
     fontFamily: Fonts.semiBold,
-    fontSize: 13,
+    fontSize: 14,
+    letterSpacing: 1,
   },
 });
