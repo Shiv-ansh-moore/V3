@@ -1,35 +1,48 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
 ## Project Overview
 
-V3App is a React Native mobile app built with Expo (SDK 54), TypeScript, and Expo Router. Targets iOS, Android, and web. New Architecture is enabled.
+V3App is a React Native accountability app built with Expo (SDK 54), TypeScript, and Expo Router.
 
 ## Commands
 
-- `npm start` — Start Expo dev server
-- `npm run ios` — Run on iOS simulator
-- `npm run android` — Run on Android emulator
-- `npm run web` — Run web version
-- `npm run lint` — Run ESLint (via `expo lint`)
-
-No test framework is configured yet.
+- npm start — Start Expo dev server
+- npm run lint — Run ESLint
 
 ## Architecture
 
-**Routing**: Expo Router with file-based routing in `app/`. Entry point is `app/_layout.tsx` (loads fonts, wraps app) → `app/index.tsx` (main screen).
+- Routing: Expo Router with file-based routing in app/
+- Navigation: Swipeable pager (react-native-pager-view) with custom animated TabBar
+- Design tokens: constants/Colours.ts and constants/Fonts.ts
+- Components: Functional components with hooks, StyleSheet.create for styles
 
-**Navigation**: Swipeable pager (`react-native-pager-view`) with a custom animated `TabBar` component. Scroll position is tracked via `Animated.Value` and shared between the pager and tab bar for coordinated animations.
+## Design System
 
-**Design tokens**: Centralized in `constants/` — `Colours.ts` (dark theme, brand orange #FF6A00) and `Fonts.ts` (Inter font family, 9 weights).
+- Accent: Electric Orange #FF6B00
+- Background: #0A0A0A
+- Card: #1A1A1A with #222 border
+- Text: #FFFFFF primary, #878787 secondary
+- Font: Inter — 400 body, 500 secondary, 600 buttons/tabs, 700 headers
+- Use fontFamily not fontWeight (named font variants handle weight)
+- British English spelling (Colours not Colors)
 
-**Components**: Functional components with hooks. Styles defined locally with `StyleSheet.create()`. Props typed via interfaces.
+## Tools
 
-## Key Conventions
+- Figma MCP connected — read design specs directly from Figma
+- Figma file: https://www.figma.com/design/VniPdOVHf8qEUqznNJYWgd/demo
 
-- Dark theme with orange (#FF6A00) as the brand/accent color
-- Inter font loaded from `@expo-google-fonts/inter` at app startup
-- Portrait orientation only
-- Safe area handling via `react-native-safe-area-context`
-- British English spelling in code (e.g. `Colours` not `Colors`)
+## Conventions
+
+- Functional components only
+- StyleSheet.create for all styles (no inline styles)
+- No descriptions on goal tiles — just icon + title
+- Dark theme, portrait only
+
+## App Concept
+
+- Accountability app for friend groups (max 7 people)
+- Two pages: Personal (bento grid of goals) and Social (group chat)
+- Goals are proof-based (camera → photo submission)
+- Screen time locks are separate from goals (timer + lock card)
+- Lock tiles always on top, goals in middle, done at bottom
+- All messages left-aligned on social page (group chat style)
