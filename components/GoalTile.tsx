@@ -2,7 +2,7 @@ import React from "react";
 import { View, Text, StyleSheet, Dimensions } from "react-native";
 import { Colours } from "../constants/Colours";
 import { Fonts } from "../constants/Fonts";
-import GoalIcon from "./GoalIcon";
+import GoalIcon from "./GoalIconLucide";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 const GRID_PADDING = 19;
