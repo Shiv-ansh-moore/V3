@@ -35,7 +35,7 @@ export default function GoalIcon({
   name,
   size = 24,
   color = "#b24a00",
-  weight = "duotone",
+  weight = "light",
 }: GoalIconProps) {
   const IconComponent = iconMap[name];
   if (!IconComponent) return null;
