@@ -21,15 +21,16 @@ export default function GoalTile({
   if (status === "done") {
     return (
       <View>
-        <Text style={styles.testColour}>done Goal</Text>
         <GoalIcon name={icon} />
+        <Text style={styles.testColour}>done Goal</Text>
       </View>
     );
   }
   return (
     <View>
-      <Text style={styles.testColour}>Active Goal</Text>
       <GoalIcon name={icon} />
+      <Text style={styles.testColour}>{title}</Text>
+      {duration && <Text style={styles.testColour}>{duration}</Text>}
     </View>
   );
 }
