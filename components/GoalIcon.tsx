@@ -1,15 +1,46 @@
-import { StyleSheet, Text, View } from "react-native";
 import React from "react";
-import { HorseIcon, HeartIcon, CubeIcon } from "phosphor-react-native";
+import {
+  BarbellIcon,
+  MusicNoteIcon,
+  BookOpenIcon,
+  CodeIcon,
+  FilmSlateIcon,
+  ShowerIcon,
+  FlowerIcon,
+  InstagramLogoIcon,
+  TiktokLogoIcon,
+} from "phosphor-react-native";
+import type { IconWeight } from "phosphor-react-native";
 
-export default function GoalIcon() {
-  return (
-    <View>
-      <HorseIcon color="white" />
-      <HeartIcon color="#AE2983" weight="fill" size={32} />
-      <CubeIcon color="teal" weight="duotone" />
-    </View>
-  );
+const iconMap: Record<
+  string,
+  React.ComponentType<{ size?: number; color?: string; weight?: IconWeight }>
+> = {
+  BarbellIcon,
+  MusicNoteIcon,
+  BookOpenIcon,
+  CodeIcon,
+  FilmSlateIcon,
+  ShowerIcon,
+  FlowerIcon,
+  InstagramLogoIcon,
+  TiktokLogoIcon,
+};
+
+interface GoalIconProps {
+  name: string;
+  size?: number;
+  color?: string;
+  weight?: IconWeight;
 }
 
-const styles = StyleSheet.create({});
+export default function GoalIcon({
+  name,
+  size = 24,
+  color = "#b24a00",
+  weight = "light",
+}: GoalIconProps) {
+  const IconComponent = iconMap[name];
+  if (!IconComponent) return null;
+  return <IconComponent size={size} color={color} weight={weight} />;
+}

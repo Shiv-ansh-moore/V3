@@ -22,14 +22,14 @@ export default function GoalTile({
     return (
       <View>
         <Text style={styles.testColour}>done Goal</Text>
-        <GoalIcon />
+        <GoalIcon name={icon} />
       </View>
     );
   }
   return (
     <View>
       <Text style={styles.testColour}>Active Goal</Text>
-      <GoalIcon />
+      <GoalIcon name={icon} />
     </View>
   );
 }
