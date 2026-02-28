@@ -4,11 +4,6 @@
 
 V3App is a React Native accountability app built with Expo (SDK 54), TypeScript, and Expo Router.
 
-## Commands
-
-- npm start — Start Expo dev server
-- npm run lint — Run ESLint
-
 ## Architecture
 
 - Routing: Expo Router with file-based routing in app/

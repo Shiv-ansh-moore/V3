@@ -11,6 +11,7 @@ import {
   TiktokLogoIcon,
 } from "phosphor-react-native";
 import type { IconWeight } from "phosphor-react-native";
+import { Colours } from "../constants/Colours";
 
 const iconMap: Record<
   string,
@@ -36,8 +37,8 @@ interface GoalIconProps {
 
 export default function GoalIcon({
   name,
-  size = 24,
-  color = "#b24a00",
+  size = 40,
+  color = Colours.fadedBrand,
   weight = "light",
 }: GoalIconProps) {
   const IconComponent = iconMap[name];
