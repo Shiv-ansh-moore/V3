@@ -12,7 +12,10 @@ import {
 } from "phosphor-react-native";
 import type { IconWeight } from "phosphor-react-native";
 
-const iconMap: Record<string, React.ComponentType<{ size?: number; color?: string; weight?: IconWeight }>> = {
+const iconMap: Record<
+  string,
+  React.ComponentType<{ size?: number; color?: string; weight?: IconWeight }>
+> = {
   Barbell,
   MusicNote,
   BookOpen,
@@ -35,7 +38,7 @@ export default function GoalIcon({
   name,
   size = 24,
   color = "#b24a00",
-  weight = "light",
+  weight = "regular",
 }: GoalIconProps) {
   const IconComponent = iconMap[name];
   if (!IconComponent) return null;

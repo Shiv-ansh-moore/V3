@@ -2,7 +2,7 @@ import React from "react";
 import { View, Text, StyleSheet, Dimensions } from "react-native";
 import { Colours } from "../constants/Colours";
 import { Fonts } from "../constants/Fonts";
-import GoalIcon from "./GoalIconLucide";
+import GoalIcon from "./GoalIcon";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 const GRID_PADDING = 19;
@@ -18,7 +18,13 @@ interface GoalTileProps {
   size: "small" | "large";
 }
 
-export default function GoalTile({ icon, title, duration, status, size }: GoalTileProps) {
+export default function GoalTile({
+  icon,
+  title,
+  duration,
+  status,
+  size,
+}: GoalTileProps) {
   if (status === "done") {
     return (
       <View style={styles.doneTile}>
