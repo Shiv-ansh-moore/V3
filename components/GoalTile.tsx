@@ -10,7 +10,6 @@ interface GoalTileProps {
   title: string;
   duration?: string;
   status: "active" | "done";
-  size: "small" | "large";
 }
 
 export default function GoalTile({
