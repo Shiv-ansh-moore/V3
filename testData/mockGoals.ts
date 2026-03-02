@@ -34,12 +34,12 @@ export const mockGoals: Goal[] = [
     duration: "90 min",
     status: "active",
   },
-  {
-    id: "5",
-    icon: "FilmSlateIcon",
-    title: "Movie with Sarah",
-    status: "active",
-  },
+  // {
+  //   id: "5",
+  //   icon: "FilmSlateIcon",
+  //   title: "Movie with Sarah",
+  //   status: "active",
+  // },
   {
     id: "6",
     icon: "ShowerIcon",

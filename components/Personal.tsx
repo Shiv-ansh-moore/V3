@@ -18,6 +18,11 @@ export default function Personal() {
 
     if (length === 1) {
       result.push({ goal: activeGoals[0], size: "large" });
+    } else if (length === 4) {
+      result.push({ goal: activeGoals[0], size: "large" });
+      result.push({ goal: activeGoals[1], size: "small" });
+      result.push({ goal: activeGoals[2], size: "small" });
+      result.push({ goal: activeGoals[3], size: "large" });
     } else if (length % 3 === 0) {
       for (let i = 0; i < activeGoals.length; i++) {
         if ((i + 1) % 3 === 0) {
