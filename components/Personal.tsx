@@ -16,7 +16,9 @@ export default function Personal() {
     const result: { goal: Goal; size: "small" | "large" }[] = [];
     const length = activeGoals.length;
 
-    if (length % 3 === 0) {
+    if (length === 1) {
+      result.push({ goal: activeGoals[0], size: "large" });
+    } else if (length % 3 === 0) {
       for (let i = 0; i < activeGoals.length; i++) {
         if ((i + 1) % 3 === 0) {
           result.push({ goal: activeGoals[i], size: "large" });
@@ -25,7 +27,6 @@ export default function Personal() {
         }
       }
     } else {
-      const remainder = length % 3;
       const mainLength = length - 2;
 
       for (let i = 0; i < mainLength; i++) {
@@ -35,10 +36,8 @@ export default function Personal() {
           result.push({ goal: activeGoals[i], size: "small" });
         }
       }
-      if (remainder) {
-        result.push({ goal: activeGoals[length - 1], size: "small" });
-        result.push({ goal: activeGoals[length - 2], size: "small" });
-      }
+      result.push({ goal: activeGoals[length - 2], size: "small" });
+      result.push({ goal: activeGoals[length - 1], size: "small" });
     }
     return result;
   };
