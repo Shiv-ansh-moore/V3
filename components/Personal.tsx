@@ -40,43 +40,114 @@ export default function Personal() {
     return result;
   };
 
+  const renderActiveGoals = () => {
+    const items = buildRows();
+    const elements: React.ReactNode[] = [];
+    let i = 0;
+
+    while (i < items.length) {
+      const item = items[i];
+      if (item.size === "large") {
+        elements.push(
+          <View key={item.goal.id} style={styles.row}>
+            <GoalTile
+              icon={item.goal.icon}
+              title={item.goal.title}
+              duration={item.goal.duration}
+              status={item.goal.status}
+            />
+          </View>
+        );
+        i++;
+      } else {
+        const next = items[i + 1];
+        elements.push(
+          <View key={item.goal.id} style={styles.row}>
+            <GoalTile
+              icon={item.goal.icon}
+              title={item.goal.title}
+              duration={item.goal.duration}
+              status={item.goal.status}
+            />
+            {next && (
+              <GoalTile
+                icon={next.goal.icon}
+                title={next.goal.title}
+                duration={next.goal.duration}
+                status={next.goal.status}
+              />
+            )}
+          </View>
+        );
+        i += 2;
+      }
+    }
+    return elements;
+  };
+
+  const renderDoneGoals = () => {
+    const elements: React.ReactNode[] = [];
+    for (let i = 0; i < doneGoals.length; i += 2) {
+      const first = doneGoals[i];
+      const second = doneGoals[i + 1];
+      elements.push(
+        <View key={first.id} style={styles.row}>
+          <GoalTile
+            icon={first.icon}
+            title={first.title}
+            duration={first.duration}
+            status={first.status}
+          />
+          {second && (
+            <GoalTile
+              icon={second.icon}
+              title={second.title}
+              duration={second.duration}
+              status={second.status}
+            />
+          )}
+        </View>
+      );
+    }
+    return elements;
+  };
+
   return (
-    <ScrollView>
-      {activeGoals.map((goal) => (
-        <GoalTile
-          key={goal.id}
-          icon={goal.icon}
-          title={goal.title}
-          duration={goal.duration}
-          status={goal.status}
-        />
-      ))}
+    <ScrollView contentContainerStyle={styles.content}>
+      <View style={styles.grid}>
+        {renderActiveGoals()}
+      </View>
+
       <View style={styles.dividerRow}>
         <View style={styles.dividerLine} />
         <Text style={styles.dividerText}>DONE TODAY</Text>
         <View style={styles.dividerLine} />
       </View>
 
-      <View>
-        {doneGoals.map((goal) => (
-          <GoalTile
-            key={goal.id}
-            icon={goal.icon}
-            title={goal.title}
-            duration={goal.duration}
-            status={goal.status}
-          />
-        ))}
+      <View style={styles.grid}>
+        {renderDoneGoals()}
       </View>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
+  content: {
+    paddingHorizontal: 19,
+    paddingBottom: 100,
+  },
+  grid: {
+    gap: 12,
+  },
+  row: {
+    flexDirection: "row",
+    gap: 12,
+  },
   dividerRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
+    marginVertical: 12,
   },
   dividerLine: {
     flex: 1,
