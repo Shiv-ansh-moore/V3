@@ -1,7 +1,10 @@
 import { StyleSheet, Text, View, ScrollView } from "react-native";
 import React from "react";
 import { mockGoals, Goal } from "../testData/mockGoals";
+import { mockLocks } from "../testData/mockLocks";
 import GoalTile from "./GoalTile";
+import LockCard from "./LockCard";
+import ScreenTimeBanner from "./ScreenTimeBanner";
 import { Colours } from "../constants/Colours";
 import { Fonts } from "../constants/Fonts";
 
@@ -85,6 +88,37 @@ export default function Personal() {
     return elements;
   };
 
+  const renderLocks = () => {
+    if (mockLocks.length === 0) {
+      return <ScreenTimeBanner />;
+    }
+
+    const elements: React.ReactNode[] = [];
+    for (let i = 0; i < mockLocks.length; i += 2) {
+      const first = mockLocks[i];
+      const second = mockLocks[i + 1];
+      elements.push(
+        <View key={first.id} style={styles.row}>
+          <LockCard
+            appName={first.appName}
+            appIcon={first.appIcon}
+            timeLimit={first.timeLimit}
+            timeUsed={first.timeUsed}
+          />
+          {second && (
+            <LockCard
+              appName={second.appName}
+              appIcon={second.appIcon}
+              timeLimit={second.timeLimit}
+              timeUsed={second.timeUsed}
+            />
+          )}
+        </View>
+      );
+    }
+    return <View style={styles.lockSection}>{elements}</View>;
+  };
+
   const renderDoneGoals = () => {
     const elements: React.ReactNode[] = [];
     for (let i = 0; i < doneGoals.length; i += 2) {
@@ -114,6 +148,8 @@ export default function Personal() {
 
   return (
     <ScrollView contentContainerStyle={styles.content}>
+      {renderLocks()}
+
       <View style={styles.grid}>
         {renderActiveGoals()}
       </View>
@@ -135,6 +171,10 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: 19,
     paddingBottom: 100,
+  },
+  lockSection: {
+    gap: 12,
+    marginBottom: 12,
   },
   grid: {
     gap: 12,

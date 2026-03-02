@@ -2,23 +2,23 @@ export interface Lock {
   id: string;
   appName: string;
   appIcon: string;
-  timeRemaining: string;
-  size: "small" | "large";
+  timeLimit: number;
+  timeUsed: number;
 }
 
 export const mockLocks: Lock[] = [
   {
     id: "l1",
     appName: "Instagram",
-    appIcon: "InstagramLogo",
-    timeRemaining: "28:00",
-    size: "small",
+    appIcon: "InstagramLogoIcon",
+    timeLimit: 36,
+    timeUsed: 8,
   },
   {
     id: "l2",
     appName: "TikTok",
-    appIcon: "TiktokLogo",
-    timeRemaining: "2:33",
-    size: "small",
+    appIcon: "TiktokLogoIcon",
+    timeLimit: 13,
+    timeUsed: 10.5,
   },
 ];
