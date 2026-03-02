@@ -63,7 +63,7 @@ export default function Personal() {
               duration={item.goal.duration}
               status={item.goal.status}
             />
-          </View>
+          </View>,
         );
         i++;
       } else {
@@ -84,7 +84,7 @@ export default function Personal() {
                 status={next.goal.status}
               />
             )}
-          </View>
+          </View>,
         );
         i += 2;
       }
@@ -117,7 +117,7 @@ export default function Personal() {
               timeUsed={second.timeUsed}
             />
           )}
-        </View>
+        </View>,
       );
     }
     return <View style={styles.lockSection}>{elements}</View>;
@@ -144,7 +144,7 @@ export default function Personal() {
               status={second.status}
             />
           )}
-        </View>
+        </View>,
       );
     }
     return elements;
@@ -154,9 +154,7 @@ export default function Personal() {
     <ScrollView contentContainerStyle={styles.content}>
       {renderLocks()}
 
-      <View style={styles.grid}>
-        {renderActiveGoals()}
-      </View>
+      <View style={styles.grid}>{renderActiveGoals()}</View>
 
       <View style={styles.dividerRow}>
         <View style={styles.dividerLine} />
@@ -164,9 +162,7 @@ export default function Personal() {
         <View style={styles.dividerLine} />
       </View>
 
-      <View style={styles.grid}>
-        {renderDoneGoals()}
-      </View>
+      <View style={styles.grid}>{renderDoneGoals()}</View>
     </ScrollView>
   );
 }
