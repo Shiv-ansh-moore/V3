@@ -18,7 +18,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    paddingVertical: 12,
+    marginBottom: 8,
   },
   dot: {
     width: 8,

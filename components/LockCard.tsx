@@ -56,7 +56,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 14,
     gap: 6,
-    marginTop: 8,
   },
   iconBox: {
     width: 40,

@@ -1,5 +1,11 @@
 import React, { useState } from "react";
-import { Animated, Pressable, View, StyleSheet, LayoutChangeEvent } from "react-native";
+import {
+  Animated,
+  Pressable,
+  View,
+  StyleSheet,
+  LayoutChangeEvent,
+} from "react-native";
 import { Colours } from "../constants/Colours";
 import { Fonts } from "../constants/Fonts";
 
@@ -96,6 +102,7 @@ export default function TabBar({
 const styles = StyleSheet.create({
   container: {
     paddingVertical: 0,
+    marginBottom: 8,
   },
   tabsRow: {
     flexDirection: "row",
