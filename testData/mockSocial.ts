@@ -4,7 +4,9 @@ export interface SocialUser {
   id: string;
   name: string;
   hasNewContent: boolean;
+  color: string;
 }
+
 
 export interface Reaction {
   userId: string;
@@ -58,12 +60,14 @@ export type FeedItem = ChatMessage | ActivityEvent | CompletedGoal;
 // ─── Users ────────────────────────────────────────────────
 
 export const socialUsers: SocialUser[] = [
-  { id: "u1", name: "Kevin", hasNewContent: true },
-  { id: "u2", name: "Ben", hasNewContent: true },
-  { id: "u3", name: "Sarah", hasNewContent: true },
-  { id: "u4", name: "Sloggo", hasNewContent: false },
-  { id: "u5", name: "Pierce", hasNewContent: false },
+  { id: "u6", name: "Jamal", hasNewContent: true, color: "#FF6B6B" },
+  { id: "u1", name: "Kevin", hasNewContent: true, color: "#4ECDC4" },
+  { id: "u2", name: "Ben", hasNewContent: true, color: "#A78BFA" },
+  { id: "u3", name: "Sarah", hasNewContent: true, color: "#F778BA" },
+  { id: "u4", name: "Sloggo", hasNewContent: false, color: "#FFCA28" },
+  { id: "u5", name: "Pierce", hasNewContent: false, color: "#69F0AE" },
 ];
+
 
 // ─── Feed ─────────────────────────────────────────────────
 
