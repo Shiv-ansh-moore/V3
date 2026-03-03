@@ -1,10 +1,13 @@
+import { StyleSheet, Text, View } from "react-native";
 import React from "react";
-import { Text, View } from "react-native";
+import AvatarRow from "./AvatarRow";
 
 export default function Social() {
   return (
-    <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-      <Text style={{ color: "white", fontSize: 32 }}>Social</Text>
+    <View>
+      <AvatarRow />
     </View>
   );
 }
+
+const styles = StyleSheet.create({});
