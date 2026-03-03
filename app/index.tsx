@@ -6,34 +6,37 @@ import Personal from "../components/Personal";
 import TabBar from "../components/TabBar";
 import { Colours } from "../constants/Colours";
 import { useRef } from "react";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 export default function MyPager() {
   const scrollPosition = useRef(new Animated.Value(0)).current;
   const pagerRef = useRef<PagerView>(null);
 
   return (
-    <SafeAreaView style={styles.container}>
-      <TabBar
-        scrollPosition={scrollPosition}
-        onTabPress={(index) => pagerRef.current?.setPage(index)}
-      />
-      <PagerView
-        ref={pagerRef}
-        style={styles.container}
-        initialPage={0}
-        onPageScroll={(e) => {
-          const { position, offset } = e.nativeEvent;
-          scrollPosition.setValue(position + offset);
-        }}
-      >
-        <View key="0">
-          <Personal />
-        </View>
-        <View key="1">
-          <Social />
-        </View>
-      </PagerView>
-    </SafeAreaView>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaView style={styles.container}>
+        <TabBar
+          scrollPosition={scrollPosition}
+          onTabPress={(index) => pagerRef.current?.setPage(index)}
+        />
+        <PagerView
+          ref={pagerRef}
+          style={styles.container}
+          initialPage={0}
+          onPageScroll={(e) => {
+            const { position, offset } = e.nativeEvent;
+            scrollPosition.setValue(position + offset);
+          }}
+        >
+          <View key="0">
+            <Personal />
+          </View>
+          <View key="1">
+            <Social />
+          </View>
+        </PagerView>
+      </SafeAreaView>
+    </GestureHandlerRootView>
   );
 }
 
