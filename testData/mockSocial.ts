@@ -271,4 +271,86 @@ export const socialFeed: FeedItem[] = [
       { userId: "u4", emoji: "😂" },
     ],
   },
+
+  // Kevin goes on a motivational rant (back-to-back x3)
+  {
+    kind: "message",
+    id: "m8",
+    userId: "u1",
+    text: "You guys don't understand I'm literally on my villain arc rn",
+    timestamp: "13:01",
+  },
+  {
+    kind: "message",
+    id: "m9",
+    userId: "u1",
+    text: "Main character energy only from now on",
+    timestamp: "13:01",
+  },
+  {
+    kind: "message",
+    id: "m10",
+    userId: "u1",
+    text: "Watch me lock in so hard you won't even recognise me by Friday 🐺",
+    timestamp: "13:02",
+    reactions: [
+      { userId: "u2", emoji: "💀" },
+      { userId: "u3", emoji: "😭" },
+    ],
+  },
+
+  // Kevin returns later with more wisdom (back-to-back x3)
+  {
+    kind: "message",
+    id: "m11",
+    userId: "u1",
+    text: "Just did 10 push ups. The grind doesn't stop",
+    timestamp: "15:30",
+    reactions: [
+      { userId: "u5", emoji: "🤡" },
+    ],
+  },
+  {
+    kind: "message",
+    id: "m12",
+    userId: "u1",
+    text: "Sigma rule #47: outwork everyone in the group chat",
+    timestamp: "15:30",
+  },
+  {
+    kind: "message",
+    id: "m13",
+    userId: "u1",
+    text: "I'm actually so locked in rn it's scary 😤🔒",
+    timestamp: "15:31",
+    reactions: [
+      { userId: "u2", emoji: "📱" },
+      { userId: "u3", emoji: "🤥" },
+      { userId: "u4", emoji: "💀" },
+    ],
+  },
+
+  // Jamal finally speaks up
+  {
+    kind: "message",
+    id: "m14",
+    userId: "u6",
+    text: "Kevin you are genuinely the weirdest person I know",
+    timestamp: "15:35",
+    reactions: [
+      { userId: "u2", emoji: "😂" },
+      { userId: "u3", emoji: "📠" },
+    ],
+  },
+  {
+    kind: "message",
+    id: "m15",
+    userId: "u6",
+    text: "Sigma rule #47 bro go outside 😭",
+    timestamp: "15:35",
+    reactions: [
+      { userId: "u5", emoji: "💀" },
+      { userId: "u4", emoji: "😂" },
+    ],
+  },
 ];
