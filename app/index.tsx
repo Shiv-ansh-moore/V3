@@ -5,11 +5,12 @@ import Social from "../components/Social";
 import Personal from "../components/Personal";
 import TabBar from "../components/TabBar";
 import { Colours } from "../constants/Colours";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 
 export default function MyPager() {
   const scrollPosition = useRef(new Animated.Value(0)).current;
   const pagerRef = useRef<PagerView>(null);
+  const [isPagerScrollEnabled, setIsPagerScrollEnabled] = useState(true);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -21,6 +22,7 @@ export default function MyPager() {
         ref={pagerRef}
         style={styles.container}
         initialPage={0}
+        scrollEnabled={isPagerScrollEnabled}
         onPageScroll={(e) => {
           const { position, offset } = e.nativeEvent;
           scrollPosition.setValue(position + offset);
@@ -30,7 +32,7 @@ export default function MyPager() {
           <Personal />
         </View>
         <View key="1">
-          <Social />
+          <Social setIsPagerScrollEnabled={setIsPagerScrollEnabled} />
         </View>
       </PagerView>
     </SafeAreaView>

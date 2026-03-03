@@ -2,10 +2,14 @@ import { StyleSheet, Text, View } from "react-native";
 import React from "react";
 import AvatarRow from "./AvatarRow";
 
-export default function Social() {
+interface SocialProps {
+  setIsPagerScrollEnabled: (enabled: boolean) => void;
+}
+
+export default function Social({ setIsPagerScrollEnabled }: SocialProps) {
   return (
     <View>
-      <AvatarRow />
+      <AvatarRow setIsPagerScrollEnabled={setIsPagerScrollEnabled} />
     </View>
   );
 }

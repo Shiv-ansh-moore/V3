@@ -1,9 +1,22 @@
 import { StyleSheet, Text, View, ScrollView } from "react-native";
 import React from "react";
 
-export default function AvatarRow() {
+interface AvatarRowProps {
+  setIsPagerScrollEnabled: (enabled: boolean) => void;
+}
+
+export default function AvatarRow({ setIsPagerScrollEnabled }: AvatarRowProps) {
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      directionalLockEnabled
+      onTouchStart={() => setIsPagerScrollEnabled(false)}
+      onTouchEnd={() => setIsPagerScrollEnabled(true)}
+      onTouchCancel={() => setIsPagerScrollEnabled(true)}
+      onMomentumScrollEnd={() => setIsPagerScrollEnabled(true)}
+      onScrollEndDrag={() => setIsPagerScrollEnabled(true)}
+    >
       <View>
         <View style={styles.avatarRing}></View>
       </View>
