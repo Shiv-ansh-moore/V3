@@ -2,6 +2,7 @@ import { StyleSheet, View } from "react-native";
 import React from "react";
 import AvatarRow from "./AvatarRow";
 import ChatBubble, { BubblePosition } from "./ChatBubble";
+import CompletedCard from "./CompletedCard";
 import ScreenTimeLog from "./ScreenTimeLog";
 import MessageInput from "./MessageInput";
 import { ScrollView } from "react-native-gesture-handler";
@@ -68,6 +69,18 @@ export default function Social() {
                   text={item.text}
                   position={getMessagePosition(socialFeed, index)}
                   afterActivity={prev?.kind === "activity"}
+                />
+              );
+            }
+
+            if (item.kind === "completed") {
+              return (
+                <CompletedCard
+                  key={item.id}
+                  name={getUserName(item.userId)}
+                  nameColour={getUserColour(item.userId)}
+                  goalTitle={item.goalTitle}
+                  photoUri={item.photoUri}
                 />
               );
             }
