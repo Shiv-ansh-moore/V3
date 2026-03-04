@@ -1,7 +1,7 @@
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
-import { Colours } from "../constants/Colours";
-import { Fonts } from "../constants/Fonts";
+import { Colours } from "../../constants/Colours";
+import { Fonts } from "../../constants/Fonts";
 
 export default function ScreenTimeBanner() {
   return (

@@ -2,9 +2,9 @@ import { StyleSheet, Text, View, ScrollView } from "react-native";
 import React from "react";
 import { mockGoals, Goal } from "../testData/mockGoals";
 import { mockLocks } from "../testData/mockLocks";
-import GoalTile from "./GoalTile";
-import LockCard from "./LockCard";
-import ScreenTimeBanner from "./ScreenTimeBanner";
+import GoalTile from "./personal/GoalTile";
+import LockCard from "./personal/LockCard";
+import ScreenTimeBanner from "./personal/ScreenTimeBanner";
 import { Colours } from "../constants/Colours";
 import { Fonts } from "../constants/Fonts";
 

@@ -1,7 +1,7 @@
 import { Image, StyleSheet, Text, View } from "react-native";
 import React from "react";
-import { Colours } from "../constants/Colours";
-import { Fonts } from "../constants/Fonts";
+import { Colours } from "../../constants/Colours";
+import { Fonts } from "../../constants/Fonts";
 
 interface CompletedCardProps {
   name: string;

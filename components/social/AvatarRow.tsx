@@ -1,9 +1,9 @@
 import { StyleSheet, Text, View } from "react-native";
 import { ScrollView } from "react-native-gesture-handler";
-import { Fonts } from "../constants/Fonts";
-import { socialUsers } from "../testData/mockSocial";
+import { Fonts } from "../../constants/Fonts";
+import { socialUsers } from "../../testData/mockSocial";
 import React from "react";
-import { Colours } from "../constants/Colours";
+import { Colours } from "../../constants/Colours";
 
 const AVATAR_SIZE = 64;
 const BORDER_WIDTH = 2;

@@ -1,8 +1,8 @@
 import { StyleSheet, TextInput, View, Pressable } from "react-native";
 import React, { useState } from "react";
 import { PaperPlaneTiltIcon, PlusIcon } from "phosphor-react-native";
-import { Colours } from "../constants/Colours";
-import { Fonts } from "../constants/Fonts";
+import { Colours } from "../../constants/Colours";
+import { Fonts } from "../../constants/Fonts";
 
 export default function MessageInput() {
   const [text, setText] = useState("");

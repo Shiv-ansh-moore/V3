@@ -11,7 +11,7 @@ import {
   TiktokLogoIcon,
 } from "phosphor-react-native";
 import type { IconWeight } from "phosphor-react-native";
-import { Colours } from "../constants/Colours";
+import { Colours } from "../../constants/Colours";
 
 const iconMap: Record<
   string,

@@ -1,10 +1,10 @@
 import { StyleSheet, View } from "react-native";
 import React from "react";
-import AvatarRow from "./AvatarRow";
-import ChatBubble, { BubblePosition } from "./ChatBubble";
-import CompletedCard from "./CompletedCard";
-import ScreenTimeLog from "./ScreenTimeLog";
-import MessageInput from "./MessageInput";
+import AvatarRow from "./social/AvatarRow";
+import ChatBubble, { BubblePosition } from "./social/ChatBubble";
+import CompletedCard from "./social/CompletedCard";
+import ScreenTimeLog from "./social/ScreenTimeLog";
+import MessageInput from "./social/MessageInput";
 import { ScrollView } from "react-native-gesture-handler";
 import { Colours } from "../constants/Colours";
 import {

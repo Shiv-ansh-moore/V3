@@ -1,8 +1,8 @@
 import { StyleSheet, Text, View, ViewStyle } from "react-native";
 import React from "react";
-import { Fonts } from "../constants/Fonts";
-import { Colours } from "../constants/Colours";
-import ReplyQuote, { ReplyQuoteProps } from "./social/ReplyQuote";
+import { Fonts } from "../../constants/Fonts";
+import { Colours } from "../../constants/Colours";
+import ReplyQuote, { ReplyQuoteProps } from "./ReplyQuote";
 
 const RADIUS = 10;
 
