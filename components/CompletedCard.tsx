@@ -8,6 +8,7 @@ interface CompletedCardProps {
   nameColour: string;
   goalTitle: string;
   photoUri: string | null;
+  timestamp: string;
 }
 
 export default function CompletedCard({
@@ -15,10 +16,14 @@ export default function CompletedCard({
   nameColour,
   goalTitle,
   photoUri,
+  timestamp,
 }: CompletedCardProps) {
   return (
     <View style={styles.container}>
-      <Text style={[styles.name, { color: nameColour }]}>{name}</Text>
+      <View style={styles.nameRow}>
+        <Text style={[styles.name, { color: nameColour }]}>{name}</Text>
+        <Text style={styles.timestamp}>{timestamp}</Text>
+      </View>
       <Text style={styles.completed}>Completed</Text>
       <View style={styles.imageWrapper}>
         {photoUri ? (
@@ -43,9 +48,19 @@ const styles = StyleSheet.create({
     alignSelf: "flex-start",
     marginTop: 12,
   },
+  nameRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
   name: {
     fontFamily: Fonts.medium,
     fontSize: 13,
+  },
+  timestamp: {
+    fontFamily: Fonts.regular,
+    fontSize: 11,
+    color: Colours.secondaryText,
   },
   completed: {
     fontFamily: Fonts.regular,

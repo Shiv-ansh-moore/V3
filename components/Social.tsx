@@ -66,6 +66,7 @@ function buildReplyTo(item: ChatMessage): ReplyQuoteProps | undefined {
     userColour: getUserColour(ref.userId),
     text,
     timestamp: ref.kind !== "activity" ? ref.timestamp : undefined,
+    photoUri: ref.kind === "completed" ? ref.photoUri : undefined,
   };
 }
 
@@ -115,6 +116,7 @@ export default function Social() {
                   nameColour={getUserColour(item.userId)}
                   goalTitle={item.goalTitle}
                   photoUri={item.photoUri}
+                  timestamp={item.timestamp}
                 />
               );
             }
