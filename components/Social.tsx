@@ -58,7 +58,9 @@ function buildReplyTo(item: ChatMessage): ReplyQuoteProps | undefined {
   } else if (ref.kind === "completed") {
     text = `Completed ${ref.goalTitle} ✅`;
   } else {
-    text = `${ref.type} ${ref.app} for ${ref.duration}`;
+    text = ref.type === "unlock"
+      ? `unlocked ${ref.app} for ${ref.duration}`
+      : `locked ${ref.app} after ${ref.duration}`;
   }
 
   return {
@@ -67,6 +69,7 @@ function buildReplyTo(item: ChatMessage): ReplyQuoteProps | undefined {
     text,
     timestamp: ref.kind !== "activity" ? ref.timestamp : undefined,
     photoUri: ref.kind === "completed" ? ref.photoUri : undefined,
+    activityType: ref.kind === "activity" ? ref.type : undefined,
   };
 }
 

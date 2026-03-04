@@ -1,5 +1,6 @@
 import { Image, StyleSheet, Text, View } from "react-native";
 import React from "react";
+import { LockSimpleIcon, LockSimpleOpenIcon } from "phosphor-react-native";
 import { Fonts } from "../../constants/Fonts";
 import { Colours } from "../../constants/Colours";
 
@@ -9,6 +10,7 @@ export interface ReplyQuoteProps {
   text: string;
   timestamp?: string;
   photoUri?: string | null;
+  activityType?: "lock" | "unlock";
 }
 
 function TextQuote({ userName, userColour, text, timestamp }: ReplyQuoteProps) {
@@ -52,7 +54,33 @@ function PhotoQuote({
   );
 }
 
+function ActivityQuote({
+  userName,
+  userColour,
+  text,
+  activityType,
+}: ReplyQuoteProps) {
+  return (
+    <View style={styles.container}>
+      <View style={styles.activityIcon}>
+        {activityType === "lock" ? (
+          <LockSimpleIcon size={16} color={Colours.secondaryText} weight="fill" />
+        ) : (
+          <LockSimpleOpenIcon size={16} color={Colours.secondaryText} weight="fill" />
+        )}
+      </View>
+      <Text style={styles.activityLine} numberOfLines={1}>
+        <Text style={[styles.name, { color: userColour }]}>{userName} </Text>
+        <Text style={styles.text}>{text}</Text>
+      </Text>
+    </View>
+  );
+}
+
 export default function ReplyQuote(props: ReplyQuoteProps) {
+  if (props.activityType) {
+    return <ActivityQuote {...props} />;
+  }
   if (props.photoUri !== undefined) {
     return <PhotoQuote {...props} />;
   }
@@ -91,6 +119,15 @@ const styles = StyleSheet.create({
     color: Colours.secondaryText,
   },
   text: {
+    fontFamily: Fonts.regular,
+    fontSize: 12,
+    color: Colours.secondaryText,
+  },
+  activityIcon: {
+    alignSelf: "center",
+    marginBottom: 2,
+  },
+  activityLine: {
     fontFamily: Fonts.regular,
     fontSize: 12,
     color: Colours.secondaryText,
