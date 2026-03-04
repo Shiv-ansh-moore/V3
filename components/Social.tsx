@@ -7,7 +7,13 @@ import ScreenTimeLog from "./ScreenTimeLog";
 import MessageInput from "./MessageInput";
 import { ScrollView } from "react-native-gesture-handler";
 import { Colours } from "../constants/Colours";
-import { FeedItem, socialFeed, socialUsers } from "../testData/mockSocial";
+import {
+  ChatMessage,
+  FeedItem,
+  socialFeed,
+  socialUsers,
+} from "../testData/mockSocial";
+import { ReplyQuoteProps } from "./social/ReplyQuote";
 
 function getUserName(userId: string): string {
   return socialUsers.find((u) => u.id === userId)?.name ?? "Unknown";
@@ -23,18 +29,44 @@ function getMessagePosition(feed: FeedItem[], index: number): BubblePosition {
   const current = feed[index];
   if (current.kind !== "message") return "standalone";
 
+  // Reply messages always break the grouping chain
+  if (current.replyToId) return "standalone";
+
   const prev = feed[index - 1];
   const next = feed[index + 1];
 
   const sameAsPrev =
-    prev?.kind === "message" && prev.userId === current.userId;
+    prev?.kind === "message" && !prev.replyToId && prev.userId === current.userId;
   const sameAsNext =
-    next?.kind === "message" && next.userId === current.userId;
+    next?.kind === "message" && !next.replyToId && next.userId === current.userId;
 
   if (sameAsPrev && sameAsNext) return "middle";
   if (sameAsPrev) return "last";
   if (sameAsNext) return "first";
   return "standalone";
+}
+
+function buildReplyTo(item: ChatMessage): ReplyQuoteProps | undefined {
+  if (!item.replyToId) return undefined;
+
+  const ref = socialFeed.find((i) => i.id === item.replyToId);
+  if (!ref) return undefined;
+
+  let text: string;
+  if (ref.kind === "message") {
+    text = ref.text;
+  } else if (ref.kind === "completed") {
+    text = `Completed ${ref.goalTitle} ✅`;
+  } else {
+    text = `${ref.type} ${ref.app} for ${ref.duration}`;
+  }
+
+  return {
+    userName: getUserName(ref.userId),
+    userColour: getUserColour(ref.userId),
+    text,
+    timestamp: ref.kind !== "activity" ? ref.timestamp : undefined,
+  };
 }
 
 export default function Social() {
@@ -67,8 +99,10 @@ export default function Social() {
                   name={getUserName(item.userId)}
                   nameColour={getUserColour(item.userId)}
                   text={item.text}
+                  timestamp={item.timestamp}
                   position={getMessagePosition(socialFeed, index)}
                   afterActivity={prev?.kind === "activity"}
+                  replyTo={buildReplyTo(item)}
                 />
               );
             }

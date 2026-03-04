@@ -28,7 +28,7 @@ export interface ChatMessage {
   text: string;
   timestamp: string;
   reactions?: Reaction[];
-  replies?: Reply[];
+  replyToId?: string;
 }
 
 export interface ActivityEvent {
@@ -41,7 +41,6 @@ export interface ActivityEvent {
   reason?: string;
   totalTime?: string;
   reactions?: Reaction[];
-  replies?: Reply[];
 }
 
 export interface CompletedGoal {
@@ -52,7 +51,6 @@ export interface CompletedGoal {
   photoUri: string | null;
   timestamp: string;
   reactions?: Reaction[];
-  replies?: Reply[];
 }
 
 export type FeedItem = ChatMessage | ActivityEvent | CompletedGoal;
@@ -125,17 +123,17 @@ export const socialFeed: FeedItem[] = [
     userId: "u3",
     text: "What DMs Kevin",
     timestamp: "08:25",
-    replies: [
-      {
-        id: "r1",
-        userId: "u1",
-        text: "Business inquiries 😤",
-        timestamp: "08:26",
-        reactions: [
-          { userId: "u3", emoji: "🤥" },
-          { userId: "u2", emoji: "💀" },
-        ],
-      },
+  },
+  {
+    kind: "message",
+    id: "m4r1",
+    userId: "u1",
+    text: "Business inquiries 😤",
+    timestamp: "08:26",
+    replyToId: "m4",
+    reactions: [
+      { userId: "u3", emoji: "🤥" },
+      { userId: "u2", emoji: "💀" },
     ],
   },
 
@@ -175,22 +173,24 @@ export const socialFeed: FeedItem[] = [
       { userId: "u3", emoji: "💪" },
       { userId: "u5", emoji: "👏" },
     ],
-    replies: [
-      {
-        id: "r2",
-        userId: "u1",
-        text: "Lets gooo I'm heading now too",
-        timestamp: "09:32",
-      },
-      {
-        id: "r3",
-        userId: "u2",
-        text: "Sure you are",
-        timestamp: "09:33",
-        reactions: [
-          { userId: "u3", emoji: "😂" },
-        ],
-      },
+  },
+  {
+    kind: "message",
+    id: "c1r1",
+    userId: "u1",
+    text: "Lets gooo I'm heading now too",
+    timestamp: "09:32",
+    replyToId: "c1",
+  },
+  {
+    kind: "message",
+    id: "c1r2",
+    userId: "u2",
+    text: "Sure you are",
+    timestamp: "09:33",
+    replyToId: "c1r1",
+    reactions: [
+      { userId: "u3", emoji: "😂" },
     ],
   },
 
@@ -231,20 +231,22 @@ export const socialFeed: FeedItem[] = [
       { userId: "u3", emoji: "💀" },
       { userId: "u5", emoji: "🤡" },
     ],
-    replies: [
-      {
-        id: "r4",
-        userId: "u3",
-        text: "A recipe 😭",
-        timestamp: "11:50",
-      },
-      {
-        id: "r5",
-        userId: "u1",
-        text: "I got distracted ok",
-        timestamp: "11:52",
-      },
-    ],
+  },
+  {
+    kind: "message",
+    id: "a4r1",
+    userId: "u3",
+    text: "A recipe 😭",
+    timestamp: "11:50",
+    replyToId: "a4",
+  },
+  {
+    kind: "message",
+    id: "a4r2",
+    userId: "u1",
+    text: "I got distracted ok",
+    timestamp: "11:52",
+    replyToId: "a4r1",
   },
 
   // Ben drops wisdom

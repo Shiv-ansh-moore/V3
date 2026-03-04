@@ -2,6 +2,7 @@ import { StyleSheet, Text, View, ViewStyle } from "react-native";
 import React from "react";
 import { Fonts } from "../constants/Fonts";
 import { Colours } from "../constants/Colours";
+import ReplyQuote, { ReplyQuoteProps } from "./social/ReplyQuote";
 
 const RADIUS = 10;
 
@@ -11,8 +12,10 @@ interface ChatBubbleProps {
   name: string;
   nameColour: string;
   text: string;
+  timestamp: string;
   position: BubblePosition;
   afterActivity?: boolean;
+  replyTo?: ReplyQuoteProps;
 }
 
 function getBorderRadius(position: BubblePosition): ViewStyle {
@@ -47,8 +50,10 @@ export default function ChatBubble({
   name,
   nameColour,
   text,
+  timestamp,
   position,
   afterActivity,
+  replyTo,
 }: ChatBubbleProps) {
   const showName = position === "first" || position === "standalone";
   const isGrouped = position === "middle" || position === "last";
@@ -62,8 +67,12 @@ export default function ChatBubble({
       ]}
     >
       {showName && (
-        <Text style={[styles.name, { color: nameColour }]}>{name}</Text>
+        <View style={styles.nameRow}>
+          <Text style={[styles.name, { color: nameColour }]}>{name}</Text>
+          <Text style={styles.timestamp}>{timestamp}</Text>
+        </View>
       )}
+      {replyTo && <ReplyQuote {...replyTo} />}
       <Text style={styles.message}>{text}</Text>
     </View>
   );
@@ -83,9 +92,19 @@ const styles = StyleSheet.create({
   groupedGap: {
     marginTop: 2,
   },
+  nameRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
   name: {
     fontFamily: Fonts.medium,
     fontSize: 13,
+  },
+  timestamp: {
+    fontFamily: Fonts.regular,
+    fontSize: 11,
+    color: Colours.secondaryText,
   },
   message: {
     fontFamily: Fonts.regular,
