@@ -13,14 +13,6 @@ export interface Reaction {
   emoji: string;
 }
 
-export interface Reply {
-  id: string;
-  userId: string;
-  text: string;
-  timestamp: string;
-  reactions?: Reaction[];
-}
-
 export interface ChatMessage {
   kind: "message";
   id: string;
