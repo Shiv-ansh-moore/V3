@@ -151,25 +151,30 @@ export default function Personal() {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.content}>
+    <View style={styles.container}>
       {renderLocks()}
-
-      <View style={styles.grid}>{renderActiveGoals()}</View>
-
-      <View style={styles.dividerRow}>
-        <View style={styles.dividerLine} />
-        <Text style={styles.dividerText}>DONE TODAY</Text>
-        <View style={styles.dividerLine} />
-      </View>
-
-      <View style={styles.grid}>{renderDoneGoals()}</View>
-    </ScrollView>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.grid}>{renderActiveGoals()}</View>
+        <View style={styles.dividerRow}>
+          <View style={styles.dividerLine} />
+          <Text style={styles.dividerText}>DONE TODAY</Text>
+          <View style={styles.dividerLine} />
+        </View>
+        <View style={styles.grid}>{renderDoneGoals()}</View>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  content: {
+  container: {
+    flex: 1,
     paddingHorizontal: 19,
+  },
+  content: {
     paddingBottom: 100,
   },
   lockSection: {
