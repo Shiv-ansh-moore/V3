@@ -46,7 +46,7 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     padding: 9,
     alignSelf: "flex-start",
-    marginTop: 12,
+    marginTop: 8,
   },
   nameRow: {
     flexDirection: "row",

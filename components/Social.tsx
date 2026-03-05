@@ -36,9 +36,13 @@ function getMessagePosition(feed: FeedItem[], index: number): BubblePosition {
   const next = feed[index + 1];
 
   const sameAsPrev =
-    prev?.kind === "message" && !prev.replyToId && prev.userId === current.userId;
+    prev?.kind === "message" &&
+    !prev.replyToId &&
+    prev.userId === current.userId;
   const sameAsNext =
-    next?.kind === "message" && !next.replyToId && next.userId === current.userId;
+    next?.kind === "message" &&
+    !next.replyToId &&
+    next.userId === current.userId;
 
   if (sameAsPrev && sameAsNext) return "middle";
   if (sameAsPrev) return "last";
@@ -58,9 +62,10 @@ function buildReplyTo(item: ChatMessage): ReplyQuoteProps | undefined {
   } else if (ref.kind === "completed") {
     text = `Completed ${ref.goalTitle} ✅`;
   } else {
-    text = ref.type === "unlock"
-      ? `unlocked ${ref.app} for ${ref.duration}`
-      : `locked ${ref.app} after ${ref.duration}`;
+    text =
+      ref.type === "unlock"
+        ? `unlocked ${ref.app} for ${ref.duration}`
+        : `locked ${ref.app} after ${ref.duration}`;
   }
 
   return {
@@ -77,7 +82,7 @@ export default function Social() {
   return (
     <View style={styles.container}>
       <AvatarRow />
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView>
         <View style={styles.feed}>
           {socialFeed.map((item, index) => {
             if (item.kind === "activity") {
@@ -137,9 +142,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colours.background,
-  },
-  content: {
-    paddingBottom: 40,
   },
   feed: {
     paddingHorizontal: 19,
