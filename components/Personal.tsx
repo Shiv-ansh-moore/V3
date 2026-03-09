@@ -7,6 +7,7 @@ import LockCard from "./personal/LockCard";
 import ScreenTimeBanner from "./personal/ScreenTimeBanner";
 import { Colours } from "../constants/Colours";
 import { Fonts } from "../constants/Fonts";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function Personal() {
   const activeGoals = mockGoals.filter((g) => g.status === "active");
@@ -151,7 +152,7 @@ export default function Personal() {
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={["bottom", "left", "right"]}>
       {renderLocks()}
       <ScrollView
         contentContainerStyle={styles.content}
@@ -165,7 +166,7 @@ export default function Personal() {
         </View>
         <View style={styles.grid}>{renderDoneGoals()}</View>
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
 

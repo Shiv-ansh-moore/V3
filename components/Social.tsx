@@ -14,6 +14,13 @@ import {
   socialUsers,
 } from "../testData/mockSocial";
 import { ReplyQuoteProps } from "./social/ReplyQuote";
+import {
+  KeyboardAvoidingView,
+  KeyboardAwareScrollView,
+  KeyboardGestureArea,
+  KeyboardStickyView,
+  useKeyboardHandler,
+} from "react-native-keyboard-controller";
 
 function getUserName(userId: string): string {
   return socialUsers.find((u) => u.id === userId)?.name ?? "Unknown";
@@ -79,61 +86,75 @@ function buildReplyTo(item: ChatMessage): ReplyQuoteProps | undefined {
 }
 
 export default function Social() {
+  useKeyboardHandler(
+    {
+      onInteractive: (e) => {
+        "worklet";
+        console.log("hi");
+      },
+    },
+    [],
+  );
+
   return (
     <View style={styles.container}>
       <AvatarRow />
-      <ScrollView>
-        <View style={styles.feed}>
-          {socialFeed.map((item, index) => {
-            if (item.kind === "activity") {
-              return (
-                <ScreenTimeLog
-                  key={item.id}
-                  type={item.type}
-                  name={getUserName(item.userId)}
-                  nameColour={getUserColour(item.userId)}
-                  app={item.app}
-                  duration={item.duration}
-                  reason={item.reason}
-                  totalTime={item.totalTime}
-                />
-              );
-            }
+      <KeyboardGestureArea interpolator="ios" style={styles.messagesArea}>
+        <KeyboardAwareScrollView style={styles.messagesArea}>
+          <View style={styles.feed}>
+            {socialFeed.map((item, index) => {
+              if (item.kind === "activity") {
+                return (
+                  <ScreenTimeLog
+                    key={item.id}
+                    type={item.type}
+                    name={getUserName(item.userId)}
+                    nameColour={getUserColour(item.userId)}
+                    app={item.app}
+                    duration={item.duration}
+                    reason={item.reason}
+                    totalTime={item.totalTime}
+                  />
+                );
+              }
 
-            if (item.kind === "message") {
-              const prev = socialFeed[index - 1];
-              return (
-                <ChatBubble
-                  key={item.id}
-                  name={getUserName(item.userId)}
-                  nameColour={getUserColour(item.userId)}
-                  text={item.text}
-                  timestamp={item.timestamp}
-                  position={getMessagePosition(socialFeed, index)}
-                  afterActivity={prev?.kind === "activity"}
-                  replyTo={buildReplyTo(item)}
-                />
-              );
-            }
+              if (item.kind === "message") {
+                const prev = socialFeed[index - 1];
+                return (
+                  <ChatBubble
+                    key={item.id}
+                    name={getUserName(item.userId)}
+                    nameColour={getUserColour(item.userId)}
+                    text={item.text}
+                    timestamp={item.timestamp}
+                    position={getMessagePosition(socialFeed, index)}
+                    afterActivity={prev?.kind === "activity"}
+                    replyTo={buildReplyTo(item)}
+                  />
+                );
+              }
 
-            if (item.kind === "completed") {
-              return (
-                <CompletedCard
-                  key={item.id}
-                  name={getUserName(item.userId)}
-                  nameColour={getUserColour(item.userId)}
-                  goalTitle={item.goalTitle}
-                  photoUri={item.photoUri}
-                  timestamp={item.timestamp}
-                />
-              );
-            }
+              if (item.kind === "completed") {
+                return (
+                  <CompletedCard
+                    key={item.id}
+                    name={getUserName(item.userId)}
+                    nameColour={getUserColour(item.userId)}
+                    goalTitle={item.goalTitle}
+                    photoUri={item.photoUri}
+                    timestamp={item.timestamp}
+                  />
+                );
+              }
 
-            return null;
-          })}
-        </View>
-      </ScrollView>
-      <MessageInput />
+              return null;
+            })}
+          </View>
+        </KeyboardAwareScrollView>
+      </KeyboardGestureArea>
+      <KeyboardStickyView>
+        <MessageInput />
+      </KeyboardStickyView>
     </View>
   );
 }
@@ -143,6 +164,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colours.background,
   },
+  messagesArea: { flex: 1 },
   feed: {
     paddingHorizontal: 19,
   },

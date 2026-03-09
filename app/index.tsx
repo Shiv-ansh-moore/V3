@@ -14,7 +14,7 @@ export default function MyPager() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={{ top: "additive" }}>
         <TabBar
           scrollPosition={scrollPosition}
           onTabPress={(index) => pagerRef.current?.setPage(index)}
