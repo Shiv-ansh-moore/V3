@@ -21,6 +21,7 @@ import {
   KeyboardStickyView,
   useKeyboardHandler,
 } from "react-native-keyboard-controller";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 function getUserName(userId: string): string {
   return socialUsers.find((u) => u.id === userId)?.name ?? "Unknown";
@@ -86,6 +87,8 @@ function buildReplyTo(item: ChatMessage): ReplyQuoteProps | undefined {
 }
 
 export default function Social() {
+  const insets = useSafeAreaInsets();
+
   useKeyboardHandler(
     {
       onInteractive: (e) => {
@@ -97,7 +100,12 @@ export default function Social() {
   );
 
   return (
-    <View style={styles.container}>
+    <View
+      style={[
+        styles.container,
+        { paddingLeft: insets.left, paddingRight: insets.right },
+      ]}
+    >
       <AvatarRow />
       <KeyboardGestureArea interpolator="ios" style={styles.messagesArea}>
         <KeyboardAwareScrollView style={styles.messagesArea}>
@@ -152,7 +160,7 @@ export default function Social() {
           </View>
         </KeyboardAwareScrollView>
       </KeyboardGestureArea>
-      <KeyboardStickyView>
+      <KeyboardStickyView offset={{ closed: -insets.bottom, opened: 0 }}>
         <MessageInput />
       </KeyboardStickyView>
     </View>
