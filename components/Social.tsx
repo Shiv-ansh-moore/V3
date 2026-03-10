@@ -1,11 +1,11 @@
 import { StyleSheet, View, Platform } from "react-native";
-import React from "react";
+import React, { useMemo, useCallback } from "react";
 import AvatarRow from "./social/AvatarRow";
 import ChatBubble, { BubblePosition } from "./social/ChatBubble";
 import CompletedCard from "./social/CompletedCard";
 import ScreenTimeLog from "./social/ScreenTimeLog";
 import MessageInput from "./social/MessageInput";
-import { ScrollView } from "react-native-gesture-handler";
+import { FlatList } from "react-native-gesture-handler";
 import { Colours } from "../constants/Colours";
 import {
   ChatMessage,
@@ -85,6 +85,58 @@ function buildReplyTo(item: ChatMessage): ReplyQuoteProps | undefined {
 export default function Social() {
   const insets = useSafeAreaInsets();
 
+  const reversedFeed = useMemo(() => [...socialFeed].reverse(), []);
+
+  const renderItem = useCallback(
+    ({ item, index }: { item: FeedItem; index: number }) => {
+      const originalIndex = socialFeed.length - 1 - index;
+
+      if (item.kind === "activity") {
+        return (
+          <ScreenTimeLog
+            type={item.type}
+            name={getUserName(item.userId)}
+            nameColour={getUserColour(item.userId)}
+            app={item.app}
+            duration={item.duration}
+            reason={item.reason}
+            totalTime={item.totalTime}
+          />
+        );
+      }
+
+      if (item.kind === "message") {
+        const prev = socialFeed[originalIndex - 1];
+        return (
+          <ChatBubble
+            name={getUserName(item.userId)}
+            nameColour={getUserColour(item.userId)}
+            text={item.text}
+            timestamp={item.timestamp}
+            position={getMessagePosition(socialFeed, originalIndex)}
+            afterActivity={prev?.kind === "activity"}
+            replyTo={buildReplyTo(item)}
+          />
+        );
+      }
+
+      if (item.kind === "completed") {
+        return (
+          <CompletedCard
+            name={getUserName(item.userId)}
+            nameColour={getUserColour(item.userId)}
+            goalTitle={item.goalTitle}
+            photoUri={item.photoUri}
+            timestamp={item.timestamp}
+          />
+        );
+      }
+
+      return null;
+    },
+    []
+  );
+
   return (
     <KeyboardAvoidingView
       style={[
@@ -98,57 +150,14 @@ export default function Social() {
     >
       <AvatarRow />
       <KeyboardGestureArea interpolator="ios" style={styles.messagesArea}>
-        <ScrollView style={styles.messagesArea}>
-          <View style={styles.feed}>
-            {socialFeed.map((item, index) => {
-              if (item.kind === "activity") {
-                return (
-                  <ScreenTimeLog
-                    key={item.id}
-                    type={item.type}
-                    name={getUserName(item.userId)}
-                    nameColour={getUserColour(item.userId)}
-                    app={item.app}
-                    duration={item.duration}
-                    reason={item.reason}
-                    totalTime={item.totalTime}
-                  />
-                );
-              }
-
-              if (item.kind === "message") {
-                const prev = socialFeed[index - 1];
-                return (
-                  <ChatBubble
-                    key={item.id}
-                    name={getUserName(item.userId)}
-                    nameColour={getUserColour(item.userId)}
-                    text={item.text}
-                    timestamp={item.timestamp}
-                    position={getMessagePosition(socialFeed, index)}
-                    afterActivity={prev?.kind === "activity"}
-                    replyTo={buildReplyTo(item)}
-                  />
-                );
-              }
-
-              if (item.kind === "completed") {
-                return (
-                  <CompletedCard
-                    key={item.id}
-                    name={getUserName(item.userId)}
-                    nameColour={getUserColour(item.userId)}
-                    goalTitle={item.goalTitle}
-                    photoUri={item.photoUri}
-                    timestamp={item.timestamp}
-                  />
-                );
-              }
-
-              return null;
-            })}
-          </View>
-        </ScrollView>
+        <FlatList
+          data={reversedFeed}
+          renderItem={renderItem}
+          keyExtractor={(item) => item.id}
+          inverted
+          style={styles.messagesArea}
+          contentContainerStyle={styles.feed}
+        />
       </KeyboardGestureArea>
       <View style={{ paddingBottom: insets.bottom }}>
         <MessageInput />
