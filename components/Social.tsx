@@ -1,4 +1,4 @@
-import { StyleSheet, View } from "react-native";
+import { StyleSheet, View, Platform } from "react-native";
 import React from "react";
 import AvatarRow from "./social/AvatarRow";
 import ChatBubble, { BubblePosition } from "./social/ChatBubble";
@@ -16,10 +16,7 @@ import {
 import { ReplyQuoteProps } from "./social/ReplyQuote";
 import {
   KeyboardAvoidingView,
-  KeyboardAwareScrollView,
   KeyboardGestureArea,
-  KeyboardStickyView,
-  useKeyboardHandler,
 } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -37,7 +34,6 @@ function getMessagePosition(feed: FeedItem[], index: number): BubblePosition {
   const current = feed[index];
   if (current.kind !== "message") return "standalone";
 
-  // Reply messages always break the grouping chain
   if (current.replyToId) return "standalone";
 
   const prev = feed[index - 1];
@@ -89,26 +85,20 @@ function buildReplyTo(item: ChatMessage): ReplyQuoteProps | undefined {
 export default function Social() {
   const insets = useSafeAreaInsets();
 
-  useKeyboardHandler(
-    {
-      onInteractive: (e) => {
-        "worklet";
-        console.log("hi");
-      },
-    },
-    [],
-  );
-
   return (
-    <View
+    <KeyboardAvoidingView
       style={[
         styles.container,
         { paddingLeft: insets.left, paddingRight: insets.right },
       ]}
+      behavior={Platform.OS === "ios" ? "padding" : "padding"}
+      keyboardVerticalOffset={
+        Platform.OS === "ios" ? insets.top : insets.top + 15
+      }
     >
       <AvatarRow />
       <KeyboardGestureArea interpolator="ios" style={styles.messagesArea}>
-        <KeyboardAwareScrollView style={styles.messagesArea}>
+        <ScrollView style={styles.messagesArea}>
           <View style={styles.feed}>
             {socialFeed.map((item, index) => {
               if (item.kind === "activity") {
@@ -158,12 +148,12 @@ export default function Social() {
               return null;
             })}
           </View>
-        </KeyboardAwareScrollView>
+        </ScrollView>
       </KeyboardGestureArea>
-      <KeyboardStickyView offset={{ closed: -insets.bottom, opened: 0 }}>
+      <View style={{ paddingBottom: insets.bottom }}>
         <MessageInput />
-      </KeyboardStickyView>
-    </View>
+      </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -172,7 +162,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colours.background,
   },
-  messagesArea: { flex: 1 },
+  messagesArea: {
+    flex: 1,
+  },
   feed: {
     paddingHorizontal: 19,
   },
