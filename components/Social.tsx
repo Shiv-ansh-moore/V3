@@ -91,7 +91,7 @@ export default function Social() {
         styles.container,
         { paddingLeft: insets.left, paddingRight: insets.right },
       ]}
-      behavior={Platform.OS === "ios" ? "padding" : "padding"}
+      behavior={"padding"}
       keyboardVerticalOffset={
         Platform.OS === "ios" ? insets.top : insets.top + 15
       }
