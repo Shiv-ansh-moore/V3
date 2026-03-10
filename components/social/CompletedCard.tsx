@@ -1,6 +1,7 @@
 import { Image, StyleSheet, Text, View } from "react-native";
 import React from "react";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import * as Haptics from "expo-haptics";
 import { Colours } from "../../constants/Colours";
 import { Fonts } from "../../constants/Fonts";
 import ReactionRow from "./ReactionRow";
@@ -14,6 +15,7 @@ interface CompletedCardProps {
   timestamp: string;
   reactions?: Reaction[];
   onDoubleTap?: () => void;
+  onLongPress?: () => void;
 }
 
 export default function CompletedCard({
@@ -24,7 +26,16 @@ export default function CompletedCard({
   timestamp,
   reactions,
   onDoubleTap,
+  onLongPress,
 }: CompletedCardProps) {
+  const longPress = Gesture.LongPress()
+    .minDuration(400)
+    .onStart(() => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      onLongPress?.();
+    })
+    .runOnJS(true);
+
   const doubleTap = Gesture.Tap()
     .numberOfTaps(2)
     .onEnd(() => {
@@ -33,7 +44,7 @@ export default function CompletedCard({
     .runOnJS(true);
 
   return (
-    <GestureDetector gesture={doubleTap}>
+    <GestureDetector gesture={Gesture.Race(longPress, doubleTap)}>
     <View style={styles.outer}>
       <View style={styles.container}>
         <View style={styles.nameRow}>

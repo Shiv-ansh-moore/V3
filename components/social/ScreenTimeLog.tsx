@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View } from "react-native";
 import React from "react";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import * as Haptics from "expo-haptics";
 import { LockSimpleIcon, LockSimpleOpenIcon } from "phosphor-react-native";
 import { Fonts } from "../../constants/Fonts";
 import { Colours } from "../../constants/Colours";
@@ -17,6 +18,7 @@ interface ScreenTimeLogProps {
   totalTime?: string;
   reactions?: Reaction[];
   onDoubleTap?: () => void;
+  onLongPress?: () => void;
 }
 
 export default function ScreenTimeLog({
@@ -29,12 +31,21 @@ export default function ScreenTimeLog({
   totalTime,
   reactions,
   onDoubleTap,
+  onLongPress,
 }: ScreenTimeLogProps) {
   const isUnlock = type === "unlock";
   const label = isUnlock
     ? `${app} for ${duration}`
     : `${app} after ${duration}`;
   const subtitle = isUnlock && reason ? `"${reason}"` : totalTime;
+
+  const longPress = Gesture.LongPress()
+    .minDuration(400)
+    .onStart(() => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      onLongPress?.();
+    })
+    .runOnJS(true);
 
   const doubleTap = Gesture.Tap()
     .numberOfTaps(2)
@@ -44,7 +55,7 @@ export default function ScreenTimeLog({
     .runOnJS(true);
 
   return (
-    <GestureDetector gesture={doubleTap}>
+    <GestureDetector gesture={Gesture.Race(longPress, doubleTap)}>
     <View style={styles.container}>
       {isUnlock ? (
         <LockSimpleOpenIcon

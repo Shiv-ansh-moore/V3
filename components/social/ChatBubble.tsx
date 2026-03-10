@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View, ViewStyle } from "react-native";
 import React from "react";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import * as Haptics from "expo-haptics";
 import { Fonts } from "../../constants/Fonts";
 import { Colours } from "../../constants/Colours";
 import ReplyQuote, { ReplyQuoteProps } from "./ReplyQuote";
@@ -21,6 +22,7 @@ interface ChatBubbleProps {
   replyTo?: ReplyQuoteProps;
   reactions?: Reaction[];
   onDoubleTap?: () => void;
+  onLongPress?: () => void;
 }
 
 function getBorderRadius(position: BubblePosition): ViewStyle {
@@ -61,9 +63,18 @@ export default function ChatBubble({
   replyTo,
   reactions,
   onDoubleTap,
+  onLongPress,
 }: ChatBubbleProps) {
   const showName = position === "first" || position === "standalone";
   const isGrouped = position === "middle" || position === "last";
+
+  const longPress = Gesture.LongPress()
+    .minDuration(400)
+    .onStart(() => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      onLongPress?.();
+    })
+    .runOnJS(true);
 
   const doubleTap = Gesture.Tap()
     .numberOfTaps(2)
@@ -73,7 +84,7 @@ export default function ChatBubble({
     .runOnJS(true);
 
   return (
-    <GestureDetector gesture={doubleTap}>
+    <GestureDetector gesture={Gesture.Race(longPress, doubleTap)}>
       <View
         style={afterActivity ? null : isGrouped ? styles.groupedGap : styles.normalGap}
       >

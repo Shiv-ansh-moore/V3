@@ -4,6 +4,7 @@ import AvatarRow from "./social/AvatarRow";
 import ChatBubble, { BubblePosition } from "./social/ChatBubble";
 import CompletedCard from "./social/CompletedCard";
 import ScreenTimeLog from "./social/ScreenTimeLog";
+import LongPressSheet from "./social/LongPressSheet";
 import MessageInput, { ReplyInfo } from "./social/MessageInput";
 import { FlatList } from "react-native-gesture-handler";
 import { Colours } from "../constants/Colours";
@@ -105,6 +106,8 @@ export default function Social() {
   const insets = useSafeAreaInsets();
   const inputRef = useRef<TextInput>(null);
   const [replyingTo, setReplyingTo] = useState<ReplyInfo | null>(null);
+  const [sheetItem, setSheetItem] = useState<FeedItem | null>(null);
+  const [sheetVisible, setSheetVisible] = useState(false);
 
   const reversedFeed = useMemo(() => [...socialFeed].reverse(), []);
 
@@ -115,6 +118,26 @@ export default function Social() {
   const clearReply = useCallback(() => {
     setReplyingTo(null);
   }, []);
+
+  const handleLongPress = useCallback((item: FeedItem) => {
+    setSheetItem(item);
+    setSheetVisible(true);
+  }, []);
+
+  const closeSheet = useCallback(() => {
+    setSheetVisible(false);
+    setSheetItem(null);
+  }, []);
+
+  const handleSheetReact = useCallback((_emoji: string) => {
+    // Reaction handling — would add to item.reactions in a real app
+  }, []);
+
+  const handleSheetReply = useCallback(() => {
+    if (sheetItem) {
+      setReplyingTo(buildReplyInfo(sheetItem));
+    }
+  }, [sheetItem]);
 
   useEffect(() => {
     if (replyingTo) {
@@ -138,6 +161,7 @@ export default function Social() {
             totalTime={item.totalTime}
             reactions={item.reactions}
             onDoubleTap={() => handleReply(item)}
+            onLongPress={() => handleLongPress(item)}
           />
         );
       }
@@ -155,6 +179,7 @@ export default function Social() {
             replyTo={buildReplyTo(item)}
             reactions={item.reactions}
             onDoubleTap={() => handleReply(item)}
+            onLongPress={() => handleLongPress(item)}
           />
         );
       }
@@ -169,16 +194,18 @@ export default function Social() {
             timestamp={item.timestamp}
             reactions={item.reactions}
             onDoubleTap={() => handleReply(item)}
+            onLongPress={() => handleLongPress(item)}
           />
         );
       }
 
       return null;
     },
-    [handleReply]
+    [handleReply, handleLongPress]
   );
 
   return (
+    <>
     <KeyboardAvoidingView
       style={[
         styles.container,
@@ -208,6 +235,16 @@ export default function Social() {
         />
       </View>
     </KeyboardAvoidingView>
+    <LongPressSheet
+      visible={sheetVisible}
+      item={sheetItem}
+      userName={sheetItem ? getUserName(sheetItem.userId) : ""}
+      userColour={sheetItem ? getUserColour(sheetItem.userId) : ""}
+      onClose={closeSheet}
+      onReact={handleSheetReact}
+      onReply={handleSheetReply}
+    />
+    </>
   );
 }
 
