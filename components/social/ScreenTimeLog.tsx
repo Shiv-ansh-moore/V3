@@ -3,6 +3,8 @@ import React from "react";
 import { LockSimpleIcon, LockSimpleOpenIcon } from "phosphor-react-native";
 import { Fonts } from "../../constants/Fonts";
 import { Colours } from "../../constants/Colours";
+import ReactionRow from "./ReactionRow";
+import { Reaction } from "../../testData/mockSocial";
 
 interface ScreenTimeLogProps {
   type: "unlock" | "lock";
@@ -12,6 +14,7 @@ interface ScreenTimeLogProps {
   duration: string;
   reason?: string;
   totalTime?: string;
+  reactions?: Reaction[];
 }
 
 export default function ScreenTimeLog({
@@ -22,6 +25,7 @@ export default function ScreenTimeLog({
   duration,
   reason,
   totalTime,
+  reactions,
 }: ScreenTimeLogProps) {
   const isUnlock = type === "unlock";
   const label = isUnlock
@@ -48,6 +52,7 @@ export default function ScreenTimeLog({
         </Text>
       </Text>
       {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+      {reactions && <ReactionRow reactions={reactions} centred />}
     </View>
   );
 }

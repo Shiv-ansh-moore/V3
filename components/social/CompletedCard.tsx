@@ -2,6 +2,8 @@ import { Image, StyleSheet, Text, View } from "react-native";
 import React from "react";
 import { Colours } from "../../constants/Colours";
 import { Fonts } from "../../constants/Fonts";
+import ReactionRow from "./ReactionRow";
+import { Reaction } from "../../testData/mockSocial";
 
 interface CompletedCardProps {
   name: string;
@@ -9,6 +11,7 @@ interface CompletedCardProps {
   goalTitle: string;
   photoUri: string | null;
   timestamp: string;
+  reactions?: Reaction[];
 }
 
 export default function CompletedCard({
@@ -17,27 +20,35 @@ export default function CompletedCard({
   goalTitle,
   photoUri,
   timestamp,
+  reactions,
 }: CompletedCardProps) {
   return (
-    <View style={styles.container}>
-      <View style={styles.nameRow}>
-        <Text style={[styles.name, { color: nameColour }]}>{name}</Text>
-        <Text style={styles.timestamp}>{timestamp}</Text>
+    <View style={styles.outer}>
+      <View style={styles.container}>
+        <View style={styles.nameRow}>
+          <Text style={[styles.name, { color: nameColour }]}>{name}</Text>
+          <Text style={styles.timestamp}>{timestamp}</Text>
+        </View>
+        <Text style={styles.completed}>Completed</Text>
+        <View style={styles.imageWrapper}>
+          {photoUri ? (
+            <Image source={{ uri: photoUri }} style={styles.image} />
+          ) : (
+            <View style={styles.placeholder} />
+          )}
+        </View>
+        <Text style={styles.goalTitle}>{goalTitle}</Text>
       </View>
-      <Text style={styles.completed}>Completed</Text>
-      <View style={styles.imageWrapper}>
-        {photoUri ? (
-          <Image source={{ uri: photoUri }} style={styles.image} />
-        ) : (
-          <View style={styles.placeholder} />
-        )}
-      </View>
-      <Text style={styles.goalTitle}>{goalTitle}</Text>
+      {reactions && <ReactionRow reactions={reactions} />}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  outer: {
+    alignSelf: "flex-start",
+    marginTop: 8,
+  },
   container: {
     backgroundColor: Colours.card,
     borderRadius: 20,
@@ -45,8 +56,6 @@ const styles = StyleSheet.create({
     borderColor: "#000000",
     overflow: "hidden",
     padding: 9,
-    alignSelf: "flex-start",
-    marginTop: 8,
   },
   nameRow: {
     flexDirection: "row",

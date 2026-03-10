@@ -101,6 +101,7 @@ export default function Social() {
             duration={item.duration}
             reason={item.reason}
             totalTime={item.totalTime}
+            reactions={item.reactions}
           />
         );
       }
@@ -116,6 +117,7 @@ export default function Social() {
             position={getMessagePosition(socialFeed, originalIndex)}
             afterActivity={prev?.kind === "activity"}
             replyTo={buildReplyTo(item)}
+            reactions={item.reactions}
           />
         );
       }
@@ -128,6 +130,7 @@ export default function Social() {
             goalTitle={item.goalTitle}
             photoUri={item.photoUri}
             timestamp={item.timestamp}
+            reactions={item.reactions}
           />
         );
       }

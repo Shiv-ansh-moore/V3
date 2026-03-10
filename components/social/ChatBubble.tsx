@@ -3,6 +3,8 @@ import React from "react";
 import { Fonts } from "../../constants/Fonts";
 import { Colours } from "../../constants/Colours";
 import ReplyQuote, { ReplyQuoteProps } from "./ReplyQuote";
+import ReactionRow from "./ReactionRow";
+import { Reaction } from "../../testData/mockSocial";
 
 const RADIUS = 10;
 
@@ -16,6 +18,7 @@ interface ChatBubbleProps {
   position: BubblePosition;
   afterActivity?: boolean;
   replyTo?: ReplyQuoteProps;
+  reactions?: Reaction[];
 }
 
 function getBorderRadius(position: BubblePosition): ViewStyle {
@@ -54,26 +57,28 @@ export default function ChatBubble({
   position,
   afterActivity,
   replyTo,
+  reactions,
 }: ChatBubbleProps) {
   const showName = position === "first" || position === "standalone";
   const isGrouped = position === "middle" || position === "last";
 
   return (
     <View
-      style={[
-        styles.bubble,
-        getBorderRadius(position),
-        afterActivity ? null : isGrouped ? styles.groupedGap : styles.normalGap,
-      ]}
+      style={afterActivity ? null : isGrouped ? styles.groupedGap : styles.normalGap}
     >
-      {showName && (
-        <View style={styles.nameRow}>
-          <Text style={[styles.name, { color: nameColour }]}>{name}</Text>
-          <Text style={styles.timestamp}>{timestamp}</Text>
-        </View>
-      )}
-      {replyTo && <ReplyQuote {...replyTo} />}
-      <Text style={styles.message}>{text}</Text>
+      <View
+        style={[styles.bubble, getBorderRadius(position)]}
+      >
+        {showName && (
+          <View style={styles.nameRow}>
+            <Text style={[styles.name, { color: nameColour }]}>{name}</Text>
+            <Text style={styles.timestamp}>{timestamp}</Text>
+          </View>
+        )}
+        {replyTo && <ReplyQuote {...replyTo} />}
+        <Text style={styles.message}>{text}</Text>
+      </View>
+      {reactions && <ReactionRow reactions={reactions} />}
     </View>
   );
 }
