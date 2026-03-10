@@ -1,5 +1,6 @@
 import { Image, StyleSheet, Text, View } from "react-native";
 import React from "react";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { Colours } from "../../constants/Colours";
 import { Fonts } from "../../constants/Fonts";
 import ReactionRow from "./ReactionRow";
@@ -12,6 +13,7 @@ interface CompletedCardProps {
   photoUri: string | null;
   timestamp: string;
   reactions?: Reaction[];
+  onDoubleTap?: () => void;
 }
 
 export default function CompletedCard({
@@ -21,8 +23,17 @@ export default function CompletedCard({
   photoUri,
   timestamp,
   reactions,
+  onDoubleTap,
 }: CompletedCardProps) {
+  const doubleTap = Gesture.Tap()
+    .numberOfTaps(2)
+    .onEnd(() => {
+      onDoubleTap?.();
+    })
+    .runOnJS(true);
+
   return (
+    <GestureDetector gesture={doubleTap}>
     <View style={styles.outer}>
       <View style={styles.container}>
         <View style={styles.nameRow}>
@@ -41,6 +52,7 @@ export default function CompletedCard({
       </View>
       {reactions && <ReactionRow reactions={reactions} />}
     </View>
+    </GestureDetector>
   );
 }
 

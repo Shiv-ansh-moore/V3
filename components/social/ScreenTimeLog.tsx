@@ -1,5 +1,6 @@
 import { StyleSheet, Text, View } from "react-native";
 import React from "react";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { LockSimpleIcon, LockSimpleOpenIcon } from "phosphor-react-native";
 import { Fonts } from "../../constants/Fonts";
 import { Colours } from "../../constants/Colours";
@@ -15,6 +16,7 @@ interface ScreenTimeLogProps {
   reason?: string;
   totalTime?: string;
   reactions?: Reaction[];
+  onDoubleTap?: () => void;
 }
 
 export default function ScreenTimeLog({
@@ -26,6 +28,7 @@ export default function ScreenTimeLog({
   reason,
   totalTime,
   reactions,
+  onDoubleTap,
 }: ScreenTimeLogProps) {
   const isUnlock = type === "unlock";
   const label = isUnlock
@@ -33,7 +36,15 @@ export default function ScreenTimeLog({
     : `${app} after ${duration}`;
   const subtitle = isUnlock && reason ? `"${reason}"` : totalTime;
 
+  const doubleTap = Gesture.Tap()
+    .numberOfTaps(2)
+    .onEnd(() => {
+      onDoubleTap?.();
+    })
+    .runOnJS(true);
+
   return (
+    <GestureDetector gesture={doubleTap}>
     <View style={styles.container}>
       {isUnlock ? (
         <LockSimpleOpenIcon
@@ -54,6 +65,7 @@ export default function ScreenTimeLog({
       {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
       {reactions && <ReactionRow reactions={reactions} centred />}
     </View>
+    </GestureDetector>
   );
 }
 

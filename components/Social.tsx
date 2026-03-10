@@ -1,10 +1,10 @@
-import { StyleSheet, View, Platform } from "react-native";
-import React, { useMemo, useCallback } from "react";
+import { StyleSheet, View, Platform, TextInput } from "react-native";
+import React, { useMemo, useCallback, useState, useRef, useEffect } from "react";
 import AvatarRow from "./social/AvatarRow";
 import ChatBubble, { BubblePosition } from "./social/ChatBubble";
 import CompletedCard from "./social/CompletedCard";
 import ScreenTimeLog from "./social/ScreenTimeLog";
-import MessageInput from "./social/MessageInput";
+import MessageInput, { ReplyInfo } from "./social/MessageInput";
 import { FlatList } from "react-native-gesture-handler";
 import { Colours } from "../constants/Colours";
 import {
@@ -82,10 +82,45 @@ function buildReplyTo(item: ChatMessage): ReplyQuoteProps | undefined {
   };
 }
 
+function buildReplyInfo(item: FeedItem): ReplyInfo {
+  const userName = getUserName(item.userId);
+  const userColour = getUserColour(item.userId);
+
+  let text: string;
+  if (item.kind === "message") {
+    text = item.text;
+  } else if (item.kind === "completed") {
+    text = `Completed ${item.goalTitle} ✅`;
+  } else {
+    text =
+      item.type === "unlock"
+        ? `unlocked ${item.app} for ${item.duration}`
+        : `locked ${item.app} after ${item.duration}`;
+  }
+
+  return { userName, userColour, text };
+}
+
 export default function Social() {
   const insets = useSafeAreaInsets();
+  const inputRef = useRef<TextInput>(null);
+  const [replyingTo, setReplyingTo] = useState<ReplyInfo | null>(null);
 
   const reversedFeed = useMemo(() => [...socialFeed].reverse(), []);
+
+  const handleReply = useCallback((item: FeedItem) => {
+    setReplyingTo(buildReplyInfo(item));
+  }, []);
+
+  const clearReply = useCallback(() => {
+    setReplyingTo(null);
+  }, []);
+
+  useEffect(() => {
+    if (replyingTo) {
+      inputRef.current?.focus();
+    }
+  }, [replyingTo]);
 
   const renderItem = useCallback(
     ({ item, index }: { item: FeedItem; index: number }) => {
@@ -102,6 +137,7 @@ export default function Social() {
             reason={item.reason}
             totalTime={item.totalTime}
             reactions={item.reactions}
+            onDoubleTap={() => handleReply(item)}
           />
         );
       }
@@ -118,6 +154,7 @@ export default function Social() {
             afterActivity={prev?.kind === "activity"}
             replyTo={buildReplyTo(item)}
             reactions={item.reactions}
+            onDoubleTap={() => handleReply(item)}
           />
         );
       }
@@ -131,13 +168,14 @@ export default function Social() {
             photoUri={item.photoUri}
             timestamp={item.timestamp}
             reactions={item.reactions}
+            onDoubleTap={() => handleReply(item)}
           />
         );
       }
 
       return null;
     },
-    []
+    [handleReply]
   );
 
   return (
@@ -163,7 +201,11 @@ export default function Social() {
         />
       </KeyboardGestureArea>
       <View style={{ paddingBottom: insets.bottom }}>
-        <MessageInput />
+        <MessageInput
+          replyingTo={replyingTo}
+          onClearReply={clearReply}
+          inputRef={inputRef}
+        />
       </View>
     </KeyboardAvoidingView>
   );

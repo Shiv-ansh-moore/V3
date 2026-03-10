@@ -1,5 +1,6 @@
 import { StyleSheet, Text, View, ViewStyle } from "react-native";
 import React from "react";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { Fonts } from "../../constants/Fonts";
 import { Colours } from "../../constants/Colours";
 import ReplyQuote, { ReplyQuoteProps } from "./ReplyQuote";
@@ -19,6 +20,7 @@ interface ChatBubbleProps {
   afterActivity?: boolean;
   replyTo?: ReplyQuoteProps;
   reactions?: Reaction[];
+  onDoubleTap?: () => void;
 }
 
 function getBorderRadius(position: BubblePosition): ViewStyle {
@@ -58,28 +60,38 @@ export default function ChatBubble({
   afterActivity,
   replyTo,
   reactions,
+  onDoubleTap,
 }: ChatBubbleProps) {
   const showName = position === "first" || position === "standalone";
   const isGrouped = position === "middle" || position === "last";
 
+  const doubleTap = Gesture.Tap()
+    .numberOfTaps(2)
+    .onEnd(() => {
+      onDoubleTap?.();
+    })
+    .runOnJS(true);
+
   return (
-    <View
-      style={afterActivity ? null : isGrouped ? styles.groupedGap : styles.normalGap}
-    >
+    <GestureDetector gesture={doubleTap}>
       <View
-        style={[styles.bubble, getBorderRadius(position)]}
+        style={afterActivity ? null : isGrouped ? styles.groupedGap : styles.normalGap}
       >
-        {showName && (
-          <View style={styles.nameRow}>
-            <Text style={[styles.name, { color: nameColour }]}>{name}</Text>
-            <Text style={styles.timestamp}>{timestamp}</Text>
-          </View>
-        )}
-        {replyTo && <ReplyQuote {...replyTo} />}
-        <Text style={styles.message}>{text}</Text>
+        <View
+          style={[styles.bubble, getBorderRadius(position)]}
+        >
+          {showName && (
+            <View style={styles.nameRow}>
+              <Text style={[styles.name, { color: nameColour }]}>{name}</Text>
+              <Text style={styles.timestamp}>{timestamp}</Text>
+            </View>
+          )}
+          {replyTo && <ReplyQuote {...replyTo} />}
+          <Text style={styles.message}>{text}</Text>
+        </View>
+        {reactions && <ReactionRow reactions={reactions} />}
       </View>
-      {reactions && <ReactionRow reactions={reactions} />}
-    </View>
+    </GestureDetector>
   );
 }
 

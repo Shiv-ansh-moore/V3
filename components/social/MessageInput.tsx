@@ -1,30 +1,58 @@
 import { StyleSheet, TextInput, View, Pressable } from "react-native";
-import React, { useState } from "react";
+import React from "react";
 import { PaperPlaneTiltIcon, PlusIcon } from "phosphor-react-native";
 import { Colours } from "../../constants/Colours";
 import { Fonts } from "../../constants/Fonts";
+import ReplyBar from "./ReplyBar";
 
-export default function MessageInput() {
-  const [text, setText] = useState("");
+export interface ReplyInfo {
+  userName: string;
+  userColour: string;
+  text: string;
+}
+
+interface MessageInputProps {
+  replyingTo?: ReplyInfo | null;
+  onClearReply?: () => void;
+  inputRef?: React.RefObject<TextInput | null>;
+}
+
+export default function MessageInput({
+  replyingTo,
+  onClearReply,
+  inputRef,
+}: MessageInputProps) {
+  const [text, setText] = React.useState("");
 
   return (
-    <View style={styles.container}>
-      <Pressable style={styles.plusButton}>
-        <PlusIcon size={22} color={Colours.text} weight="bold" />
-      </Pressable>
+    <View>
+      {replyingTo && onClearReply && (
+        <ReplyBar
+          userName={replyingTo.userName}
+          userColour={replyingTo.userColour}
+          text={replyingTo.text}
+          onDismiss={onClearReply}
+        />
+      )}
+      <View style={styles.container}>
+        <Pressable style={styles.plusButton}>
+          <PlusIcon size={22} color={Colours.text} weight="bold" />
+        </Pressable>
 
-      <TextInput
-        style={styles.input}
-        placeholder="Write a message..."
-        placeholderTextColor={Colours.secondaryText}
-        value={text}
-        onChangeText={setText}
-        multiline
-      />
+        <TextInput
+          ref={inputRef}
+          style={styles.input}
+          placeholder="Write a message..."
+          placeholderTextColor={Colours.secondaryText}
+          value={text}
+          onChangeText={setText}
+          multiline
+        />
 
-      <Pressable style={styles.sendButton}>
-        <PaperPlaneTiltIcon size={18} color={Colours.text} weight="fill" />
-      </Pressable>
+        <Pressable style={styles.sendButton}>
+          <PaperPlaneTiltIcon size={18} color={Colours.text} weight="fill" />
+        </Pressable>
+      </View>
     </View>
   );
 }
