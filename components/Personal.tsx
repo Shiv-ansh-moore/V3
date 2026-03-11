@@ -1,4 +1,10 @@
-import { StyleSheet, Text, View, ScrollView } from "react-native";
+import {
+  StyleSheet,
+  Text,
+  View,
+  ScrollView,
+  TouchableOpacity,
+} from "react-native";
 import React from "react";
 import { mockGoals, Goal } from "../testData/mockGoals";
 import { mockLocks } from "../testData/mockLocks";
@@ -8,6 +14,7 @@ import ScreenTimeBanner from "./personal/ScreenTimeBanner";
 import { Colours } from "../constants/Colours";
 import { Fonts } from "../constants/Fonts";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { Plus, User } from "phosphor-react-native";
 
 export default function Personal() {
   const activeGoals = mockGoals.filter((g) => g.status === "active");
@@ -166,6 +173,14 @@ export default function Personal() {
         </View>
         <View style={styles.grid}>{renderDoneGoals()}</View>
       </ScrollView>
+
+      <TouchableOpacity style={styles.profileButton} activeOpacity={0.7}>
+        <User size={20} weight="bold" color={Colours.secondaryText} />
+      </TouchableOpacity>
+
+      <TouchableOpacity style={styles.fab} activeOpacity={0.7}>
+        <Plus size={28} weight="bold" color="#FFFFFF" />
+      </TouchableOpacity>
     </SafeAreaView>
   );
 }
@@ -204,5 +219,32 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.medium,
     fontSize: 14,
     color: Colours.secondaryText,
+  },
+  fab: {
+    position: "absolute",
+    bottom: 32,
+    right: 19,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: Colours.brand,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 8,
+  },
+  profileButton: {
+    position: "absolute",
+    bottom: 46,
+    left: 19,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: Colours.cardHighlight,
+    alignItems: "center",
+    justifyContent: "center",
   },
 });
