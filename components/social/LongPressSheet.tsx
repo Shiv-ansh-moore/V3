@@ -86,7 +86,7 @@ export default function LongPressSheet({
     <Modal
       visible={visible}
       transparent
-      animationType="fade"
+      animationType="none"
       onRequestClose={dismiss}
       statusBarTranslucent
     >
