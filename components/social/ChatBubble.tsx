@@ -80,17 +80,22 @@ export default function ChatBubble({
     .numberOfTaps(2)
     .onEnd(() => {
       onDoubleTap?.();
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     })
     .runOnJS(true);
 
   return (
     <GestureDetector gesture={Gesture.Race(longPress, doubleTap)}>
       <View
-        style={afterActivity ? null : isGrouped ? styles.groupedGap : styles.normalGap}
+        style={
+          afterActivity
+            ? null
+            : isGrouped
+              ? styles.groupedGap
+              : styles.normalGap
+        }
       >
-        <View
-          style={[styles.bubble, getBorderRadius(position)]}
-        >
+        <View style={[styles.bubble, getBorderRadius(position)]}>
           {showName && (
             <View style={styles.nameRow}>
               <Text style={[styles.name, { color: nameColour }]}>{name}</Text>
