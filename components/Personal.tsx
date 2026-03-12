@@ -5,7 +5,7 @@ import {
   ScrollView,
   TouchableOpacity,
 } from "react-native";
-import React from "react";
+import React, { useState } from "react";
 import { mockGoals, Goal } from "../testData/mockGoals";
 import { mockLocks } from "../testData/mockLocks";
 import GoalTile from "./personal/GoalTile";
@@ -20,6 +20,8 @@ import RadialMenu from "./personal/RadialMenu";
 export default function Personal() {
   const activeGoals = mockGoals.filter((g) => g.status === "active");
   const doneGoals = mockGoals.filter((g) => g.status === "done");
+  // Set as true for testing
+  const [showAddGoal, setShowAddGoal] = useState(true);
 
   const buildRows = () => {
     const result: { goal: Goal; size: "small" | "large" }[] = [];
