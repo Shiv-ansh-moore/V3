@@ -24,6 +24,8 @@ interface PendingGoal {
 }
 
 export default function AddGoalSheet({ visible, onClose }: AddGoalSheetProps) {
+  const goals = [];
+  const inputRef = useRef<TextInput>(null);
   return (
     <Modal visible={visible} transparent animationType="none">
       <Pressable style={styles.overlay} onPress={onClose}>
@@ -32,16 +34,29 @@ export default function AddGoalSheet({ visible, onClose }: AddGoalSheetProps) {
           <View style={styles.inputRow}>
             <TextInput
               style={styles.input}
-              placeholder="e.g. Go for a run"
+              placeholder="e.g. Gym"
               placeholderTextColor={Colours.secondaryText}
+              ref={inputRef}
             />
             <TouchableOpacity style={styles.addButton}>
               <PlusIcon size={20} weight="bold" color={Colours.text} />
             </TouchableOpacity>
           </View>
-          <Pressable style={styles.saveButton} onPress={onClose}>
-            <Text style={styles.saveButtonText}>Add Goals</Text>
+          <Pressable
+            style={styles.addGoalBtn}
+            onPress={() => inputRef.current?.focus()}
+          >
+            <View style={styles.addGoalCircle}>
+              <PlusIcon size={20} weight="bold" color={Colours.fadedBrand} />
+            </View>
+            {goals.length === 0 && (
+              <Text style={styles.emptyText}>Add your goals</Text>
+            )}
           </Pressable>
+
+          <TouchableOpacity style={styles.saveButton} onPress={onClose}>
+            <Text style={styles.saveButtonText}>Add Goals</Text>
+          </TouchableOpacity>
         </Pressable>
       </Pressable>
     </Modal>
@@ -105,5 +120,23 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: Fonts.semiBold,
     color: Colours.text,
+  },
+  addGoalBtn: {
+    paddingVertical: 24,
+    alignItems: "center",
+    gap: 8,
+  },
+  addGoalCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: Colours.cardHighlight,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  emptyText: {
+    fontSize: 12,
+    fontFamily: Fonts.regular,
+    color: "#555",
   },
 });
