@@ -25,7 +25,16 @@ interface PendingGoal {
 
 export default function AddGoalSheet({ visible, onClose }: AddGoalSheetProps) {
   const goals = [];
+  const [text, setText] = useState("");
   const inputRef = useRef<TextInput>(null);
+
+  const handleAdd = () => {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    // TODO: add goal to list
+    setText("");
+  };
+
   return (
     <Modal visible={visible} transparent animationType="none">
       <Pressable style={styles.overlay} onPress={onClose}>
@@ -37,10 +46,11 @@ export default function AddGoalSheet({ visible, onClose }: AddGoalSheetProps) {
               placeholder="e.g. Gym"
               placeholderTextColor={Colours.secondaryText}
               ref={inputRef}
+              value={text}
+              onChangeText={setText}
+              onSubmitEditing={handleAdd}
+              returnKeyType="done"
             />
-            <TouchableOpacity style={styles.addButton}>
-              <PlusIcon size={20} weight="bold" color={Colours.text} />
-            </TouchableOpacity>
           </View>
           <Pressable
             style={styles.addGoalBtn}
@@ -84,14 +94,11 @@ const styles = StyleSheet.create({
     paddingBottom: 14,
   },
   inputRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
     paddingHorizontal: 19,
     paddingBottom: 16,
   },
   input: {
-    flex: 1,
+    width: "100%",
     height: 44,
     backgroundColor: Colours.cardHighlight,
     borderRadius: 12,
@@ -99,14 +106,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontFamily: Fonts.regular,
     color: Colours.text,
-  },
-  addButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: Colours.fadedBrand,
-    alignItems: "center",
-    justifyContent: "center",
   },
   saveButton: {
     marginHorizontal: 19,
@@ -130,7 +129,9 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: Colours.cardHighlight,
+    borderWidth: 1.5,
+    borderStyle: "dashed",
+    borderColor: Colours.fadedBrand,
     alignItems: "center",
     justifyContent: "center",
   },
