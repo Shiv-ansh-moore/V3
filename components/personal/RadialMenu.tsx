@@ -27,7 +27,11 @@ const MENU_ITEMS = [
   translateY: -RADIUS * Math.sin((item.angle * Math.PI) / 180),
 }));
 
-export default function RadialMenu() {
+interface RadialMenuProps {
+  onNewPress?: () => void;
+}
+
+export default function RadialMenu({ onNewPress }: RadialMenuProps) {
   const [open, setOpen] = useState(false);
   const animation = useRef(new Animated.Value(0)).current;
 
@@ -107,7 +111,16 @@ export default function RadialMenu() {
               },
             ]}
           >
-            <TouchableOpacity style={styles.menuCircle} activeOpacity={0.7}>
+            <TouchableOpacity
+              style={styles.menuCircle}
+              activeOpacity={0.7}
+              onPress={() => {
+                if (item.key === "new" && onNewPress) {
+                  close();
+                  onNewPress();
+                }
+              }}
+            >
               <item.Icon
                 size={22}
                 weight="bold"

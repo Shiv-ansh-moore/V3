@@ -39,6 +39,9 @@ export default function AddGoalSheet({ visible, onClose }: AddGoalSheetProps) {
               <PlusIcon size={20} weight="bold" color={Colours.text} />
             </TouchableOpacity>
           </View>
+          <Pressable style={styles.saveButton} onPress={onClose}>
+            <Text style={styles.saveButtonText}>Add Goals</Text>
+          </Pressable>
         </Pressable>
       </Pressable>
     </Modal>
@@ -89,5 +92,18 @@ const styles = StyleSheet.create({
     backgroundColor: Colours.fadedBrand,
     alignItems: "center",
     justifyContent: "center",
+  },
+  saveButton: {
+    marginHorizontal: 19,
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: Colours.brand,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  saveButtonText: {
+    fontSize: 16,
+    fontFamily: Fonts.semiBold,
+    color: Colours.text,
   },
 });

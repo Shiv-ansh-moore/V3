@@ -22,7 +22,7 @@ export default function Personal() {
   const activeGoals = mockGoals.filter((g) => g.status === "active");
   const doneGoals = mockGoals.filter((g) => g.status === "done");
   // Set as true for testing
-  const [showAddGoal, setShowAddGoal] = useState(true);
+  const [showAddGoal, setShowAddGoal] = useState(false);
 
   const buildRows = () => {
     const result: { goal: Goal; size: "small" | "large" }[] = [];
@@ -182,7 +182,7 @@ export default function Personal() {
         <UserIcon size={20} weight="bold" color={Colours.secondaryText} />
       </TouchableOpacity>
 
-      <RadialMenu />
+      <RadialMenu onNewPress={() => setShowAddGoal(true)} />
       <AddGoalSheet
         visible={showAddGoal}
         onClose={() => setShowAddGoal(false)}
