@@ -16,6 +16,7 @@ import { Fonts } from "../constants/Fonts";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { UserIcon } from "phosphor-react-native";
 import RadialMenu from "./personal/RadialMenu";
+import AddGoalSheet from "./personal/AddGoalSheet";
 
 export default function Personal() {
   const activeGoals = mockGoals.filter((g) => g.status === "active");
@@ -182,6 +183,10 @@ export default function Personal() {
       </TouchableOpacity>
 
       <RadialMenu />
+      <AddGoalSheet
+        visible={showAddGoal}
+        onClose={() => setShowAddGoal(false)}
+      />
     </SafeAreaView>
   );
 }
