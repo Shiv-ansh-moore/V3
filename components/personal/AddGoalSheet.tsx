@@ -9,10 +9,11 @@ import {
   TouchableOpacity,
   FlatList,
 } from "react-native";
-import { PlusIcon } from "phosphor-react-native";
+import { PlusIcon, XIcon } from "phosphor-react-native";
 import { Colours } from "../../constants/Colours";
 import { Fonts } from "../../constants/Fonts";
-import { StarIcon } from "phosphor-react-native";
+import GoalIcon from "./GoalIcon";
+import IconPickerSheet from "./IconPickerSheet";
 interface AddGoalSheetProps {
   visible: boolean;
   onClose: () => void;
@@ -28,21 +29,38 @@ export default function AddGoalSheet({ visible, onClose }: AddGoalSheetProps) {
   const [text, setText] = useState("");
   const inputRef = useRef<TextInput>(null);
   const [goals, setGoals] = useState<PendingGoal[]>([]);
+  const [editingGoalId, setEditingGoalId] = useState<string | null>(null);
 
   const handleAdd = () => {
     const trimmed = text.trim();
     if (!trimmed) return;
     setGoals((prev) => [
       ...prev,
-      { id: Date.now().toString(), title: trimmed, icon: "StarIcon" },
+      { id: Date.now().toString(), title: trimmed, icon: "BarbellIcon" },
     ]);
     setText("");
   };
+  const handleRemove = (id: string) => {
+    setGoals((prev) => prev.filter((g) => g.id !== id));
+  };
+
   const renderItem = ({ item }: { item: PendingGoal }) => (
-    <Text style={styles.title}>{item.title}</Text>
+    <View style={styles.pendingRow}>
+      <Pressable
+        style={styles.pendingIconBox}
+        onPress={() => setEditingGoalId(item.id)}
+      >
+        <GoalIcon name={item.icon} size={24} />
+      </Pressable>
+      <Text style={styles.pendingTitle}>{item.title}</Text>
+      <Pressable onPress={() => handleRemove(item.id)} style={styles.removeBtn}>
+        <XIcon size={16} weight="bold" color={Colours.secondaryText} />
+      </Pressable>
+    </View>
   );
 
   return (
+    <>
     <Modal visible={visible} transparent animationType="none">
       <Pressable style={styles.overlay} onPress={onClose}>
         <Pressable style={styles.sheet}>
@@ -82,6 +100,19 @@ export default function AddGoalSheet({ visible, onClose }: AddGoalSheetProps) {
         </Pressable>
       </Pressable>
     </Modal>
+    <IconPickerSheet
+      visible={editingGoalId !== null}
+      onClose={() => setEditingGoalId(null)}
+      onSelect={(iconName) => {
+        setGoals((prev) =>
+          prev.map((g) =>
+            g.id === editingGoalId ? { ...g, icon: iconName } : g
+          )
+        );
+        setEditingGoalId(null);
+      }}
+    />
+    </>
   );
 }
 
@@ -151,5 +182,34 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: Fonts.regular,
     color: "#555",
+  },
+  pendingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 19,
+    marginBottom: 14,
+    gap: 12,
+  },
+  removeBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: Colours.cardHighlight,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  pendingTitle: {
+    flex: 1,
+    fontFamily: Fonts.medium,
+    fontSize: 14,
+    color: Colours.text,
+  },
+  pendingIconBox: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    backgroundColor: Colours.cardHighlight,
+    alignItems: "center",
+    justifyContent: "center",
   },
 });

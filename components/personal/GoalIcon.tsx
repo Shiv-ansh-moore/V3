@@ -13,7 +13,7 @@ import {
 import type { IconWeight } from "phosphor-react-native";
 import { Colours } from "../../constants/Colours";
 
-const iconMap: Record<
+export const iconMap: Record<
   string,
   React.ComponentType<{ size?: number; color?: string; weight?: IconWeight }>
 > = {
