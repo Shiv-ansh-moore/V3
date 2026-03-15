@@ -89,13 +89,15 @@ export default function AddGoalSheet({ visible, onClose }: AddGoalSheetProps) {
             <View style={styles.addGoalCircle}>
               <PlusIcon size={20} weight="bold" color={Colours.fadedBrand} />
             </View>
-            {goals.length === 0 && (
-              <Text style={styles.emptyText}>Add your goals</Text>
-            )}
+            <Text style={styles.emptyText}>
+              {goals.length === 0 ? "Add your goals" : "Add more goals"}
+            </Text>
           </Pressable>
 
           <TouchableOpacity style={styles.saveButton} onPress={onClose}>
-            <Text style={styles.saveButtonText}>Add Goals</Text>
+            <Text style={styles.saveButtonText}>
+              {goals.length === 0 ? "Add Goals" : `Add Goals (${goals.length})`}
+            </Text>
           </TouchableOpacity>
         </Pressable>
       </Pressable>
