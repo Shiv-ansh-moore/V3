@@ -8,6 +8,7 @@ import {
   TextInput,
   TouchableOpacity,
   FlatList,
+  Keyboard,
 } from "react-native";
 import { PlusIcon, XIcon } from "phosphor-react-native";
 import { Colours } from "../../constants/Colours";
@@ -63,7 +64,13 @@ export default function AddGoalSheet({ visible, onClose }: AddGoalSheetProps) {
   return (
     <>
       <Modal visible={visible} transparent animationType="none">
-        <Pressable style={styles.overlay} onPress={onClose}>
+        <Pressable style={styles.overlay} onPress={() => {
+          if (inputRef.current?.isFocused()) {
+            Keyboard.dismiss();
+          } else {
+            onClose();
+          }
+        }}>
           <KeyboardAvoidingView behavior={"padding"}>
             <Pressable style={styles.sheet}>
               <Text style={styles.title}>New Goals</Text>
