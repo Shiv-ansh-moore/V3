@@ -14,6 +14,7 @@ import { Colours } from "../../constants/Colours";
 import { Fonts } from "../../constants/Fonts";
 import GoalIcon from "./GoalIcon";
 import IconPickerSheet from "./IconPickerSheet";
+import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 interface AddGoalSheetProps {
   visible: boolean;
   onClose: () => void;
@@ -61,59 +62,80 @@ export default function AddGoalSheet({ visible, onClose }: AddGoalSheetProps) {
 
   return (
     <>
-    <Modal visible={visible} transparent animationType="none">
-      <Pressable style={styles.overlay} onPress={onClose}>
-        <Pressable style={styles.sheet}>
-          <Text style={styles.title}>New Goals</Text>
-          <View style={styles.inputRow}>
-            <TextInput
-              style={styles.input}
-              placeholder="e.g. Gym"
-              placeholderTextColor={Colours.secondaryText}
-              ref={inputRef}
-              value={text}
-              onChangeText={setText}
-              onSubmitEditing={handleAdd}
-              returnKeyType="done"
-            />
-          </View>
-          <FlatList
-            data={goals}
-            renderItem={renderItem}
-            keyExtractor={(item) => item.id}
-          />
-          <Pressable
-            style={styles.addGoalBtn}
-            onPress={() => inputRef.current?.focus()}
-          >
-            <View style={styles.addGoalCircle}>
-              <PlusIcon size={20} weight="bold" color={Colours.fadedBrand} />
-            </View>
-            <Text style={styles.emptyText}>
-              {goals.length === 0 ? "Add your goals" : "Add more goals"}
-            </Text>
-          </Pressable>
-
-          <TouchableOpacity style={[styles.saveButton, goals.length === 0 && { backgroundColor: Colours.cardHighlight }]} onPress={onClose}>
-            <Text style={[styles.saveButtonText, goals.length === 0 && { color: Colours.secondaryText }]}>
-              {goals.length === 0 ? "Add Goals" : `Add Goals (${goals.length})`}
-            </Text>
-          </TouchableOpacity>
+      <Modal visible={visible} transparent animationType="none">
+        <Pressable style={styles.overlay} onPress={onClose}>
+          <KeyboardAvoidingView behavior={"padding"}>
+            <Pressable style={styles.sheet}>
+              <Text style={styles.title}>New Goals</Text>
+              <View style={styles.inputRow}>
+                <TextInput
+                  style={styles.input}
+                  placeholder="e.g. Gym"
+                  placeholderTextColor={Colours.secondaryText}
+                  ref={inputRef}
+                  value={text}
+                  onChangeText={setText}
+                  onSubmitEditing={handleAdd}
+                  blurOnSubmit={false}
+                  returnKeyType="done"
+                />
+              </View>
+              <FlatList
+                data={goals}
+                renderItem={renderItem}
+                keyExtractor={(item) => item.id}
+              />
+              {goals.length === 0 && (
+                <Pressable
+                  style={styles.addGoalBtn}
+                  onPress={() => inputRef.current?.focus()}
+                >
+                  <View style={styles.addGoalCircle}>
+                    <PlusIcon
+                      size={20}
+                      weight="bold"
+                      color={Colours.fadedBrand}
+                    />
+                  </View>
+                  <Text style={styles.emptyText}>Add your goals</Text>
+                </Pressable>
+              )}
+              <TouchableOpacity
+                style={[
+                  styles.saveButton,
+                  goals.length === 0 && {
+                    backgroundColor: Colours.cardHighlight,
+                  },
+                ]}
+                onPress={onClose}
+              >
+                <Text
+                  style={[
+                    styles.saveButtonText,
+                    goals.length === 0 && { color: Colours.secondaryText },
+                  ]}
+                >
+                  {goals.length === 0
+                    ? "Add Goals"
+                    : `Add Goals (${goals.length})`}
+                </Text>
+              </TouchableOpacity>
+            </Pressable>
+          </KeyboardAvoidingView>
         </Pressable>
-      </Pressable>
-    </Modal>
-    <IconPickerSheet
-      visible={editingGoalId !== null}
-      onClose={() => setEditingGoalId(null)}
-      onSelect={(iconName) => {
-        setGoals((prev) =>
-          prev.map((g) =>
-            g.id === editingGoalId ? { ...g, icon: iconName } : g
-          )
-        );
-        setEditingGoalId(null);
-      }}
-    />
+      </Modal>
+      <IconPickerSheet
+        visible={editingGoalId !== null}
+        onClose={() => setEditingGoalId(null)}
+        onSelect={(iconName) => {
+          setGoals((prev) =>
+            prev.map((g) =>
+              g.id === editingGoalId ? { ...g, icon: iconName } : g,
+            ),
+          );
+          setEditingGoalId(null);
+        }}
+      />
     </>
   );
 }
