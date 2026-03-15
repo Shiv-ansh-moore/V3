@@ -94,8 +94,8 @@ export default function AddGoalSheet({ visible, onClose }: AddGoalSheetProps) {
             </Text>
           </Pressable>
 
-          <TouchableOpacity style={styles.saveButton} onPress={onClose}>
-            <Text style={styles.saveButtonText}>
+          <TouchableOpacity style={[styles.saveButton, goals.length === 0 && { backgroundColor: Colours.cardHighlight }]} onPress={onClose}>
+            <Text style={[styles.saveButtonText, goals.length === 0 && { color: Colours.secondaryText }]}>
               {goals.length === 0 ? "Add Goals" : `Add Goals (${goals.length})`}
             </Text>
           </TouchableOpacity>
