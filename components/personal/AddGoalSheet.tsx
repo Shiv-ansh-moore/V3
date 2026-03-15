@@ -7,11 +7,12 @@ import {
   Pressable,
   TextInput,
   TouchableOpacity,
+  FlatList,
 } from "react-native";
 import { PlusIcon } from "phosphor-react-native";
 import { Colours } from "../../constants/Colours";
 import { Fonts } from "../../constants/Fonts";
-
+import { StarIcon } from "phosphor-react-native";
 interface AddGoalSheetProps {
   visible: boolean;
   onClose: () => void;
@@ -20,20 +21,26 @@ interface AddGoalSheetProps {
 interface PendingGoal {
   id: string;
   title: string;
-  icon: string; // matches GoalIcon's name prop (e.g. "BarbellIcon")
+  icon: string; // Will be set up to auto match the word
 }
 
 export default function AddGoalSheet({ visible, onClose }: AddGoalSheetProps) {
-  const goals = [];
   const [text, setText] = useState("");
   const inputRef = useRef<TextInput>(null);
+  const [goals, setGoals] = useState<PendingGoal[]>([]);
 
   const handleAdd = () => {
     const trimmed = text.trim();
     if (!trimmed) return;
-    // TODO: add goal to list
+    setGoals((prev) => [
+      ...prev,
+      { id: Date.now().toString(), title: trimmed, icon: "StarIcon" },
+    ]);
     setText("");
   };
+  const renderItem = ({ item }: { item: PendingGoal }) => (
+    <Text style={styles.title}>{item.title}</Text>
+  );
 
   return (
     <Modal visible={visible} transparent animationType="none">
@@ -52,6 +59,11 @@ export default function AddGoalSheet({ visible, onClose }: AddGoalSheetProps) {
               returnKeyType="done"
             />
           </View>
+          <FlatList
+            data={goals}
+            renderItem={renderItem}
+            keyExtractor={(item) => item.id}
+          />
           <Pressable
             style={styles.addGoalBtn}
             onPress={() => inputRef.current?.focus()}
