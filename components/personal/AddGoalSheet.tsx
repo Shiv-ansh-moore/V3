@@ -64,13 +64,16 @@ export default function AddGoalSheet({ visible, onClose }: AddGoalSheetProps) {
   return (
     <>
       <Modal visible={visible} transparent animationType="none">
-        <Pressable style={styles.overlay} onPress={() => {
-          if (inputRef.current?.isFocused()) {
-            Keyboard.dismiss();
-          } else {
-            onClose();
-          }
-        }}>
+        <Pressable
+          style={styles.overlay}
+          onPress={() => {
+            if (inputRef.current?.isFocused()) {
+              Keyboard.dismiss();
+            } else {
+              onClose();
+            }
+          }}
+        >
           <KeyboardAvoidingView behavior={"padding"}>
             <Pressable style={styles.sheet}>
               <Text style={styles.title}>New Goals</Text>
@@ -108,13 +111,19 @@ export default function AddGoalSheet({ visible, onClose }: AddGoalSheetProps) {
                 </Pressable>
               )}
               <TouchableOpacity
+                onPress={() => {
+                  if (goals.length === 0) return;
+                  console.log("Saving goals:", goals);
+                  setGoals([]);
+                  setText("");
+                  onClose();
+                }}
                 style={[
                   styles.saveButton,
                   goals.length === 0 && {
                     backgroundColor: Colours.cardHighlight,
                   },
                 ]}
-                onPress={onClose}
               >
                 <Text
                   style={[
