@@ -10,6 +10,7 @@ interface GoalTileProps {
   title: string;
   duration?: string;
   status: "active" | "done";
+  onPress?: () => void;
 }
 
 export default function GoalTile({
@@ -17,6 +18,7 @@ export default function GoalTile({
   title,
   duration,
   status,
+  onPress,
 }: GoalTileProps) {
   if (status === "done") {
     return (
@@ -32,6 +34,7 @@ export default function GoalTile({
 
   return (
     <Pressable
+      onPress={onPress}
       style={({ pressed }) => [styles.tile, pressed && styles.tilePressed]}
     >
       <View style={styles.iconContainer}>

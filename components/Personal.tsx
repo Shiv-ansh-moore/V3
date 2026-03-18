@@ -17,12 +17,14 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { UserIcon } from "phosphor-react-native";
 import RadialMenu from "./personal/RadialMenu";
 import AddGoalSheet from "./personal/AddGoalSheet";
+import ProofCamera from "./personal/ProofCamera";
 
 export default function Personal() {
   const activeGoals = mockGoals.filter((g) => g.status === "active");
   const doneGoals = mockGoals.filter((g) => g.status === "done");
   // Set as true for testing
   const [showAddGoal, setShowAddGoal] = useState(false);
+  const [showProofCamera, setShowProofCamera] = useState(false);
 
   const buildRows = () => {
     const result: { goal: Goal; size: "small" | "large" }[] = [];
@@ -74,6 +76,7 @@ export default function Personal() {
               title={item.goal.title}
               duration={item.goal.duration}
               status={item.goal.status}
+              onPress={() => setShowProofCamera(true)}
             />
           </View>,
         );
@@ -87,6 +90,7 @@ export default function Personal() {
               title={item.goal.title}
               duration={item.goal.duration}
               status={item.goal.status}
+              onPress={() => setShowProofCamera(true)}
             />
             {next && (
               <GoalTile
@@ -94,6 +98,7 @@ export default function Personal() {
                 title={next.goal.title}
                 duration={next.goal.duration}
                 status={next.goal.status}
+                onPress={() => setShowProofCamera(true)}
               />
             )}
           </View>,
@@ -186,6 +191,10 @@ export default function Personal() {
       <AddGoalSheet
         visible={showAddGoal}
         onClose={() => setShowAddGoal(false)}
+      />
+      <ProofCamera
+        visible={showProofCamera}
+        onClose={() => setShowProofCamera(false)}
       />
     </SafeAreaView>
   );
