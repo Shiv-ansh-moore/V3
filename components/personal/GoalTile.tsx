@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import React from "react";
 import { CheckCircleIcon } from "phosphor-react-native";
 import { Colours } from "../../constants/Colours";
@@ -31,14 +31,16 @@ export default function GoalTile({
   }
 
   return (
-    <View style={styles.tile}>
+    <Pressable
+      style={({ pressed }) => [styles.tile, pressed && styles.tilePressed]}
+    >
       <View style={styles.iconContainer}>
         <GoalIcon name={icon} size={40} />
       </View>
       <View style={styles.cameraCircle} />
       <Text style={styles.title}>{title}</Text>
       {duration && <Text style={styles.duration}>{duration}</Text>}
-    </View>
+    </Pressable>
   );
 }
 
@@ -48,6 +50,8 @@ const styles = StyleSheet.create({
     height: 120,
     backgroundColor: Colours.card,
     borderRadius: 20,
+    borderWidth: 2,
+    borderColor: "transparent",
     overflow: "hidden",
   },
   iconContainer: {
@@ -104,6 +108,9 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
+  },
+  tilePressed: {
+    borderColor: Colours.fadedBrand,
   },
   doneTitle: {
     flex: 1,
