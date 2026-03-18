@@ -1,5 +1,5 @@
 import { Modal, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import React from "react";
+import React, { useState } from "react";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { LightningIcon, XIcon, CameraRotateIcon } from "phosphor-react-native";
 import { Colours } from "../../constants/Colours";
@@ -19,12 +19,23 @@ export default function ProofCamera({
   goalIcon,
   onClose,
 }: ProofCameraProps) {
+  const [animType, setAnimType] = useState<"fade" | "none">("fade");
+
+  const handleClose = () => {
+    setAnimType("none");
+    requestAnimationFrame(() => {
+      onClose();
+      requestAnimationFrame(() => setAnimType("fade"));
+    });
+  };
+
   return (
     <Modal
       visible={visible}
-      animationType="fade"
+      animationType={animType}
       presentationStyle="fullScreen"
-      onRequestClose={onClose}
+      onRequestClose={handleClose}
+      onShow={() => setAnimType("fade")}
     >
       <SafeAreaProvider>
         <SafeAreaView style={styles.container}>
@@ -46,7 +57,7 @@ export default function ProofCamera({
                 <View style={styles.headerSide}>
                   <TouchableOpacity
                     style={styles.closeButton}
-                    onPress={onClose}
+                    onPress={handleClose}
                   >
                     <XIcon size={20} color={Colours.text} weight="bold" />
                   </TouchableOpacity>
