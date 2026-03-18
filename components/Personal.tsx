@@ -25,6 +25,7 @@ export default function Personal() {
   // Set as true for testing
   const [showAddGoal, setShowAddGoal] = useState(false);
   const [showProofCamera, setShowProofCamera] = useState(false);
+  const [proofGoal, setProofGoal] = useState<Goal | null>(null);
 
   const buildRows = () => {
     const result: { goal: Goal; size: "small" | "large" }[] = [];
@@ -76,7 +77,10 @@ export default function Personal() {
               title={item.goal.title}
               duration={item.goal.duration}
               status={item.goal.status}
-              onPress={() => setShowProofCamera(true)}
+              onPress={() => {
+                setProofGoal(item.goal);
+                setShowProofCamera(true);
+              }}
             />
           </View>,
         );
@@ -90,7 +94,10 @@ export default function Personal() {
               title={item.goal.title}
               duration={item.goal.duration}
               status={item.goal.status}
-              onPress={() => setShowProofCamera(true)}
+              onPress={() => {
+                setProofGoal(item.goal);
+                setShowProofCamera(true);
+              }}
             />
             {next && (
               <GoalTile
@@ -98,7 +105,10 @@ export default function Personal() {
                 title={next.goal.title}
                 duration={next.goal.duration}
                 status={next.goal.status}
-                onPress={() => setShowProofCamera(true)}
+                onPress={() => {
+                  setProofGoal(next.goal);
+                  setShowProofCamera(true);
+                }}
               />
             )}
           </View>,
@@ -194,6 +204,8 @@ export default function Personal() {
       />
       <ProofCamera
         visible={showProofCamera}
+        goalName={proofGoal?.title ?? ""}
+        goalIcon={proofGoal?.icon ?? ""}
         onClose={() => setShowProofCamera(false)}
       />
     </SafeAreaView>
