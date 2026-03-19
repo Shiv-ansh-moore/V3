@@ -2,6 +2,7 @@ import { Modal, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import React, { useState } from "react";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { LightningIcon, XIcon, CameraRotateIcon } from "phosphor-react-native";
+import { CameraView, useCameraPermissions, CameraType, FlashMode } from "expo-camera";
 import { Colours } from "../../constants/Colours";
 import { Fonts } from "../../constants/Fonts";
 import GoalIcon from "./GoalIcon";
@@ -20,6 +21,9 @@ export default function ProofCamera({
   onClose,
 }: ProofCameraProps) {
   const [animType, setAnimType] = useState<"fade" | "none">("fade");
+  const [facing, setFacing] = useState<CameraType>("back");
+  const [flash, setFlash] = useState<FlashMode>("off");
+  const [permission, requestPermission] = useCameraPermissions();
 
   const handleClose = () => {
     setAnimType("none");
@@ -28,6 +32,44 @@ export default function ProofCamera({
       requestAnimationFrame(() => setAnimType("fade"));
     });
   };
+
+  if (!permission) {
+    return (
+      <Modal
+        visible={visible}
+        animationType={animType}
+        presentationStyle="fullScreen"
+        onRequestClose={handleClose}
+        onShow={() => setAnimType("fade")}
+      >
+        <View style={styles.permissionContainer} />
+      </Modal>
+    );
+  }
+
+  if (!permission.granted) {
+    return (
+      <Modal
+        visible={visible}
+        animationType={animType}
+        presentationStyle="fullScreen"
+        onRequestClose={handleClose}
+        onShow={() => setAnimType("fade")}
+      >
+        <View style={styles.permissionContainer}>
+          <Text style={styles.permissionText}>
+            Camera access is needed to submit proof
+          </Text>
+          <TouchableOpacity
+            style={styles.permissionButton}
+            onPress={requestPermission}
+          >
+            <Text style={styles.permissionButtonText}>Grant Permission</Text>
+          </TouchableOpacity>
+        </View>
+      </Modal>
+    );
+  }
 
   return (
     <Modal
@@ -41,7 +83,7 @@ export default function ProofCamera({
         <SafeAreaView style={styles.container}>
           {/* Viewfinder with header overlaid */}
           <View style={styles.viewfinderWrapper}>
-            <View style={styles.viewfinder} />
+            <CameraView facing={facing} flash={flash} style={styles.viewfinder} />
             <View style={styles.headerOverlay} pointerEvents="box-none">
               <View style={styles.header}>
                 <View style={styles.headerSide} />
@@ -68,15 +110,25 @@ export default function ProofCamera({
 
           {/* Bottom controls */}
           <View style={styles.controls}>
-            <TouchableOpacity style={styles.sideButton}>
-              <LightningIcon size={24} color={Colours.text} weight="fill" />
+            <TouchableOpacity
+              style={styles.sideButton}
+              onPress={() => setFlash((f) => (f === "off" ? "on" : "off"))}
+            >
+              <LightningIcon
+                size={24}
+                color={flash === "on" ? Colours.brand : Colours.text}
+                weight={flash === "on" ? "fill" : "light"}
+              />
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.captureOuter}>
               <View style={styles.captureInner} />
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.sideButton}>
+            <TouchableOpacity
+              style={styles.sideButton}
+              onPress={() => setFacing((f) => (f === "back" ? "front" : "back"))}
+            >
               <CameraRotateIcon size={24} color={Colours.text} />
             </TouchableOpacity>
           </View>
@@ -176,5 +228,30 @@ const styles = StyleSheet.create({
     height: CAPTURE_INNER,
     borderRadius: CAPTURE_INNER / 2,
     backgroundColor: Colours.text,
+  },
+  permissionContainer: {
+    flex: 1,
+    backgroundColor: Colours.background,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+  },
+  permissionText: {
+    fontFamily: Fonts.medium,
+    fontSize: 16,
+    color: Colours.text,
+    textAlign: "center",
+    marginBottom: 20,
+  },
+  permissionButton: {
+    backgroundColor: Colours.brand,
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+    borderRadius: 12,
+  },
+  permissionButtonText: {
+    fontFamily: Fonts.semiBold,
+    fontSize: 15,
+    color: Colours.text,
   },
 });
