@@ -1,3 +1,6 @@
+// TODO: Fix keyboard animation jank on ProofPreview caption input.
+// Will need proper KeyboardAvoidingView or animation solution when implementing stories feature.
+
 import {
   Keyboard,
   Pressable,
