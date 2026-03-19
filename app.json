@@ -37,7 +37,8 @@
         }
       ],
       "expo-router",
-      "expo-font"
+      "expo-font",
+      "expo-image"
     ],
     "scheme": "v3"
   }

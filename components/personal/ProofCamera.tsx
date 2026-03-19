@@ -1,11 +1,12 @@
 import { Modal, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { LightningIcon, XIcon, CameraRotateIcon } from "phosphor-react-native";
 import { CameraView, useCameraPermissions, CameraType, FlashMode } from "expo-camera";
 import { Colours } from "../../constants/Colours";
 import { Fonts } from "../../constants/Fonts";
 import GoalIcon from "./GoalIcon";
+import ProofPreview from "./ProofPreview";
 
 interface ProofCameraProps {
   visible: boolean;
@@ -20,16 +21,23 @@ export default function ProofCamera({
   goalIcon,
   onClose,
 }: ProofCameraProps) {
+  const cameraRef = useRef<CameraView>(null);
   const [animType, setAnimType] = useState<"fade" | "none">("fade");
   const [facing, setFacing] = useState<CameraType>("back");
   const [flash, setFlash] = useState<FlashMode>("off");
+  const [showPreview, setShowPreview] = useState(false);
+  const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [permission, requestPermission] = useCameraPermissions();
 
   const handleClose = () => {
     setAnimType("none");
     requestAnimationFrame(() => {
       onClose();
-      requestAnimationFrame(() => setAnimType("fade"));
+      requestAnimationFrame(() => {
+        setShowPreview(false);
+        setPhotoUri(null);
+        setAnimType("fade");
+      });
     });
   };
 
@@ -83,7 +91,7 @@ export default function ProofCamera({
         <SafeAreaView style={styles.container}>
           {/* Viewfinder with header overlaid */}
           <View style={styles.viewfinderWrapper}>
-            <CameraView facing={facing} flash={flash} style={styles.viewfinder} />
+            <CameraView ref={cameraRef} facing={facing} flash={flash} style={styles.viewfinder} />
             <View style={styles.headerOverlay} pointerEvents="box-none">
               <View style={styles.header}>
                 <View style={styles.headerSide} />
@@ -121,7 +129,18 @@ export default function ProofCamera({
               />
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.captureOuter}>
+            <TouchableOpacity
+              style={styles.captureOuter}
+              onPress={async () => {
+                const photo = await cameraRef.current?.takePictureAsync({
+                  quality: 0.8,
+                });
+                if (photo) {
+                  setPhotoUri(photo.uri);
+                  setShowPreview(true);
+                }
+              }}
+            >
               <View style={styles.captureInner} />
             </TouchableOpacity>
 
@@ -132,6 +151,16 @@ export default function ProofCamera({
               <CameraRotateIcon size={24} color={Colours.text} />
             </TouchableOpacity>
           </View>
+
+          {showPreview && (
+            <ProofPreview
+              photoUri={photoUri!}
+              onRetake={() => {
+                setShowPreview(false);
+                setPhotoUri(null);
+              }}
+            />
+          )}
         </SafeAreaView>
       </SafeAreaProvider>
     </Modal>
