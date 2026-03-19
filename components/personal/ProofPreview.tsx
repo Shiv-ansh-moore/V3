@@ -1,10 +1,13 @@
 import {
+  Keyboard,
+  Pressable,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import React from "react";
 import { Image } from "expo-image";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
@@ -24,33 +27,35 @@ export default function ProofPreview({
   return (
     <SafeAreaProvider style={styles.absolute}>
       <SafeAreaView style={styles.container}>
-        <View style={styles.imageWrapper}>
-          <Image
-            source={{ uri: photoUri }}
-            contentFit="cover"
-            style={styles.imagePlaceholder}
-          />
-        </View>
+        <KeyboardAvoidingView behavior="padding" style={styles.flex}>
+          <Pressable style={styles.imageWrapper} onPress={Keyboard.dismiss}>
+            <Image
+              source={{ uri: photoUri }}
+              contentFit="cover"
+              style={styles.imagePlaceholder}
+            />
+          </Pressable>
 
-        <View style={styles.bottomSection}>
-          <TextInput
-            style={styles.captionInput}
-            placeholder="Add a caption..."
-            placeholderTextColor={Colours.secondaryText}
-          />
+          <View style={styles.bottomSection}>
+            <TextInput
+              style={styles.captionInput}
+              placeholder="Add a caption..."
+              placeholderTextColor={Colours.secondaryText}
+            />
 
-          <View style={styles.buttonRow}>
-            <TouchableOpacity style={styles.retakeButton} onPress={onRetake}>
-              <ArrowCounterClockwiseIcon size={20} color={Colours.text} />
-              <Text style={styles.buttonText}>Retake</Text>
-            </TouchableOpacity>
+            <View style={styles.buttonRow}>
+              <TouchableOpacity style={styles.retakeButton} onPress={onRetake}>
+                <ArrowCounterClockwiseIcon size={20} color={Colours.text} />
+                <Text style={styles.buttonText}>Retake</Text>
+              </TouchableOpacity>
 
-            <TouchableOpacity style={styles.sendButton}>
-              <CheckIcon size={20} color={Colours.text} weight="bold" />
-              <Text style={styles.buttonText}>Send</Text>
-            </TouchableOpacity>
+              <TouchableOpacity style={styles.sendButton}>
+                <CheckIcon size={20} color={Colours.text} weight="bold" />
+                <Text style={styles.buttonText}>Send</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </SafeAreaView>
     </SafeAreaProvider>
   );
@@ -68,6 +73,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colours.background,
     padding: 12,
+  },
+  flex: {
+    flex: 1,
   },
   imageWrapper: {
     flex: 1,
