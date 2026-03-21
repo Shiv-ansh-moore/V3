@@ -27,7 +27,7 @@ export default function Personal() {
   const [showAddGoal, setShowAddGoal] = useState(false);
   const [showProofCamera, setShowProofCamera] = useState(false);
   const [proofGoal, setProofGoal] = useState<Goal | null>(null);
-  console.log(ScreenTimeLocksModule.hello);
+  console.log(ScreenTimeLocksModule.hello());
 
   const buildRows = () => {
     const result: { goal: Goal; size: "small" | "large" }[] = [];
