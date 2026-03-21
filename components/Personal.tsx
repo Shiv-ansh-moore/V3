@@ -18,6 +18,7 @@ import { UserIcon } from "phosphor-react-native";
 import RadialMenu from "./personal/RadialMenu";
 import AddGoalSheet from "./personal/AddGoalSheet";
 import ProofCamera from "./personal/ProofCamera";
+import ScreenTimeLocksModule from "../modules/screen-time-locks/src/ScreenTimeLocksModule";
 
 export default function Personal() {
   const activeGoals = mockGoals.filter((g) => g.status === "active");
@@ -26,6 +27,7 @@ export default function Personal() {
   const [showAddGoal, setShowAddGoal] = useState(false);
   const [showProofCamera, setShowProofCamera] = useState(false);
   const [proofGoal, setProofGoal] = useState<Goal | null>(null);
+  console.log(ScreenTimeLocksModule.hello);
 
   const buildRows = () => {
     const result: { goal: Goal; size: "small" | "large" }[] = [];
