@@ -1,0 +1,9 @@
+{
+  "platforms": ["apple", "android", "web"],
+  "apple": {
+    "modules": ["ScreenTimeLocksModule"]
+  },
+  "android": {
+    "modules": ["expo.modules.screentimelocks.ScreenTimeLocksModule"]
+  }
+}
