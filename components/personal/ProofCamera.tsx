@@ -91,7 +91,7 @@ export default function ProofCamera({
         <SafeAreaView style={styles.container}>
           {/* Viewfinder with header overlaid */}
           <View style={styles.viewfinderWrapper}>
-            <CameraView ref={cameraRef} facing={facing} flash={flash} style={styles.viewfinder} />
+            <CameraView ref={cameraRef} facing={facing} flash={flash} mirror style={styles.viewfinder} />
             <View style={styles.headerOverlay} pointerEvents="box-none">
               <View style={styles.header}>
                 <View style={styles.headerSide} />

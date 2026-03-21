@@ -179,11 +179,11 @@ export default function Personal() {
 
   return (
     <SafeAreaView style={styles.container} edges={["bottom", "left", "right"]}>
-      {renderLocks()}
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
+        {renderLocks()}
         <View style={styles.grid}>{renderActiveGoals()}</View>
         <View style={styles.dividerRow}>
           <View style={styles.dividerLine} />
