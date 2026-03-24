@@ -5,12 +5,18 @@ import Social from "../components/Social";
 import Personal from "../components/Personal";
 import TabBar from "../components/TabBar";
 import { Colours } from "../constants/Colours";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { requestAuthorization } from "../modules/screen-time-locks";
 
 export default function MyPager() {
   const scrollPosition = useRef(new Animated.Value(0)).current;
   const pagerRef = useRef<PagerView>(null);
+  useEffect(() => {
+    requestAuthorization()
+      .then((result) => console.log("Screen Time:", result))
+      .catch((err) => console.error("Screen Time error:", err));
+  }, []);
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
