@@ -18,6 +18,7 @@ import { UserIcon } from "phosphor-react-native";
 import RadialMenu from "./personal/RadialMenu";
 import AddGoalSheet from "./personal/AddGoalSheet";
 import ProofCamera from "./personal/ProofCamera";
+import ProfileSheet from "./personal/ProfileSheet";
 
 export default function Personal() {
   const activeGoals = mockGoals.filter((g) => g.status === "active");
@@ -25,6 +26,7 @@ export default function Personal() {
   // Set as true for testing
   const [showAddGoal, setShowAddGoal] = useState(false);
   const [showProofCamera, setShowProofCamera] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
   const [proofGoal, setProofGoal] = useState<Goal | null>(null);
 
   const buildRows = () => {
@@ -193,7 +195,11 @@ export default function Personal() {
         <View style={styles.grid}>{renderDoneGoals()}</View>
       </ScrollView>
 
-      <TouchableOpacity style={styles.profileButton} activeOpacity={0.7}>
+      <TouchableOpacity
+        style={styles.profileButton}
+        activeOpacity={0.7}
+        onPress={() => setShowProfile(true)}
+      >
         <UserIcon size={20} weight="bold" color={Colours.secondaryText} />
       </TouchableOpacity>
 
@@ -207,6 +213,10 @@ export default function Personal() {
         goalName={proofGoal?.title ?? ""}
         goalIcon={proofGoal?.icon ?? ""}
         onClose={() => setShowProofCamera(false)}
+      />
+      <ProfileSheet
+        visible={showProfile}
+        onClose={() => setShowProfile(false)}
       />
     </SafeAreaView>
   );
