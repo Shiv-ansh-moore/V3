@@ -1,8 +1,8 @@
 import ExpoModulesCore
 import FamilyControls
 
-public class ScreenTimeLocksModule:{
-  public func defination() -> ModuleDefination{
+public class ScreenTimeLocksModule: Module{
+  public func definition() -> ModuleDefinition{
     Name("ScreenTimeLocks")
 
     AsyncFunction("requestAuthorization"){
