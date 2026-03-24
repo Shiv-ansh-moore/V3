@@ -13,7 +13,7 @@ public class ScreenTimeLocksModule: Module{
         throw NSError(
           domain:"ScreenTimeLocks",
           code: 1,
-          userInfo:[NSLocalizedDescriptionKey: "Requires iOS 16+"]]
+          userInfo:[NSLocalizedDescriptionKey: "Requires iOS 16+"]
         )
       }
     }
