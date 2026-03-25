@@ -2,6 +2,8 @@ import ExpoModulesCore
 import FamilyControls
 import ManagedSettings
 
+// categorys show up in consol log as apps
+
 public class ScreenTimeLocksModule: Module {
   private var currentSelection: FamilyActivitySelection?
   private let store = ManagedSettingsStore()
