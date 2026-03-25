@@ -10,6 +10,16 @@ import {
 import { AppWindowIcon, CaretRightIcon } from "phosphor-react-native";
 import { Colours } from "../../constants/Colours";
 import { Fonts } from "../../constants/Fonts";
+import { showAppPicker } from "../../modules/screen-time-locks";
+
+const handleBlockedApps = async () => {
+  try {
+    const result = await showAppPicker();
+    console.log("Selected apps:", result.selectedApps);
+  } catch (e) {
+    console.log("Picker cancelled or failed:", e);
+  }
+};
 
 interface ProfileSheetProps {
   visible: boolean;
@@ -23,7 +33,12 @@ export default function ProfileSheet({ visible, onClose }: ProfileSheetProps) {
         <Pressable style={styles.sheet}>
           <Text style={styles.title}>Settings</Text>
 
-          <TouchableOpacity style={styles.row} onPress={() => {}}>
+          <TouchableOpacity
+            style={styles.row}
+            onPress={() => {
+              handleBlockedApps();
+            }}
+          >
             <View style={styles.iconBox}>
               <AppWindowIcon size={20} weight="bold" color={Colours.text} />
             </View>
