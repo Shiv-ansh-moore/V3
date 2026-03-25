@@ -70,4 +70,46 @@ public class ScreenTimeLocksModule: Module {
       }
     }
   }
+
+  AsyncFunction("blockApps"){
+    guard let selection = self.currentSelection else {
+      throw NSError(
+        domain: "ScreenTimeLocks",
+        code: 2,
+        userInfo: [NSLocalizedDescriptionKey: "No apps selected. Open the picker first."]
+      )
+    }
+
+    // Get the app tokens from the selection
+    let appTokens = selection.applicationTokens
+
+    // Tell the store to block these apps
+    // This is the magic line — iOS will put a shield on all these apps
+    self.store.shield.applications = appTokens
+
+    return ["blocked": appTokens.count]
+
+  } else {
+    throw NSError(
+      domain: "ScreenTimeLocks",
+      code: 1,
+      userInfo: [NSLocalizedDescriptionKey: "Requires iOS 16+"]
+    )
+  }
+  AsyncFunction("unblockApps") {
+  if #available(iOS 16.0, *) {
+
+    // Clear all shields — unblock everything
+    self.store.shield.applications = nil
+
+    return "unblocked"
+
+  } else {
+    throw NSError(
+      domain: "ScreenTimeLocks",
+      code: 1,
+      userInfo: [NSLocalizedDescriptionKey: "Requires iOS 16+"]
+    )
+  }
 }
+  }
