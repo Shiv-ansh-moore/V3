@@ -10,7 +10,11 @@ import {
 import { AppWindowIcon, CaretRightIcon } from "phosphor-react-native";
 import { Colours } from "../../constants/Colours";
 import { Fonts } from "../../constants/Fonts";
-import { showAppPicker } from "../../modules/screen-time-locks";
+import {
+  showAppPicker,
+  blockApps,
+  unblockApps,
+} from "../../modules/screen-time-locks";
 
 const handleBlockedApps = async () => {
   try {
@@ -18,6 +22,23 @@ const handleBlockedApps = async () => {
     console.log("Selected apps:", result.selectedApps);
   } catch (e) {
     console.log("Picker cancelled or failed:", e);
+  }
+};
+const handleBlockApps = async () => {
+  try {
+    const result = await blockApps();
+    console.log("Blocked", result.blocked, "apps");
+  } catch (e) {
+    console.log("Block failed:", e);
+  }
+};
+
+const handleUnblockApps = async () => {
+  try {
+    await unblockApps();
+    console.log("Apps unblocked");
+  } catch (e) {
+    console.log("Unblock failed:", e);
   }
 };
 
@@ -43,6 +64,29 @@ export default function ProfileSheet({ visible, onClose }: ProfileSheetProps) {
               <AppWindowIcon size={20} weight="bold" color={Colours.text} />
             </View>
             <Text style={styles.rowLabel}>Blocked Apps</Text>
+            <CaretRightIcon
+              size={16}
+              weight="bold"
+              color={Colours.secondaryText}
+            />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.row} onPress={handleBlockApps}>
+            <View style={styles.iconBox}>
+              <AppWindowIcon size={20} weight="bold" color={Colours.text} />
+            </View>
+            <Text style={styles.rowLabel}>Block Apps</Text>
+            <CaretRightIcon
+              size={16}
+              weight="bold"
+              color={Colours.secondaryText}
+            />
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.row} onPress={handleUnblockApps}>
+            <View style={styles.iconBox}>
+              <AppWindowIcon size={20} weight="bold" color={Colours.text} />
+            </View>
+            <Text style={styles.rowLabel}>Unblock Apps</Text>
             <CaretRightIcon
               size={16}
               weight="bold"
