@@ -44,7 +44,7 @@ public class ScreenTimeLocksModule: Module {
           ) { notification in
             if let selection = notification.object as? FamilyActivitySelection {
               self.currentSelection = selection
-              let count = selection.applicationTokens.count
+              let count = selection.applicationTokens.count + selection.categoryTokens.count
               promise.resolve(["selectedApps": count])
             }
             observers.forEach { NotificationCenter.default.removeObserver($0) }
@@ -81,9 +81,11 @@ public class ScreenTimeLocksModule: Module {
         }
 
         let appTokens = selection.applicationTokens
+        let categoryTokens = selection.categoryTokens
         self.store.shield.applications = appTokens
+        self.store.shield.applicationCategories = .specific(categoryTokens)
 
-        return ["blocked": appTokens.count]
+        return ["blocked": appTokens.count + categoryTokens.count]
       } else {
         throw NSError(
           domain: "ScreenTimeLocks",
@@ -96,6 +98,7 @@ public class ScreenTimeLocksModule: Module {
     AsyncFunction("unblockApps") {
       if #available(iOS 16.0, *) {
         self.store.shield.applications = nil
+        self.store.shield.applicationCategories = nil
         return "unblocked"
       } else {
         throw NSError(
