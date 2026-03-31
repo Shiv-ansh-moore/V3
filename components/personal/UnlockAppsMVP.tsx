@@ -1,23 +1,37 @@
-import React from "react";
-import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import React, { useState } from "react";
+import { StyleSheet, Text, TouchableOpacity } from "react-native";
 import { Colours } from "../../constants/Colours";
 import { Fonts } from "../../constants/Fonts";
 import { LockSimpleOpenIcon } from "phosphor-react-native";
+import UnlockSheet from "./UnlockSheet";
 
-const UnlockAppsMVP = () => {
+export default function UnlockAppsMVP() {
+  const [showSheet, setShowSheet] = useState(false);
+
   return (
-    <TouchableOpacity style={styles.container}>
-      <LockSimpleOpenIcon
-        size={14}
-        color={Colours.secondaryText}
-        weight="fill"
-      />
-      <Text style={styles.text}>Unlock apps now</Text>
-    </TouchableOpacity>
-  );
-};
+    <>
+      <TouchableOpacity
+        style={styles.container}
+        onPress={() => setShowSheet(true)}
+      >
+        <LockSimpleOpenIcon
+          size={14}
+          color={Colours.secondaryText}
+          weight="fill"
+        />
+        <Text style={styles.text}>Unlock apps now</Text>
+      </TouchableOpacity>
 
-export default UnlockAppsMVP;
+      <UnlockSheet
+        visible={showSheet}
+        onClose={() => setShowSheet(false)}
+        onUnlock={(minutes, reason) => {
+          console.log(`Unlocked for ${minutes}m — reason: ${reason}`);
+        }}
+      />
+    </>
+  );
+}
 
 const styles = StyleSheet.create({
   container: {
@@ -27,12 +41,6 @@ const styles = StyleSheet.create({
     gap: 8,
     marginBottom: 8,
     marginVertical: 12,
-  },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: "#34C759",
   },
   text: {
     color: Colours.secondaryText,
