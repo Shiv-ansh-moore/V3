@@ -1,19 +1,23 @@
 import React from "react";
-import { View, Text, StyleSheet } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { Colours } from "../../constants/Colours";
 import { Fonts } from "../../constants/Fonts";
 import { LockSimpleOpenIcon } from "phosphor-react-native";
 
-export default function ScreenTimeBanner() {
+const UnlockAppsMVP = () => {
   return (
-    <View>
-      <View style={styles.container}>
-        <View style={styles.dot} />
-        <Text style={styles.text}>All apps locked · 0m today</Text>
-      </View>
-    </View>
+    <TouchableOpacity style={styles.container}>
+      <LockSimpleOpenIcon
+        size={14}
+        color={Colours.secondaryText}
+        weight="fill"
+      />
+      <Text style={styles.text}>Unlock apps now</Text>
+    </TouchableOpacity>
   );
-}
+};
+
+export default UnlockAppsMVP;
 
 const styles = StyleSheet.create({
   container: {
@@ -22,6 +26,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 8,
     marginBottom: 8,
+    marginVertical: 12,
   },
   dot: {
     width: 8,
@@ -32,6 +37,6 @@ const styles = StyleSheet.create({
   text: {
     color: Colours.secondaryText,
     fontFamily: Fonts.medium,
-    fontSize: 13,
+    fontSize: 14,
   },
 });

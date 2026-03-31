@@ -7,13 +7,13 @@ export interface Lock {
 }
 
 export const mockLocks: Lock[] = [
-  {
-    id: "l1",
-    appName: "Instagram",
-    appIcon: "InstagramLogoIcon",
-    timeLimit: 36,
-    timeUsed: 8,
-  },
+  // {
+  //   id: "l1",
+  //   appName: "Instagram",
+  //   appIcon: "InstagramLogoIcon",
+  //   timeLimit: 36,
+  //   timeUsed: 8,
+  // },
   // {
   //   id: "l2",
   //   appName: "TikTok",

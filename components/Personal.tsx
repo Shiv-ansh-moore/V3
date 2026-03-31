@@ -19,6 +19,7 @@ import RadialMenu from "./personal/RadialMenu";
 import AddGoalSheet from "./personal/AddGoalSheet";
 import ProofCamera from "./personal/ProofCamera";
 import ProfileSheet from "./personal/ProfileSheet";
+import UnlockAppsMVP from "./personal/UnlockAppsMVP";
 
 export default function Personal() {
   const activeGoals = mockGoals.filter((g) => g.status === "active");
@@ -193,6 +194,9 @@ export default function Personal() {
           <View style={styles.dividerLine} />
         </View>
         <View style={styles.grid}>{renderDoneGoals()}</View>
+        <View>
+          <UnlockAppsMVP />
+        </View>
       </ScrollView>
 
       <TouchableOpacity
