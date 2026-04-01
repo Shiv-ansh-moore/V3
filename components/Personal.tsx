@@ -5,7 +5,7 @@ import {
   ScrollView,
   TouchableOpacity,
 } from "react-native";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { mockGoals, Goal } from "../testData/mockGoals";
 import { mockLocks } from "../testData/mockLocks";
 import GoalTile from "./personal/GoalTile";
@@ -20,6 +20,7 @@ import AddGoalSheet from "./personal/AddGoalSheet";
 import ProofCamera from "./personal/ProofCamera";
 import ProfileSheet from "./personal/ProfileSheet";
 import UnlockAppsMVP from "./personal/UnlockAppsMVP";
+import UnlockTimerCard from "./personal/UnlockTimerCard";
 
 export default function Personal() {
   const activeGoals = mockGoals.filter((g) => g.status === "active");
@@ -29,6 +30,32 @@ export default function Personal() {
   const [showProofCamera, setShowProofCamera] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [proofGoal, setProofGoal] = useState<Goal | null>(null);
+  const [unlockEndTime, setUnlockEndTime] = useState<number | null>(null);
+  const [unlockSecondsLeft, setUnlockSecondsLeft] = useState(0);
+  const [unlockTotalSeconds, setUnlockTotalSeconds] = useState(0);
+
+  const handleUnlock = (minutes: number, _reason: string) => {
+    const totalSecs = minutes * 60;
+    setUnlockEndTime(Date.now() + totalSecs * 1000);
+    setUnlockSecondsLeft(totalSecs);
+    setUnlockTotalSeconds(totalSecs);
+  };
+
+  useEffect(() => {
+    if (!unlockEndTime) return;
+
+    const tick = () => {
+      const remaining = Math.max(0, Math.ceil((unlockEndTime - Date.now()) / 1000));
+      setUnlockSecondsLeft(remaining);
+      if (remaining <= 0) {
+        setUnlockEndTime(null);
+      }
+    };
+
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [unlockEndTime]);
 
   const buildRows = () => {
     const result: { goal: Goal; size: "small" | "large" }[] = [];
@@ -123,6 +150,19 @@ export default function Personal() {
   };
 
   const renderLocks = () => {
+    if (unlockEndTime) {
+      return (
+        <View style={styles.lockSection}>
+          <View style={styles.row}>
+            <UnlockTimerCard
+              secondsLeft={unlockSecondsLeft}
+              totalSeconds={unlockTotalSeconds}
+            />
+          </View>
+        </View>
+      );
+    }
+
     if (mockLocks.length === 0) {
       return <ScreenTimeBanner />;
     }
@@ -194,9 +234,11 @@ export default function Personal() {
           <View style={styles.dividerLine} />
         </View>
         <View style={styles.grid}>{renderDoneGoals()}</View>
-        <View>
-          <UnlockAppsMVP />
-        </View>
+        {!unlockEndTime && (
+          <View>
+            <UnlockAppsMVP onUnlock={handleUnlock} />
+          </View>
+        )}
       </ScrollView>
 
       <TouchableOpacity

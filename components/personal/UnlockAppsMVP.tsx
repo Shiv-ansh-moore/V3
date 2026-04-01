@@ -5,7 +5,11 @@ import { Fonts } from "../../constants/Fonts";
 import { LockSimpleOpenIcon } from "phosphor-react-native";
 import UnlockSheet from "./UnlockSheet";
 
-export default function UnlockAppsMVP() {
+interface UnlockAppsMVPProps {
+  onUnlock: (minutes: number, reason: string) => void;
+}
+
+export default function UnlockAppsMVP({ onUnlock }: UnlockAppsMVPProps) {
   const [showSheet, setShowSheet] = useState(false);
 
   return (
@@ -25,9 +29,7 @@ export default function UnlockAppsMVP() {
       <UnlockSheet
         visible={showSheet}
         onClose={() => setShowSheet(false)}
-        onUnlock={(minutes, reason) => {
-          console.log(`Unlocked for ${minutes}m — reason: ${reason}`);
-        }}
+        onUnlock={onUnlock}
       />
     </>
   );
