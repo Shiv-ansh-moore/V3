@@ -5,8 +5,8 @@ import FamilyControls
 
 class AppPickerViewController: UIHostingController<AppPickerView>{
     var onSelectionComplete: ((FamilyActivitySelection) -> Void)?
-    init(){
-        let pickerView = AppPickerView()
+    init(initialSelection: FamilyActivitySelection = FamilyActivitySelection()){
+        let pickerView = AppPickerView(initialSelection: initialSelection)
         super.init(rootView: pickerView)
     }
     @MainActor required dynamic init?(coder aDecoder: NSCoder) {
@@ -16,7 +16,11 @@ class AppPickerViewController: UIHostingController<AppPickerView>{
 
 @available(iOS 16.0, *)
 struct AppPickerView: View {
-  @State private var selection = FamilyActivitySelection()
+  @State private var selection: FamilyActivitySelection
+
+  init(initialSelection: FamilyActivitySelection = FamilyActivitySelection()) {
+    _selection = State(initialValue: initialSelection)
+  }
 
   var body: some View {
     NavigationView {

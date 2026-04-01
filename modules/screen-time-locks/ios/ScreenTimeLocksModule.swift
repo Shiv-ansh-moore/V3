@@ -201,6 +201,75 @@ public class ScreenTimeLocksModule: Module {
       }
     }
 
+    AsyncFunction("manageBlockedApps") { (promise: Promise) in
+      DispatchQueue.main.async {
+        guard let rootVC = UIApplication.shared.connectedScenes
+          .compactMap({ $0 as? UIWindowScene })
+          .first?.windows.first?.rootViewController
+        else {
+          promise.reject("ERR", "No root view controller")
+          return
+        }
+
+        if #available(iOS 16.0, *) {
+          // Load saved selection (if any) from UserDefaults
+          var initialSelection = FamilyActivitySelection()
+          if let data = self.sharedDefaults?.data(forKey: "blockedSelection"),
+             let saved = try? JSONDecoder().decode(FamilyActivitySelection.self, from: data) {
+            initialSelection = saved
+          }
+
+          // Create picker pre-populated with saved selection
+          let picker = AppPickerViewController(initialSelection: initialSelection)
+          picker.modalPresentationStyle = .pageSheet
+          var observers: [Any] = []
+
+          let doneObserver = NotificationCenter.default.addObserver(
+            forName: .appSelectionComplete,
+            object: nil,
+            queue: .main
+          ) { notification in
+            if let selection = notification.object as? FamilyActivitySelection {
+              // Update in-memory selection
+              self.currentSelection = selection
+
+              // Save to UserDefaults
+              if let data = try? JSONEncoder().encode(selection) {
+                self.sharedDefaults?.set(data, forKey: "blockedSelection")
+              }
+
+              // Apply shields immediately
+              let appTokens = selection.applicationTokens
+              let categoryTokens = selection.categoryTokens
+              self.store.shield.applications = appTokens.isEmpty ? nil : appTokens
+              self.store.shield.applicationCategories = categoryTokens.isEmpty ? nil : .specific(categoryTokens)
+
+              let count = appTokens.count + categoryTokens.count
+              promise.resolve(["blocked": count])
+            }
+            observers.forEach { NotificationCenter.default.removeObserver($0) }
+            rootVC.dismiss(animated: true)
+          }
+          observers.append(doneObserver)
+
+          let cancelObserver = NotificationCenter.default.addObserver(
+            forName: .appSelectionCancelled,
+            object: nil,
+            queue: .main
+          ) { _ in
+            promise.resolve(["cancelled": true])
+            observers.forEach { NotificationCenter.default.removeObserver($0) }
+            rootVC.dismiss(animated: true)
+          }
+          observers.append(cancelObserver)
+
+          rootVC.present(picker, animated: true)
+        } else {
+          promise.reject("ERR", "Requires iOS 16+")
+        }
+      }
+    }
+
     Function("getActiveUnlock") { () -> [String: Any]? in
       let endTime = self.sharedDefaults?.double(forKey: "unlockEndTime") ?? 0
       guard endTime > 0, endTime > Date().timeIntervalSince1970 else {

@@ -16,6 +16,10 @@ export async function unblockApps(): Promise<string> {
   return await ScreenTimeLocks.unblockApps();
 }
 
+export async function manageBlockedApps(): Promise<{ blocked?: number; cancelled?: boolean }> {
+  return await ScreenTimeLocks.manageBlockedApps();
+}
+
 export async function unlockForDuration(minutes: number, reason: string): Promise<string> {
   return await ScreenTimeLocks.unlockForDuration(minutes, reason);
 }
