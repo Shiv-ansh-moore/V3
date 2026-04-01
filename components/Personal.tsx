@@ -21,6 +21,7 @@ import ProofCamera from "./personal/ProofCamera";
 import ProfileSheet from "./personal/ProfileSheet";
 import UnlockAppsMVP from "./personal/UnlockAppsMVP";
 import UnlockTimerCard from "./personal/UnlockTimerCard";
+import { relockNow } from "../modules/screen-time-locks";
 
 export default function Personal() {
   const activeGoals = mockGoals.filter((g) => g.status === "active");
@@ -39,6 +40,16 @@ export default function Personal() {
     setUnlockEndTime(Date.now() + totalSecs * 1000);
     setUnlockSecondsLeft(totalSecs);
     setUnlockTotalSeconds(totalSecs);
+  };
+
+  const handleLockNow = async () => {
+    try {
+      await relockNow();
+    } catch (e) {
+      console.log("Relock failed:", e);
+    }
+    setUnlockEndTime(null);
+    setUnlockSecondsLeft(0);
   };
 
   useEffect(() => {
@@ -157,6 +168,7 @@ export default function Personal() {
             <UnlockTimerCard
               secondsLeft={unlockSecondsLeft}
               totalSeconds={unlockTotalSeconds}
+              onLockNow={handleLockNow}
             />
           </View>
         </View>

@@ -19,4 +19,7 @@ export async function unblockApps(): Promise<string> {
 export async function unlockForDuration(minutes: number): Promise<string> {
   return await ScreenTimeLocks.unlockForDuration(minutes);
 }
+export async function relockNow(): Promise<string> {
+  return await ScreenTimeLocks.relockNow();
+}
 

@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import React from "react";
 import { Colours } from "../../constants/Colours";
 import { Fonts } from "../../constants/Fonts";
@@ -7,6 +7,7 @@ import { LockSimpleOpenIcon } from "phosphor-react-native";
 interface UnlockTimerCardProps {
   secondsLeft: number;
   totalSeconds: number;
+  onLockNow: () => void;
 }
 
 function formatTime(totalSecs: number): string {
@@ -19,6 +20,7 @@ function formatTime(totalSecs: number): string {
 export default function UnlockTimerCard({
   secondsLeft,
   totalSeconds,
+  onLockNow,
 }: UnlockTimerCardProps) {
   const progress = totalSeconds > 0 ? secondsLeft / totalSeconds : 0;
   const timeDisplay = formatTime(secondsLeft);
@@ -36,9 +38,9 @@ export default function UnlockTimerCard({
           style={[styles.progressFill, { width: `${progress * 100}%` }]}
         />
       </View>
-      <View style={styles.button}>
+      <TouchableOpacity style={styles.button} onPress={onLockNow}>
         <Text style={styles.buttonText}>LOCK NOW</Text>
-      </View>
+      </TouchableOpacity>
     </View>
   );
 }

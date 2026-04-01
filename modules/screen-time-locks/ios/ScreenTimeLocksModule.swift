@@ -168,5 +168,32 @@ public class ScreenTimeLocksModule: Module {
         )
       }
     }
+        AsyncFunction("relockNow") {
+      if #available(iOS 16.0, *) {
+        if let data = self.sharedDefaults?.data(forKey: "blockedSelection"),
+           let selection = try? JSONDecoder().decode(FamilyActivitySelection.self, from: data) {
+          let appTokens = selection.applicationTokens
+          let categoryTokens = selection.categoryTokens
+          self.store.shield.applications = appTokens.isEmpty ? nil : appTokens
+          self.store.shield.applicationCategories = categoryTokens.isEmpty ? nil : .specific(categoryTokens)
+        } else if let selection = self.currentSelection {
+          self.store.shield.applications = selection.applicationTokens
+          self.store.shield.applicationCategories = .specific(selection.categoryTokens)
+        }
+        
+        let center = DeviceActivityCenter()
+        center.stopMonitoring([DeviceActivityName("V3Unlock")])
+        self.sharedDefaults?.removeObject(forKey: "unlockEndTime")
+        
+        return "relocked"
+      } else {
+        throw NSError(
+          domain: "ScreenTimeLocks",
+          code: 1,
+          userInfo: [NSLocalizedDescriptionKey: "Requires iOS 16+"]
+        )
+      }
+    }
+
   }
 }
