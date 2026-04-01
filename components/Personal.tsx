@@ -51,10 +51,17 @@ export default function Personal() {
   };
 
   const handleLockNow = async () => {
+    const active = getActiveUnlock();
     try {
       await relockNow();
     } catch (e) {
       console.log("Relock failed:", e);
+    }
+    if (active) {
+      const actualSeconds = Math.round(Date.now() / 1000 - active.startTime);
+      const mins = Math.floor(actualSeconds / 60);
+      const secs = actualSeconds % 60;
+      console.log(`Apps were unlocked for ${mins}m ${secs}s (reason: ${active.reason})`);
     }
     setUnlockEndTime(null);
     setUnlockSecondsLeft(0);
@@ -67,6 +74,7 @@ export default function Personal() {
       const remaining = Math.max(0, Math.ceil((unlockEndTime - Date.now()) / 1000));
       setUnlockSecondsLeft(remaining);
       if (remaining <= 0) {
+        console.log(`Unlock timer expired (full duration: ${unlockTotalSeconds / 60}m)`);
         setUnlockEndTime(null);
       }
     };
