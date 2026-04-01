@@ -12,7 +12,7 @@ import { Colours } from "../../constants/Colours";
 import { Fonts } from "../../constants/Fonts";
 import { unlockForDuration } from "../../modules/screen-time-locks";
 
-const DURATIONS = [5, 10, 15, 30];
+const DURATIONS = [15, 30];
 
 interface UnlockSheetProps {
   visible: boolean;
