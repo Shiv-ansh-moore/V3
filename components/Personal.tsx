@@ -21,7 +21,7 @@ import ProofCamera from "./personal/ProofCamera";
 import ProfileSheet from "./personal/ProfileSheet";
 import UnlockAppsMVP from "./personal/UnlockAppsMVP";
 import UnlockTimerCard from "./personal/UnlockTimerCard";
-import { relockNow } from "../modules/screen-time-locks";
+import { relockNow, getActiveUnlock } from "../modules/screen-time-locks";
 
 export default function Personal() {
   const activeGoals = mockGoals.filter((g) => g.status === "active");
@@ -34,6 +34,14 @@ export default function Personal() {
   const [unlockEndTime, setUnlockEndTime] = useState<number | null>(null);
   const [unlockSecondsLeft, setUnlockSecondsLeft] = useState(0);
   const [unlockTotalSeconds, setUnlockTotalSeconds] = useState(0);
+
+  useEffect(() => {
+    const active = getActiveUnlock();
+    if (active) {
+      setUnlockEndTime(active.endTime * 1000);
+      setUnlockTotalSeconds(active.totalDuration);
+    }
+  }, []);
 
   const handleUnlock = (minutes: number, _reason: string) => {
     const totalSecs = minutes * 60;

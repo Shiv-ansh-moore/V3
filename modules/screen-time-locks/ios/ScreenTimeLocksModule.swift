@@ -112,7 +112,7 @@ public class ScreenTimeLocksModule: Module {
         )
       }
     }
-     AsyncFunction("unlockForDuration") { (minutes: Int) -> String in
+     AsyncFunction("unlockForDuration") { (minutes: Int, reason: String) -> String in
       if #available(iOS 16.0, *) {
         guard let selection = self.currentSelection else {
           throw NSError(
@@ -121,22 +121,25 @@ public class ScreenTimeLocksModule: Module {
             userInfo: [NSLocalizedDescriptionKey: "No apps selected. Open the picker first."]
           )
         }
-        
+
         // 1. Save selection so DeviceMonitor can re-lock later
         if let data = try? JSONEncoder().encode(selection) {
           self.sharedDefaults?.set(data, forKey: "blockedSelection")
         }
-        
-        // 2. Save when the unlock ends (for UI countdown)
-        let endDate = Date().addingTimeInterval(TimeInterval(minutes * 60))
+
+        // 2. Save unlock timing + reason for UI countdown persistence
+        let now = Date()
+        let endDate = now.addingTimeInterval(TimeInterval(minutes * 60))
         self.sharedDefaults?.set(endDate.timeIntervalSince1970, forKey: "unlockEndTime")
+        self.sharedDefaults?.set(now.timeIntervalSince1970, forKey: "unlockStartTime")
+        self.sharedDefaults?.set(minutes * 60, forKey: "unlockTotalDuration")
+        self.sharedDefaults?.set(reason, forKey: "unlockReason")
         
         // 3. Remove shields (unlock)
         self.store.shield.applications = nil
         self.store.shield.applicationCategories = nil
         
         // 4. Schedule DeviceActivity — fires intervalDidEnd when time's up
-        let now = Date()
         let calendar = Calendar.current
         
         let start = calendar.dateComponents(
@@ -184,7 +187,10 @@ public class ScreenTimeLocksModule: Module {
         let center = DeviceActivityCenter()
         center.stopMonitoring([DeviceActivityName("V3Unlock")])
         self.sharedDefaults?.removeObject(forKey: "unlockEndTime")
-        
+        self.sharedDefaults?.removeObject(forKey: "unlockStartTime")
+        self.sharedDefaults?.removeObject(forKey: "unlockTotalDuration")
+        self.sharedDefaults?.removeObject(forKey: "unlockReason")
+
         return "relocked"
       } else {
         throw NSError(
@@ -193,6 +199,22 @@ public class ScreenTimeLocksModule: Module {
           userInfo: [NSLocalizedDescriptionKey: "Requires iOS 16+"]
         )
       }
+    }
+
+    Function("getActiveUnlock") { () -> [String: Any]? in
+      let endTime = self.sharedDefaults?.double(forKey: "unlockEndTime") ?? 0
+      guard endTime > 0, endTime > Date().timeIntervalSince1970 else {
+        return nil
+      }
+      let startTime = self.sharedDefaults?.double(forKey: "unlockStartTime") ?? 0
+      let totalDuration = self.sharedDefaults?.integer(forKey: "unlockTotalDuration") ?? 0
+      let reason = self.sharedDefaults?.string(forKey: "unlockReason") ?? ""
+      return [
+        "endTime": endTime,
+        "startTime": startTime,
+        "totalDuration": totalDuration,
+        "reason": reason
+      ]
     }
 
   }

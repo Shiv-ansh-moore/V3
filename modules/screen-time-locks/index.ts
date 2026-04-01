@@ -16,10 +16,21 @@ export async function unblockApps(): Promise<string> {
   return await ScreenTimeLocks.unblockApps();
 }
 
-export async function unlockForDuration(minutes: number): Promise<string> {
-  return await ScreenTimeLocks.unlockForDuration(minutes);
+export async function unlockForDuration(minutes: number, reason: string): Promise<string> {
+  return await ScreenTimeLocks.unlockForDuration(minutes, reason);
 }
 export async function relockNow(): Promise<string> {
   return await ScreenTimeLocks.relockNow();
+}
+
+export interface ActiveUnlock {
+  endTime: number;
+  startTime: number;
+  totalDuration: number;
+  reason: string;
+}
+
+export function getActiveUnlock(): ActiveUnlock | null {
+  return ScreenTimeLocks.getActiveUnlock();
 }
 

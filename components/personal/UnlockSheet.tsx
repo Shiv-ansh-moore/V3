@@ -33,7 +33,7 @@ export default function UnlockSheet({
     if (!selectedMinutes) return;
     setLoading(true);
     try {
-      await unlockForDuration(selectedMinutes);
+      await unlockForDuration(selectedMinutes, reason);
       onUnlock(selectedMinutes, reason);
       setReason("");
       setSelectedMinutes(null);
