@@ -1,7 +1,45 @@
 1<?xml version="1.0" encoding="utf-8"?>
 2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-3    package="expo.modules.screentimelocks" >
-4
-5    <uses-sdk android:minSdkVersion="24" />
-6
-7</manifest>
+3    xmlns:tools="http://schemas.android.com/tools"
+4    package="expo.modules.screentimelocks" >
+5
+6    <uses-sdk android:minSdkVersion="24" />
+7
+8    <uses-permission
+8-->/home/shivansh/V3/V3App/modules/screen-time-locks/android/src/main/AndroidManifest.xml:4:5-6:53
+9        android:name="android.permission.QUERY_ALL_PACKAGES"
+9-->/home/shivansh/V3/V3App/modules/screen-time-locks/android/src/main/AndroidManifest.xml:5:9-61
+10        tools:ignore="QueryAllPackagesPermission" />
+10-->/home/shivansh/V3/V3App/modules/screen-time-locks/android/src/main/AndroidManifest.xml:6:9-50
+11
+12    <application>
+12-->/home/shivansh/V3/V3App/modules/screen-time-locks/android/src/main/AndroidManifest.xml:8:5-22:19
+13        <service
+13-->/home/shivansh/V3/V3App/modules/screen-time-locks/android/src/main/AndroidManifest.xml:9:9-21:19
+14            android:name="expo.modules.screentimelocks.AppBlockerService"
+14-->/home/shivansh/V3/V3App/modules/screen-time-locks/android/src/main/AndroidManifest.xml:10:13-46
+15            android:exported="true"
+15-->/home/shivansh/V3/V3App/modules/screen-time-locks/android/src/main/AndroidManifest.xml:11:13-36
+16            android:label="V3 App Blocker"
+16-->/home/shivansh/V3/V3App/modules/screen-time-locks/android/src/main/AndroidManifest.xml:12:13-43
+17            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
+17-->/home/shivansh/V3/V3App/modules/screen-time-locks/android/src/main/AndroidManifest.xml:14:13-79
+18            android:process=":blocker" >
+18-->/home/shivansh/V3/V3App/modules/screen-time-locks/android/src/main/AndroidManifest.xml:13:13-39
+19            <intent-filter>
+19-->/home/shivansh/V3/V3App/modules/screen-time-locks/android/src/main/AndroidManifest.xml:15:13-17:29
+20                <action android:name="android.accessibilityservice.AccessibilityService" />
+20-->/home/shivansh/V3/V3App/modules/screen-time-locks/android/src/main/AndroidManifest.xml:16:17-92
+20-->/home/shivansh/V3/V3App/modules/screen-time-locks/android/src/main/AndroidManifest.xml:16:25-89
+21            </intent-filter>
+22
+23            <meta-data
+23-->/home/shivansh/V3/V3App/modules/screen-time-locks/android/src/main/AndroidManifest.xml:18:13-20:58
+24                android:name="android.accessibilityservice"
+24-->/home/shivansh/V3/V3App/modules/screen-time-locks/android/src/main/AndroidManifest.xml:19:17-60
+25                android:resource="@xml/blocker_config" />
+25-->/home/shivansh/V3/V3App/modules/screen-time-locks/android/src/main/AndroidManifest.xml:20:17-55
+26        </service>
+27    </application>
+28
+29</manifest>

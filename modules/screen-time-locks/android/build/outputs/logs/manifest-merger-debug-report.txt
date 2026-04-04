@@ -1,9 +1,45 @@
 -- Merging decision tree log ---
 manifest
-ADDED from /home/shivansh/V3/V3App/modules/screen-time-locks/android/src/main/AndroidManifest.xml:1:1-2:12
-INJECTED from /home/shivansh/V3/V3App/modules/screen-time-locks/android/src/main/AndroidManifest.xml:1:1-2:12
+ADDED from /home/shivansh/V3/V3App/modules/screen-time-locks/android/src/main/AndroidManifest.xml:1:1-23:12
+INJECTED from /home/shivansh/V3/V3App/modules/screen-time-locks/android/src/main/AndroidManifest.xml:1:1-23:12
 	package
 		INJECTED from /home/shivansh/V3/V3App/modules/screen-time-locks/android/src/main/AndroidManifest.xml
+	xmlns:tools
+		ADDED from /home/shivansh/V3/V3App/modules/screen-time-locks/android/src/main/AndroidManifest.xml:2:5-51
+	xmlns:android
+		ADDED from /home/shivansh/V3/V3App/modules/screen-time-locks/android/src/main/AndroidManifest.xml:1:11-69
+uses-permission#android.permission.QUERY_ALL_PACKAGES
+ADDED from /home/shivansh/V3/V3App/modules/screen-time-locks/android/src/main/AndroidManifest.xml:4:5-6:53
+	tools:ignore
+		ADDED from /home/shivansh/V3/V3App/modules/screen-time-locks/android/src/main/AndroidManifest.xml:6:9-50
+	android:name
+		ADDED from /home/shivansh/V3/V3App/modules/screen-time-locks/android/src/main/AndroidManifest.xml:5:9-61
+application
+ADDED from /home/shivansh/V3/V3App/modules/screen-time-locks/android/src/main/AndroidManifest.xml:8:5-22:19
+service#expo.modules.screentimelocks.AppBlockerService
+ADDED from /home/shivansh/V3/V3App/modules/screen-time-locks/android/src/main/AndroidManifest.xml:9:9-21:19
+	android:process
+		ADDED from /home/shivansh/V3/V3App/modules/screen-time-locks/android/src/main/AndroidManifest.xml:13:13-39
+	android:label
+		ADDED from /home/shivansh/V3/V3App/modules/screen-time-locks/android/src/main/AndroidManifest.xml:12:13-43
+	android:exported
+		ADDED from /home/shivansh/V3/V3App/modules/screen-time-locks/android/src/main/AndroidManifest.xml:11:13-36
+	android:permission
+		ADDED from /home/shivansh/V3/V3App/modules/screen-time-locks/android/src/main/AndroidManifest.xml:14:13-79
+	android:name
+		ADDED from /home/shivansh/V3/V3App/modules/screen-time-locks/android/src/main/AndroidManifest.xml:10:13-46
+intent-filter#action:name:android.accessibilityservice.AccessibilityService
+ADDED from /home/shivansh/V3/V3App/modules/screen-time-locks/android/src/main/AndroidManifest.xml:15:13-17:29
+action#android.accessibilityservice.AccessibilityService
+ADDED from /home/shivansh/V3/V3App/modules/screen-time-locks/android/src/main/AndroidManifest.xml:16:17-92
+	android:name
+		ADDED from /home/shivansh/V3/V3App/modules/screen-time-locks/android/src/main/AndroidManifest.xml:16:25-89
+meta-data#android.accessibilityservice
+ADDED from /home/shivansh/V3/V3App/modules/screen-time-locks/android/src/main/AndroidManifest.xml:18:13-20:58
+	android:resource
+		ADDED from /home/shivansh/V3/V3App/modules/screen-time-locks/android/src/main/AndroidManifest.xml:20:17-55
+	android:name
+		ADDED from /home/shivansh/V3/V3App/modules/screen-time-locks/android/src/main/AndroidManifest.xml:19:17-60
 uses-sdk
 INJECTED from /home/shivansh/V3/V3App/modules/screen-time-locks/android/src/main/AndroidManifest.xml reason: use-sdk injection requested
 INJECTED from /home/shivansh/V3/V3App/modules/screen-time-locks/android/src/main/AndroidManifest.xml

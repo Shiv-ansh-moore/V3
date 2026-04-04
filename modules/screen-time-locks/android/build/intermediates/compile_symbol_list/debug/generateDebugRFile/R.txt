@@ -1,0 +1,2 @@
+int string blocker_description 0x0
+int xml blocker_config 0x0

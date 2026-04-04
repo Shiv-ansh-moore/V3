@@ -1,2 +1,23 @@
-<manifest>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <uses-permission
+        android:name="android.permission.QUERY_ALL_PACKAGES"
+        tools:ignore="QueryAllPackagesPermission" />
+
+    <application>
+        <service
+            android:name=".AppBlockerService"
+            android:exported="true"
+            android:label="V3 App Blocker"
+            android:process=":blocker"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/blocker_config" />
+        </service>
+    </application>
 </manifest>
