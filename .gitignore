@@ -38,3 +38,5 @@ yarn-error.*
 
 # generated native folders not doing ios because of custom builds
 /android
+
+modules/screen-time-locks/android/build/
