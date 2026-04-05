@@ -8,12 +8,24 @@ export async function requestAuthorization(): Promise<string> {
 export async function showAppPicker(): Promise<{ selectedApps: number }> {
   return await ScreenTimeLocks.showAppPicker();
 }
-export async function blockApps(): Promise<{ blocked: number }> {
-  return await ScreenTimeLocks.blockApps();
+export async function blockApps(packageNames: string[]): Promise<{ blocked: number }> {
+  return await ScreenTimeLocks.blockApps(packageNames);
 }
 
 export async function unblockApps(): Promise<string> {
   return await ScreenTimeLocks.unblockApps();
+}
+
+export async function addBlockedApp(packageName: string): Promise<void> {
+  return await ScreenTimeLocks.addBlockedApp(packageName);
+}
+
+export async function removeBlockedApp(packageName: string): Promise<void> {
+  return await ScreenTimeLocks.removeBlockedApp(packageName);
+}
+
+export async function getBlockedApps(): Promise<string[]> {
+  return await ScreenTimeLocks.getBlockedApps();
 }
 
 export async function manageBlockedApps(): Promise<{ blocked?: number; cancelled?: boolean }> {
@@ -37,4 +49,3 @@ export interface ActiveUnlock {
 export function getActiveUnlock(): ActiveUnlock | null {
   return ScreenTimeLocks.getActiveUnlock();
 }
-

@@ -21,7 +21,7 @@ import ProofCamera from "./personal/ProofCamera";
 import ProfileSheet from "./personal/ProfileSheet";
 import UnlockAppsMVP from "./personal/UnlockAppsMVP";
 import UnlockTimerCard from "./personal/UnlockTimerCard";
-import { relockNow, getActiveUnlock } from "../modules/screen-time-locks";
+import { relockNow, getActiveUnlock, blockApps } from "../modules/screen-time-locks";
 
 export default function Personal() {
   const activeGoals = mockGoals.filter((g) => g.status === "active");
@@ -34,6 +34,11 @@ export default function Personal() {
   const [unlockEndTime, setUnlockEndTime] = useState<number | null>(null);
   const [unlockSecondsLeft, setUnlockSecondsLeft] = useState(0);
   const [unlockTotalSeconds, setUnlockTotalSeconds] = useState(0);
+
+  useEffect(() => {
+    // Test: block Instagram and Snapchat
+    blockApps(['com.instagram.android', 'com.snapchat.android']);
+  }, []);
 
   useEffect(() => {
     const active = getActiveUnlock();

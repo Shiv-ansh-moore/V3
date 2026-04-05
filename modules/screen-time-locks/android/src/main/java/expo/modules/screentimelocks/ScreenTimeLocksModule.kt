@@ -15,12 +15,31 @@ class ScreenTimeLocksModule : Module() {
       return@AsyncFunction mapOf("selectedApps" to 0)
     }
 
-    AsyncFunction("blockApps") {
-      return@AsyncFunction mapOf("blocked" to 0)
+    AsyncFunction("blockApps") { packageNames: List<String> ->
+      val context = appContext.reactContext ?: return@AsyncFunction mapOf("blocked" to 0)
+      BlockedAppsStore.setBlockedApps(context, packageNames.toSet())
+      return@AsyncFunction mapOf("blocked" to packageNames.size)
     }
 
     AsyncFunction("unblockApps") {
-      return@AsyncFunction "not_supported"
+      val context = appContext.reactContext ?: return@AsyncFunction "error"
+      BlockedAppsStore.setBlockedApps(context, emptySet())
+      return@AsyncFunction "ok"
+    }
+
+    AsyncFunction("addBlockedApp") { packageName: String ->
+      val context = appContext.reactContext ?: return@AsyncFunction
+      BlockedAppsStore.addBlockedApp(context, packageName)
+    }
+
+    AsyncFunction("removeBlockedApp") { packageName: String ->
+      val context = appContext.reactContext ?: return@AsyncFunction
+      BlockedAppsStore.removeBlockedApp(context, packageName)
+    }
+
+    AsyncFunction("getBlockedApps") {
+      val context = appContext.reactContext ?: return@AsyncFunction emptyList<String>()
+      return@AsyncFunction BlockedAppsStore.getBlockedApps(context).toList()
     }
 
     AsyncFunction("manageBlockedApps") {
@@ -40,4 +59,3 @@ class ScreenTimeLocksModule : Module() {
     }
   }
 }
-
