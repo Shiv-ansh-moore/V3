@@ -21,7 +21,12 @@ import ProofCamera from "./personal/ProofCamera";
 import ProfileSheet from "./personal/ProfileSheet";
 import UnlockAppsMVP from "./personal/UnlockAppsMVP";
 import UnlockTimerCard from "./personal/UnlockTimerCard";
-import { relockNow, getActiveUnlock, blockApps } from "../modules/screen-time-locks";
+import {
+  relockNow,
+  getActiveUnlock,
+  blockApps,
+  removeBlockedApp,
+} from "../modules/screen-time-locks";
 
 export default function Personal() {
   const activeGoals = mockGoals.filter((g) => g.status === "active");
@@ -37,7 +42,8 @@ export default function Personal() {
 
   useEffect(() => {
     // Test: block Instagram and Snapchat
-    blockApps(['com.instagram.android', 'com.snapchat.android']);
+    blockApps(["com.instagram.android", "com.snapchat.android"]);
+    removeBlockedApp("com.snapchat.android");
   }, []);
 
   useEffect(() => {
@@ -66,7 +72,9 @@ export default function Personal() {
       const actualSeconds = Math.round(Date.now() / 1000 - active.startTime);
       const mins = Math.floor(actualSeconds / 60);
       const secs = actualSeconds % 60;
-      console.log(`Apps were unlocked for ${mins}m ${secs}s (reason: ${active.reason})`);
+      console.log(
+        `Apps were unlocked for ${mins}m ${secs}s (reason: ${active.reason})`,
+      );
     }
     setUnlockEndTime(null);
     setUnlockSecondsLeft(0);
@@ -76,10 +84,15 @@ export default function Personal() {
     if (!unlockEndTime) return;
 
     const tick = () => {
-      const remaining = Math.max(0, Math.ceil((unlockEndTime - Date.now()) / 1000));
+      const remaining = Math.max(
+        0,
+        Math.ceil((unlockEndTime - Date.now()) / 1000),
+      );
       setUnlockSecondsLeft(remaining);
       if (remaining <= 0) {
-        console.log(`Unlock timer expired (full duration: ${unlockTotalSeconds / 60}m)`);
+        console.log(
+          `Unlock timer expired (full duration: ${unlockTotalSeconds / 60}m)`,
+        );
         setUnlockEndTime(null);
       }
     };

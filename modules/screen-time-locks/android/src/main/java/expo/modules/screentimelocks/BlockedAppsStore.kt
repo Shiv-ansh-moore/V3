@@ -7,7 +7,7 @@ object BlockedAppsStore {
     private const val KEY_BLOCKED_SET = "blocked_set"
 
     private fun getPrefs(context: Context) =
-        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_MULTI_PROCESS)
 
     fun getBlockedApps(context: Context): Set<String> {
         return getPrefs(context).getStringSet(KEY_BLOCKED_SET, emptySet()) ?: emptySet()
