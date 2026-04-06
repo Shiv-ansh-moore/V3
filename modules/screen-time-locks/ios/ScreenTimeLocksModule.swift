@@ -114,7 +114,14 @@ public class ScreenTimeLocksModule: Module {
     }
      AsyncFunction("unlockForDuration") { (minutes: Int, reason: String) -> String in
       if #available(iOS 16.0, *) {
-        guard let selection = self.currentSelection else {
+        guard let selection = self.currentSelection ?? {
+    if let data = self.sharedDefaults?.data(forKey: "blockedSelection"),
+       let saved = try? JSONDecoder().decode(FamilyActivitySelection.self, from: data) {
+        return saved
+    }
+    return nil
+}() else {
+
           throw NSError(
             domain: "ScreenTimeLocks",
             code: 2,
