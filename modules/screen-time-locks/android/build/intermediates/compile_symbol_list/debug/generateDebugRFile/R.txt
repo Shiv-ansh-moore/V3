@@ -1,2 +1,7 @@
+int id btnClose 0x0
+int id btnOpenV3 0x0
+int id subtitle 0x0
+int id title 0x0
+int layout activity_warning 0x0
 int string blocker_description 0x0
 int xml blocker_config 0x0

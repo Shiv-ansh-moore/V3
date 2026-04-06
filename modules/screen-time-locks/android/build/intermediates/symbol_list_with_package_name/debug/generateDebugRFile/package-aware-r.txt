@@ -1,3 +1,8 @@
 expo.modules.screentimelocks
+id btnClose
+id btnOpenV3
+id subtitle
+id title
+layout activity_warning
 string blocker_description
 xml blocker_config

@@ -1,12 +1,16 @@
 package expo.modules.screentimelocks
 
 import android.accessibilityservice.AccessibilityService
+import android.content.Intent
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 
 class AppBlockerService : AccessibilityService() {
 
     private var lastPackage = ""
+    private val handler = Handler(Looper.getMainLooper())
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event == null) return
@@ -27,6 +31,13 @@ class AppBlockerService : AccessibilityService() {
             Log.d("V3Blocker", "BLOCKED: $packageName")
             performGlobalAction(GLOBAL_ACTION_HOME)
             lastPackage = ""
+            handler.postDelayed({
+                val intent = Intent(this, WarningActivity::class.java).apply {
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                    putExtra("packageName", packageName)
+                }
+                startActivity(intent)
+            }, 300)
         }
     }
 
