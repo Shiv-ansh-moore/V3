@@ -81,6 +81,10 @@ object BlockedAppsStore {
             .commit()
     }
 
+    fun getUnlockEndTimeMs(context: Context): Long {
+        return getPrefs(context).getLong(KEY_UNLOCK_END_TIME, 0)
+    }
+
     fun isUnlocked(context: Context): Boolean {
         val endTime = getPrefs(context).getLong(KEY_UNLOCK_END_TIME, 0)
         return endTime > 0 && System.currentTimeMillis() < endTime
