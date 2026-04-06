@@ -28,6 +28,10 @@ class AppBlockerService : AccessibilityService() {
 
         val blockedApps = BlockedAppsStore.getBlockedApps(applicationContext)
         if (packageName in blockedApps) {
+            if (BlockedAppsStore.isUnlocked(applicationContext)) {
+                Log.d("V3Blocker", "Unlock active, skipping block for $packageName")
+                return
+            }
             Log.d("V3Blocker", "BLOCKED: $packageName")
             performGlobalAction(GLOBAL_ACTION_HOME)
             lastPackage = ""
