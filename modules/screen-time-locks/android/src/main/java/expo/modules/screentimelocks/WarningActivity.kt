@@ -11,9 +11,16 @@ class WarningActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_warning)
 
-        // "Open V3" button — go home, user can tap V3 from there
+        // "Open V3" button — launch V3 directly
         findViewById<Button>(R.id.btnOpenV3).setOnClickListener {
-            goHome()
+            val launchIntent = packageManager.getLaunchIntentForPackage("com.anonymous.V3App")
+            if (launchIntent != null) {
+                launchIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                startActivity(launchIntent)
+                finishAffinity()
+            } else {
+                goHome()
+            }
         }
 
         // "Close" button — just go home
