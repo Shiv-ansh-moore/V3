@@ -1,0 +1,1 @@
+drop policy if exists "avatar images are publicly accessible" on storage.objects;
