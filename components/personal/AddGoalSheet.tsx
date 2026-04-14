@@ -94,6 +94,7 @@ export default function AddGoalSheet({ visible, onClose }: AddGoalSheetProps) {
                 data={goals}
                 renderItem={renderItem}
                 keyExtractor={(item) => item.id}
+                keyboardShouldPersistTaps="handled"
               />
               {goals.length === 0 && (
                 <Pressable
