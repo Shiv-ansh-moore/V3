@@ -82,7 +82,6 @@ create policy "users can leave group" on public.group_members for delete to auth
 );
 
 -- Inserts go through create_group / join_group RPCs — no direct insert policy.
-
 -- ============================================================================
 -- groups select policy (now that is_group_member exists)
 -- ============================================================================

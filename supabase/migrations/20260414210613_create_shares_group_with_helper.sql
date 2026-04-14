@@ -10,13 +10,10 @@
 -- When multi-group support ships, this still works unchanged: returns true
 -- if ANY shared group exists between the caller and p_other_user_id.
 -- ============================================================================
-create or replace function public.shares_group_with (p_other_user_id uuid)
-returns boolean
-language sql
-security definer
-set search_path = public
-stable
-as $$
+create
+or replace function public.shares_group_with (p_other_user_id uuid) returns boolean language sql security definer
+set
+  search_path = public stable as $$
   select exists (
     select 1 from public.group_members
     where user_id = p_other_user_id
@@ -28,4 +25,5 @@ as $$
   );
 $$;
 
-grant execute on function public.shares_group_with (uuid) to authenticated;
+grant
+execute on function public.shares_group_with (uuid) to authenticated;
