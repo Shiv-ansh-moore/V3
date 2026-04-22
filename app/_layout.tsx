@@ -16,19 +16,28 @@ import { AuthProvider, useAuth } from "../lib/AuthContext";
 import { useEffect } from "react";
 
 function RootNavigator() {
-  const { session, loading } = useAuth();
-  const segments = useSegments();
+  const { session, profile, loading } = useAuth();
+  const segments = useSegments() as string[];
   const router = useRouter();
 
   useEffect(() => {
     if (loading) return;
     const inAuthGroup = segments[0] === "(auth)";
-    if (!session && !inAuthGroup) {
-      router.replace("/(auth)/sign-in");
-    } else if (session && inAuthGroup) {
+    const inCreateProfile = inAuthGroup && segments[1] === "create-profile";
+    const profileComplete = !!profile?.display_name;
+
+    if (!session) {
+      if (!inAuthGroup || inCreateProfile) {
+        router.replace("/(auth)/sign-in");
+      }
+    } else if (!profileComplete) {
+      if (!inCreateProfile) {
+        router.replace("/(auth)/create-profile");
+      }
+    } else if (inAuthGroup) {
       router.replace("/(app)");
     }
-  }, [session, loading, segments, router]);
+  }, [session, profile, loading, segments, router]);
 
   if (loading) return null;
 
