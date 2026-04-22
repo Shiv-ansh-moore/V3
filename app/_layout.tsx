@@ -1,4 +1,4 @@
-import { Stack } from "expo-router";
+import { Stack, useRouter, useSegments } from "expo-router";
 import {
   useFonts,
   Inter_100Thin,
@@ -12,6 +12,28 @@ import {
   Inter_900Black,
 } from "@expo-google-fonts/inter";
 import { KeyboardProvider } from "react-native-keyboard-controller";
+import { AuthProvider, useAuth } from "../lib/AuthContext";
+import { useEffect } from "react";
+
+function RootNavigator() {
+  const { session, loading } = useAuth();
+  const segments = useSegments();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (loading) return;
+    const inAuthGroup = segments[0] === "(auth)";
+    if (!session && !inAuthGroup) {
+      router.replace("/(auth)/sign-in");
+    } else if (session && inAuthGroup) {
+      router.replace("/(app)");
+    }
+  }, [session, loading, segments, router]);
+
+  if (loading) return null;
+
+  return <Stack screenOptions={{ headerShown: false }} />;
+}
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
@@ -30,9 +52,9 @@ export default function RootLayout() {
 
   return (
     <KeyboardProvider>
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="index" />
-      </Stack>
+      <AuthProvider>
+        <RootNavigator />
+      </AuthProvider>
     </KeyboardProvider>
   );
 }

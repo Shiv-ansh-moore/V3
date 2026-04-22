@@ -1,13 +1,13 @@
 import { Animated, StyleSheet, View } from "react-native";
 import PagerView from "react-native-pager-view";
 import { SafeAreaView } from "react-native-safe-area-context";
-import Social from "../components/Social";
-import Personal from "../components/Personal";
-import TabBar from "../components/TabBar";
-import { Colours } from "../constants/Colours";
+import Social from "../../components/Social";
+import Personal from "../../components/Personal";
+import TabBar from "../../components/TabBar";
+import { Colours } from "../../constants/Colours";
 import { useEffect, useRef } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { requestAuthorization } from "../modules/screen-time-locks";
+import { requestAuthorization } from "../../modules/screen-time-locks";
 
 export default function MyPager() {
   const scrollPosition = useRef(new Animated.Value(0)).current;
