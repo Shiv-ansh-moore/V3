@@ -7,10 +7,15 @@ import {
   Pressable,
   TouchableOpacity,
 } from "react-native";
-import { AppWindowIcon, CaretRightIcon } from "phosphor-react-native";
+import {
+  AppWindowIcon,
+  CaretRightIcon,
+  SignOutIcon,
+} from "phosphor-react-native";
 import { Colours } from "../../constants/Colours";
 import { Fonts } from "../../constants/Fonts";
 import { manageBlockedApps } from "../../modules/screen-time-locks";
+import { supabase } from "../../lib/supabase";
 
 const handleManageBlockedApps = async () => {
   try {
@@ -23,6 +28,11 @@ const handleManageBlockedApps = async () => {
   } catch (e) {
     console.log("Manage blocked apps failed:", e);
   }
+};
+
+const handleSignOut = async () => {
+  const { error } = await supabase.auth.signOut();
+  if (error) console.log("Sign out failed:", error.message);
 };
 
 interface ProfileSheetProps {
@@ -42,6 +52,18 @@ export default function ProfileSheet({ visible, onClose }: ProfileSheetProps) {
               <AppWindowIcon size={20} weight="bold" color={Colours.text} />
             </View>
             <Text style={styles.rowLabel}>Manage Blocked Apps</Text>
+            <CaretRightIcon
+              size={16}
+              weight="bold"
+              color={Colours.secondaryText}
+            />
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.row} onPress={handleSignOut}>
+            <View style={styles.iconBox}>
+              <SignOutIcon size={20} weight="bold" color={Colours.text} />
+            </View>
+            <Text style={styles.rowLabel}>Sign out</Text>
             <CaretRightIcon
               size={16}
               weight="bold"
