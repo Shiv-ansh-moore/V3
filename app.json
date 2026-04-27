@@ -36,6 +36,12 @@
           "recordAudioAndroid": true
         }
       ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow $(PRODUCT_NAME) to choose a profile picture from your photos"
+        }
+      ],
       "expo-router",
       "expo-font",
       "expo-image"
