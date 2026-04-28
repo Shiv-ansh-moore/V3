@@ -11,13 +11,17 @@ import { supabase } from "./supabase";
 import type { Database } from "./database.types";
 
 type Profile = Database["public"]["Tables"]["profiles"]["Row"];
+type Group = Database["public"]["Tables"]["groups"]["Row"];
 
 type AuthContextValue = {
   session: Session | null;
   user: User | null;
   profile: Profile | null;
+  group: Group | null;
   loading: boolean;
+  groupLoading: boolean;
   refreshProfile: () => Promise<void>;
+  refreshGroup: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -25,8 +29,10 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [group, setGroup] = useState<Group | null>(null);
   const [sessionLoading, setSessionLoading] = useState(true);
   const [profileLoading, setProfileLoading] = useState(false);
+  const [groupLoading, setGroupLoading] = useState(false);
 
   const fetchProfile = useCallback(async (userId: string) => {
     const { data, error } = await supabase
@@ -41,11 +47,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return data;
   }, []);
 
+  const fetchGroup = useCallback(async (userId: string) => {
+    const { data, error } = await supabase
+      .from("group_members")
+      .select("group:groups(*)")
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (error) {
+      console.log("[auth] group fetch error:", error.message);
+      return null;
+    }
+    return data?.group ?? null;
+  }, []);
+
   const refreshProfile = useCallback(async () => {
     if (!session?.user) return;
     const p = await fetchProfile(session.user.id);
     setProfile(p);
   }, [session?.user, fetchProfile]);
+
+  const refreshGroup = useCallback(async () => {
+    if (!session?.user) return;
+    const g = await fetchGroup(session.user.id);
+    setGroup(g);
+  }, [session?.user, fetchGroup]);
 
   // Session hydration + auth event subscription
   useEffect(() => {
@@ -85,7 +110,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [session?.user?.id, fetchProfile]);
 
-  const loading = sessionLoading || profileLoading;
+  // Group fetched whenever session user changes
+  useEffect(() => {
+    const userId = session?.user?.id;
+    if (!userId) {
+      setGroup(null);
+      setGroupLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setGroupLoading(true);
+    fetchGroup(userId).then((g) => {
+      if (cancelled) return;
+      setGroup(g);
+      setGroupLoading(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [session?.user?.id, fetchGroup]);
+
+  const loading = sessionLoading || profileLoading || groupLoading;
 
   return (
     <AuthContext.Provider
@@ -93,8 +138,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         session,
         user: session?.user ?? null,
         profile,
+        group,
         loading,
+        groupLoading,
         refreshProfile,
+        refreshGroup,
       }}
     >
       {children}
