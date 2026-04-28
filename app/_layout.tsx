@@ -22,6 +22,7 @@ function RootNavigator() {
 
   useEffect(() => {
     if (loading) return;
+
     const inAuthGroup = segments[0] === "(auth)";
     const inCreateProfile = inAuthGroup && segments[1] === "create-profile";
     const inJoinGroup = inAuthGroup && segments[1] === "join-group";

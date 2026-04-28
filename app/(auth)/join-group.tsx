@@ -1,3 +1,4 @@
+import * as Clipboard from "expo-clipboard";
 import { useState } from "react";
 import {
   Keyboard,
@@ -44,6 +45,10 @@ export default function JoinGroup() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [pending, setPending] = useState<Pending>(null);
+  const [createdInviteCode, setCreatedInviteCode] = useState<string | null>(
+    null,
+  );
+  const [copied, setCopied] = useState(false);
 
   const normalised = code.trim().toUpperCase();
   const canJoin = normalised.length > 0 && !loading;
@@ -68,14 +73,34 @@ export default function JoinGroup() {
   const doCreate = async () => {
     setError(null);
     setLoading(true);
-    const { error: rpcError } = await supabase.rpc("create_group");
+    const { data, error: rpcError } = await supabase.rpc("create_group");
     if (rpcError) {
       setLoading(false);
       setError(friendlyCreateError(rpcError.message));
       return;
     }
-    await refreshGroup();
+    const row = Array.isArray(data) ? data[0] : data;
+    const inviteCode: string | undefined = row?.invite_code;
     setLoading(false);
+    if (!inviteCode) {
+      setError("Group created, but no invite code was returned.");
+      return;
+    }
+    setCopied(false);
+    setCreatedInviteCode(inviteCode);
+  };
+
+  const copyInviteCode = async () => {
+    if (!createdInviteCode) return;
+    await Clipboard.setStringAsync(createdInviteCode);
+    setCopied(true);
+  };
+
+  const continueAfterCreate = async () => {
+    setCreatedInviteCode(null);
+    setCopied(false);
+    await refreshGroup();
+    // Gate redirects to (app).
   };
 
   const askJoin = () => {
@@ -207,6 +232,41 @@ export default function JoinGroup() {
           </Pressable>
         </Pressable>
       </Modal>
+
+      <Modal
+        visible={createdInviteCode !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={continueAfterCreate}
+      >
+        <View style={styles.confirmBackdrop}>
+          <View style={styles.confirmCard}>
+            <Text style={styles.confirmTitle}>Group created</Text>
+            <Text style={styles.confirmBody}>
+              Share this code with friends so they can join your group.
+            </Text>
+            <View style={styles.codeBox}>
+              <Text style={styles.codeText}>{createdInviteCode}</Text>
+            </View>
+            <View style={styles.confirmActions}>
+              <TouchableOpacity
+                style={styles.confirmCancel}
+                onPress={copyInviteCode}
+              >
+                <Text style={styles.confirmCancelText}>
+                  {copied ? "Copied" : "Copy code"}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.confirmPrimary}
+                onPress={continueAfterCreate}
+              >
+                <Text style={styles.confirmPrimaryText}>Continue</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -310,6 +370,21 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     color: Colours.secondaryText,
     marginBottom: 20,
+  },
+  codeBox: {
+    backgroundColor: Colours.background,
+    borderWidth: 1,
+    borderColor: "#222",
+    borderRadius: 12,
+    paddingVertical: 18,
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  codeText: {
+    fontFamily: Fonts.bold,
+    fontSize: 26,
+    color: Colours.brand,
+    letterSpacing: 4,
   },
   confirmActions: {
     flexDirection: "row",
