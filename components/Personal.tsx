@@ -5,8 +5,7 @@ import {
   ScrollView,
   TouchableOpacity,
 } from "react-native";
-import React, { useState, useEffect } from "react";
-import { mockGoals, Goal } from "../testData/mockGoals";
+import React, { useState, useEffect, useCallback } from "react";
 import { mockLocks } from "../testData/mockLocks";
 import GoalTile from "./personal/GoalTile";
 import LockCard from "./personal/LockCard";
@@ -21,6 +20,9 @@ import ProofCamera from "./personal/ProofCamera";
 import ProfileSheet from "./personal/ProfileSheet";
 import UnlockAppsMVP from "./personal/UnlockAppsMVP";
 import UnlockTimerCard from "./personal/UnlockTimerCard";
+import { supabase } from "../lib/supabase";
+import { useAuth } from "../lib/AuthContext";
+import type { Database } from "../lib/database.types";
 import {
   relockNow,
   getActiveUnlock,
@@ -28,10 +30,13 @@ import {
   removeBlockedApp,
 } from "../modules/screen-time-locks";
 
+type Goal = Omit<Database["public"]["Tables"]["goals"]["Row"], "status"> & {
+  status: "active" | "done";
+};
+
 export default function Personal() {
-  const activeGoals = mockGoals.filter((g) => g.status === "active");
-  const doneGoals = mockGoals.filter((g) => g.status === "done");
-  // Set as true for testing
+  const { user } = useAuth();
+  const [goals, setGoals] = useState<Goal[]>([]);
   const [showAddGoal, setShowAddGoal] = useState(false);
   const [showProofCamera, setShowProofCamera] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
@@ -39,6 +44,28 @@ export default function Personal() {
   const [unlockEndTime, setUnlockEndTime] = useState<number | null>(null);
   const [unlockSecondsLeft, setUnlockSecondsLeft] = useState(0);
   const [unlockTotalSeconds, setUnlockTotalSeconds] = useState(0);
+
+  const activeGoals = goals.filter((g) => g.status === "active");
+  const doneGoals = goals.filter((g) => g.status === "done");
+
+  const refreshGoals = useCallback(async () => {
+    if (!user) return;
+    const { data, error } = await supabase
+      .from("goals")
+      .select("*")
+      .eq("user_id", user.id)
+      .is("archived_at", null)
+      .order("created_at", { ascending: true });
+    if (error) {
+      console.log("[goals] fetch error:", error.message);
+      return;
+    }
+    setGoals((data ?? []) as Goal[]);
+  }, [user]);
+
+  useEffect(() => {
+    refreshGoals();
+  }, [refreshGoals]);
 
   useEffect(() => {
     // Test: block Instagram and Snapchat
@@ -150,7 +177,7 @@ export default function Personal() {
             <GoalTile
               icon={item.goal.icon}
               title={item.goal.title}
-              duration={item.goal.duration}
+              duration={item.goal.duration ?? undefined}
               status={item.goal.status}
               onPress={() => {
                 setProofGoal(item.goal);
@@ -167,7 +194,7 @@ export default function Personal() {
             <GoalTile
               icon={item.goal.icon}
               title={item.goal.title}
-              duration={item.goal.duration}
+              duration={item.goal.duration ?? undefined}
               status={item.goal.status}
               onPress={() => {
                 setProofGoal(item.goal);
@@ -178,7 +205,7 @@ export default function Personal() {
               <GoalTile
                 icon={next.goal.icon}
                 title={next.goal.title}
-                duration={next.goal.duration}
+                duration={next.goal.duration ?? undefined}
                 status={next.goal.status}
                 onPress={() => {
                   setProofGoal(next.goal);
@@ -249,14 +276,14 @@ export default function Personal() {
           <GoalTile
             icon={first.icon}
             title={first.title}
-            duration={first.duration}
+            duration={first.duration ?? undefined}
             status={first.status}
           />
           {second && (
             <GoalTile
               icon={second.icon}
               title={second.title}
-              duration={second.duration}
+              duration={second.duration ?? undefined}
               status={second.status}
             />
           )}
@@ -299,6 +326,7 @@ export default function Personal() {
       <AddGoalSheet
         visible={showAddGoal}
         onClose={() => setShowAddGoal(false)}
+        onGoalCreated={refreshGoals}
       />
       <ProofCamera
         visible={showProofCamera}

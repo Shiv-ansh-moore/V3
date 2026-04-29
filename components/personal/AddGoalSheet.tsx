@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   FlatList,
   Keyboard,
+  Alert,
 } from "react-native";
 import { PlusIcon, XIcon } from "phosphor-react-native";
 import { Colours } from "../../constants/Colours";
@@ -16,9 +17,13 @@ import { Fonts } from "../../constants/Fonts";
 import GoalIcon from "./GoalIcon";
 import IconPickerSheet from "./IconPickerSheet";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
+import { supabase } from "../../lib/supabase";
+import { useAuth } from "../../lib/AuthContext";
+
 interface AddGoalSheetProps {
   visible: boolean;
   onClose: () => void;
+  onGoalCreated?: () => void;
 }
 
 interface PendingGoal {
@@ -27,11 +32,17 @@ interface PendingGoal {
   icon: string; // Will be set up to auto match the word
 }
 
-export default function AddGoalSheet({ visible, onClose }: AddGoalSheetProps) {
+export default function AddGoalSheet({
+  visible,
+  onClose,
+  onGoalCreated,
+}: AddGoalSheetProps) {
+  const { user } = useAuth();
   const [text, setText] = useState("");
   const inputRef = useRef<TextInput>(null);
   const [goals, setGoals] = useState<PendingGoal[]>([]);
   const [editingGoalId, setEditingGoalId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
   const handleAdd = () => {
     const trimmed = text.trim();
@@ -44,6 +55,29 @@ export default function AddGoalSheet({ visible, onClose }: AddGoalSheetProps) {
   };
   const handleRemove = (id: string) => {
     setGoals((prev) => prev.filter((g) => g.id !== id));
+  };
+
+  const handleSave = async () => {
+    if (goals.length === 0 || !user || saving) return;
+    setSaving(true);
+    const { error } = await supabase.from("goals").insert(
+      goals.map((g) => ({
+        user_id: user.id,
+        title: g.title,
+        icon: g.icon,
+        status: "active",
+      })),
+    );
+    setSaving(false);
+    if (error) {
+      console.log("[goals] insert error:", error.message);
+      Alert.alert("Could not save goals", error.message);
+      return;
+    }
+    setGoals([]);
+    setText("");
+    onGoalCreated?.();
+    onClose();
   };
 
   const renderItem = ({ item }: { item: PendingGoal }) => (
@@ -112,16 +146,11 @@ export default function AddGoalSheet({ visible, onClose }: AddGoalSheetProps) {
                 </Pressable>
               )}
               <TouchableOpacity
-                onPress={() => {
-                  if (goals.length === 0) return;
-                  console.log("Saving goals:", goals);
-                  setGoals([]);
-                  setText("");
-                  onClose();
-                }}
+                onPress={handleSave}
+                disabled={goals.length === 0 || saving}
                 style={[
                   styles.saveButton,
-                  goals.length === 0 && {
+                  (goals.length === 0 || saving) && {
                     backgroundColor: Colours.cardHighlight,
                   },
                 ]}
@@ -129,12 +158,16 @@ export default function AddGoalSheet({ visible, onClose }: AddGoalSheetProps) {
                 <Text
                   style={[
                     styles.saveButtonText,
-                    goals.length === 0 && { color: Colours.secondaryText },
+                    (goals.length === 0 || saving) && {
+                      color: Colours.secondaryText,
+                    },
                   ]}
                 >
-                  {goals.length === 0
-                    ? "Add Goals"
-                    : `Add Goals (${goals.length})`}
+                  {saving
+                    ? "Saving…"
+                    : goals.length === 0
+                      ? "Add Goals"
+                      : `Add Goals (${goals.length})`}
                 </Text>
               </TouchableOpacity>
             </Pressable>
