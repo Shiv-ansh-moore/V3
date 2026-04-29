@@ -15,6 +15,7 @@ export default function UnlockAppsMVP({ onUnlock }: UnlockAppsMVPProps) {
   return (
     <>
       <TouchableOpacity
+        activeOpacity={0.7}
         style={styles.container}
         onPress={() => setShowSheet(true)}
       >
@@ -39,14 +40,17 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    marginBottom: 8,
-    marginVertical: 12,
+    alignSelf: "center",
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: Colours.cardHighlight,
   },
   text: {
     color: Colours.secondaryText,
     fontFamily: Fonts.medium,
-    fontSize: 14,
+    fontSize: 13,
   },
 });

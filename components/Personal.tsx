@@ -13,7 +13,7 @@ import ScreenTimeBanner from "./personal/ScreenTimeBanner";
 import { Colours } from "../constants/Colours";
 import { Fonts } from "../constants/Fonts";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { UserIcon } from "phosphor-react-native";
+import { UserIcon, PlusIcon } from "phosphor-react-native";
 import RadialMenu from "./personal/RadialMenu";
 import AddGoalSheet from "./personal/AddGoalSheet";
 import ProofCamera from "./personal/ProofCamera";
@@ -165,6 +165,19 @@ export default function Personal() {
   };
 
   const renderActiveGoals = () => {
+    if (activeGoals.length === 0) {
+      return (
+        <View style={styles.emptyState}>
+          <View style={styles.emptyCircle}>
+            <PlusIcon size={20} weight="bold" color={Colours.fadedBrand} />
+          </View>
+          <Text style={styles.emptyTitle}>No goals yet</Text>
+          <Text style={styles.emptySubtitle}>
+            Tap + to add your first goal
+          </Text>
+        </View>
+      );
+    }
     const items = buildRows();
     const elements: React.ReactNode[] = [];
     let i = 0;
@@ -301,14 +314,18 @@ export default function Personal() {
       >
         {renderLocks()}
         <View style={styles.grid}>{renderActiveGoals()}</View>
-        <View style={styles.dividerRow}>
-          <View style={styles.dividerLine} />
-          <Text style={styles.dividerText}>DONE TODAY</Text>
-          <View style={styles.dividerLine} />
-        </View>
-        <View style={styles.grid}>{renderDoneGoals()}</View>
+        {doneGoals.length > 0 && (
+          <>
+            <View style={styles.dividerRow}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>DONE TODAY</Text>
+              <View style={styles.dividerLine} />
+            </View>
+            <View style={styles.grid}>{renderDoneGoals()}</View>
+          </>
+        )}
         {!unlockEndTime && (
-          <View>
+          <View style={styles.unlockSection}>
             <UnlockAppsMVP onUnlock={handleUnlock} />
           </View>
         )}
@@ -352,7 +369,7 @@ const styles = StyleSheet.create({
   },
   lockSection: {
     gap: 12,
-    marginBottom: 12,
+    marginBottom: 20,
   },
   grid: {
     gap: 12,
@@ -365,7 +382,36 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    marginVertical: 12,
+    marginVertical: 24,
+  },
+  emptyState: {
+    alignItems: "center",
+    paddingVertical: 36,
+    gap: 6,
+  },
+  emptyCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    borderWidth: 1.5,
+    borderStyle: "dashed",
+    borderColor: Colours.fadedBrand,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 8,
+  },
+  emptyTitle: {
+    fontFamily: Fonts.medium,
+    fontSize: 14,
+    color: Colours.text,
+  },
+  emptySubtitle: {
+    fontFamily: Fonts.regular,
+    fontSize: 12,
+    color: Colours.secondaryText,
+  },
+  unlockSection: {
+    marginTop: 24,
   },
   dividerLine: {
     flex: 1,
