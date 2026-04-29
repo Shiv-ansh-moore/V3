@@ -2,6 +2,8 @@
 // Will need proper KeyboardAvoidingView or animation solution when implementing stories feature.
 
 import {
+  ActivityIndicator,
+  Alert,
   Keyboard,
   Pressable,
   StyleSheet,
@@ -11,22 +13,73 @@ import {
   View,
 } from "react-native";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
-import React from "react";
+import React, { useState } from "react";
 import { Image } from "expo-image";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { ArrowCounterClockwiseIcon, CheckIcon } from "phosphor-react-native";
+import { File } from "expo-file-system";
 import { Colours } from "../../constants/Colours";
 import { Fonts } from "../../constants/Fonts";
+import { supabase } from "../../lib/supabase";
+import { useAuth } from "../../lib/AuthContext";
 
 interface ProofPreviewProps {
   photoUri: string;
+  goalId: string;
   onRetake: () => void;
+  onSubmitted: () => void;
 }
 
 export default function ProofPreview({
   photoUri,
+  goalId,
   onRetake,
+  onSubmitted,
 }: ProofPreviewProps) {
+  const { user } = useAuth();
+  const [caption, setCaption] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async () => {
+    if (!user || submitting) return;
+    setSubmitting(true);
+    try {
+      const arrayBuffer = await new File(photoUri).arrayBuffer();
+      const path = `${user.id}/${goalId}-${Date.now()}.jpg`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("proofs")
+        .upload(path, arrayBuffer, { contentType: "image/jpeg" });
+      if (uploadError) throw uploadError;
+
+      const trimmedCaption = caption.trim();
+      const { error: insertError } = await supabase.from("proofs").insert({
+        goal_id: goalId,
+        user_id: user.id,
+        image_path: path,
+        ...(trimmedCaption ? { caption: trimmedCaption } : {}),
+      });
+      if (insertError) {
+        await supabase.storage
+          .from("proofs")
+          .remove([path])
+          .catch((e) =>
+            console.log("[proofs] cleanup after failed insert:", e),
+          );
+        throw insertError;
+      }
+
+      setCaption("");
+      onSubmitted();
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Could not submit proof";
+      console.log("[proofs] submit error:", msg);
+      Alert.alert("Could not submit proof", msg);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   return (
     <SafeAreaProvider style={styles.absolute}>
       <SafeAreaView style={styles.container}>
@@ -44,17 +97,34 @@ export default function ProofPreview({
               style={styles.captionInput}
               placeholder="Add a caption..."
               placeholderTextColor={Colours.secondaryText}
+              value={caption}
+              onChangeText={setCaption}
+              editable={!submitting}
             />
 
             <View style={styles.buttonRow}>
-              <TouchableOpacity style={styles.retakeButton} onPress={onRetake}>
+              <TouchableOpacity
+                style={styles.retakeButton}
+                onPress={onRetake}
+                disabled={submitting}
+              >
                 <ArrowCounterClockwiseIcon size={20} color={Colours.text} />
                 <Text style={styles.buttonText}>Retake</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.sendButton}>
-                <CheckIcon size={20} color={Colours.text} weight="bold" />
-                <Text style={styles.buttonText}>Send</Text>
+              <TouchableOpacity
+                style={styles.sendButton}
+                onPress={handleSubmit}
+                disabled={submitting}
+              >
+                {submitting ? (
+                  <ActivityIndicator color={Colours.text} />
+                ) : (
+                  <>
+                    <CheckIcon size={20} color={Colours.text} weight="bold" />
+                    <Text style={styles.buttonText}>Send</Text>
+                  </>
+                )}
               </TouchableOpacity>
             </View>
           </View>

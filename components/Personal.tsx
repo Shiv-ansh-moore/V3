@@ -347,9 +347,11 @@ export default function Personal() {
       />
       <ProofCamera
         visible={showProofCamera}
+        goalId={proofGoal?.id ?? null}
         goalName={proofGoal?.title ?? ""}
         goalIcon={proofGoal?.icon ?? ""}
         onClose={() => setShowProofCamera(false)}
+        onProofSubmitted={refreshGoals}
       />
       <ProfileSheet
         visible={showProfile}

@@ -10,16 +10,20 @@ import ProofPreview from "./ProofPreview";
 
 interface ProofCameraProps {
   visible: boolean;
+  goalId: string | null;
   goalName: string;
   goalIcon: string;
   onClose: () => void;
+  onProofSubmitted: () => void;
 }
 
 export default function ProofCamera({
   visible,
+  goalId,
   goalName,
   goalIcon,
   onClose,
+  onProofSubmitted,
 }: ProofCameraProps) {
   const cameraRef = useRef<CameraView>(null);
   const [animType, setAnimType] = useState<"fade" | "none">("fade");
@@ -152,12 +156,17 @@ export default function ProofCamera({
             </TouchableOpacity>
           </View>
 
-          {showPreview && (
+          {showPreview && goalId && (
             <ProofPreview
               photoUri={photoUri!}
+              goalId={goalId}
               onRetake={() => {
                 setShowPreview(false);
                 setPhotoUri(null);
+              }}
+              onSubmitted={() => {
+                onProofSubmitted();
+                handleClose();
               }}
             />
           )}
