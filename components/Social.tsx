@@ -14,11 +14,7 @@ import LongPressSheet from "./social/LongPressSheet";
 import MessageInput, { ReplyInfo } from "./social/MessageInput";
 import { FlatList } from "react-native-gesture-handler";
 import { Colours } from "../constants/Colours";
-import {
-  ChatMessage,
-  FeedItem,
-  socialUsers,
-} from "../testData/mockSocial";
+import { ChatMessage, FeedItem, socialUsers } from "../testData/mockSocial";
 import { ReplyQuoteProps } from "./social/ReplyQuote";
 import {
   KeyboardAvoidingView,
@@ -254,30 +250,6 @@ export default function Social() {
   useEffect(() => {
     refreshFeed();
   }, [refreshFeed]);
-
-  useEffect(() => {
-    if (!group) return;
-
-    const channel = supabase
-      .channel(`social-feed:${group.id}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "messages",
-          filter: `group_id=eq.${group.id}`,
-        },
-        () => {
-          refreshFeed();
-        },
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [group, refreshFeed]);
 
   const handleReply = useCallback(
     (item: FeedItem) => {
