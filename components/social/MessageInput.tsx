@@ -6,6 +6,7 @@ import { Fonts } from "../../constants/Fonts";
 import ReplyBar from "./ReplyBar";
 
 export interface ReplyInfo {
+  id?: string;
   userName: string;
   userColour: string;
   text: string;
@@ -15,14 +16,36 @@ interface MessageInputProps {
   replyingTo?: ReplyInfo | null;
   onClearReply?: () => void;
   inputRef?: React.RefObject<TextInput | null>;
+  onSend?: (text: string) => Promise<void> | void;
 }
 
 export default function MessageInput({
   replyingTo,
   onClearReply,
   inputRef,
+  onSend,
 }: MessageInputProps) {
   const [text, setText] = React.useState("");
+  const [sending, setSending] = React.useState(false);
+  const canSend = text.trim().length > 0 && !sending;
+
+  const handleSend = async () => {
+    if (!canSend) return;
+
+    const message = text.trim();
+    setSending(true);
+    try {
+      await onSend?.(message);
+      setText("");
+    } catch (error) {
+      console.log(
+        "[social] send failed:",
+        error instanceof Error ? error.message : error,
+      );
+    } finally {
+      setSending(false);
+    }
+  };
 
   return (
     <View>
@@ -47,10 +70,20 @@ export default function MessageInput({
           value={text}
           onChangeText={setText}
           multiline
+          editable={!sending}
+          onSubmitEditing={handleSend}
         />
 
-        <Pressable style={styles.sendButton}>
-          <PaperPlaneTiltIcon size={18} color={Colours.text} weight="fill" />
+        <Pressable
+          style={[styles.sendButton, !canSend && styles.sendButtonDisabled]}
+          onPress={handleSend}
+          disabled={!canSend}
+        >
+          <PaperPlaneTiltIcon
+            size={18}
+            color={canSend ? Colours.text : Colours.secondaryText}
+            weight="fill"
+          />
         </Pressable>
       </View>
     </View>
@@ -92,5 +125,8 @@ const styles = StyleSheet.create({
     backgroundColor: Colours.brand,
     alignItems: "center",
     justifyContent: "center",
+  },
+  sendButtonDisabled: {
+    backgroundColor: Colours.cardHighlight,
   },
 });

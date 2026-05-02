@@ -17,7 +17,6 @@ import { Colours } from "../constants/Colours";
 import {
   ChatMessage,
   FeedItem,
-  socialFeed,
   socialUsers,
 } from "../testData/mockSocial";
 import { ReplyQuoteProps } from "./social/ReplyQuote";
@@ -28,6 +27,35 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../lib/AuthContext";
+import { GROUP_USER_COLOURS } from "../lib/groupColours";
+import type { Database } from "../lib/database.types";
+
+type ProfileRow = Database["public"]["Tables"]["profiles"]["Row"];
+type ProofRow = Database["public"]["Tables"]["proofs"]["Row"];
+type GoalRow = Database["public"]["Tables"]["goals"]["Row"];
+
+type SocialMessageRow = Database["public"]["Tables"]["messages"]["Row"] & {
+  sender: ProfileRow | ProfileRow[] | null;
+  proof:
+    | (ProofRow & {
+        goal: GoalRow | GoalRow[] | null;
+      })
+    | (ProofRow & {
+        goal: GoalRow | GoalRow[] | null;
+      })[]
+    | null;
+};
+
+function firstRelation<T>(relation: T | T[] | null): T | null {
+  return Array.isArray(relation) ? (relation[0] ?? null) : relation;
+}
+
+function formatTimestamp(value: string): string {
+  return new Intl.DateTimeFormat(undefined, {
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(value));
+}
 
 function getUserName(userId: string): string {
   return socialUsers.find((u) => u.id === userId)?.name ?? "Unknown";
@@ -63,10 +91,15 @@ function getMessagePosition(feed: FeedItem[], index: number): BubblePosition {
   return "standalone";
 }
 
-function buildReplyTo(item: ChatMessage): ReplyQuoteProps | undefined {
+function buildReplyTo(
+  item: ChatMessage,
+  feed: FeedItem[],
+  resolveUserName: (userId: string) => string,
+  resolveUserColour: (userId: string) => string,
+): ReplyQuoteProps | undefined {
   if (!item.replyToId) return undefined;
 
-  const ref = socialFeed.find((i) => i.id === item.replyToId);
+  const ref = feed.find((i) => i.id === item.replyToId);
   if (!ref) return undefined;
 
   let text: string;
@@ -82,8 +115,8 @@ function buildReplyTo(item: ChatMessage): ReplyQuoteProps | undefined {
   }
 
   return {
-    userName: getUserName(ref.userId),
-    userColour: getUserColour(ref.userId),
+    userName: resolveUserName(ref.userId),
+    userColour: resolveUserColour(ref.userId),
     text,
     timestamp: ref.kind !== "activity" ? ref.timestamp : undefined,
     photoUri: ref.kind === "completed" ? ref.photoUri : undefined,
@@ -107,7 +140,7 @@ function buildReplyInfo(item: FeedItem): ReplyInfo {
         : `locked ${item.app} after ${item.duration}`;
   }
 
-  return { userName, userColour, text };
+  return { id: item.id, userName, userColour, text };
 }
 
 export default function Social() {
@@ -116,11 +149,27 @@ export default function Social() {
   const [replyingTo, setReplyingTo] = useState<ReplyInfo | null>(null);
   const [sheetItem, setSheetItem] = useState<FeedItem | null>(null);
   const [sheetVisible, setSheetVisible] = useState(false);
-  const reversedFeed = useMemo(() => [...socialFeed].reverse(), []);
-  const { group } = useAuth();
+  const { group, user } = useAuth();
+  const [feed, setFeed] = useState<FeedItem[]>([]);
+  const [userNames, setUserNames] = useState<Record<string, string>>({});
+  const [userColours, setUserColours] = useState<Record<string, string>>({});
+  const reversedFeed = useMemo(() => [...feed].reverse(), [feed]);
+
+  const resolveUserName = useCallback(
+    (userId: string): string => userNames[userId] ?? getUserName(userId),
+    [userNames],
+  );
+
+  const resolveUserColour = useCallback(
+    (userId: string): string => userColours[userId] ?? getUserColour(userId),
+    [userColours],
+  );
 
   const refreshFeed = useCallback(async () => {
-    if (!group) return;
+    if (!group) {
+      setFeed([]);
+      return;
+    }
 
     const { data, error } = await supabase
       .from("messages")
@@ -142,16 +191,104 @@ export default function Social() {
       return;
     }
 
-    console.log("[social] feed data:", data);
+    const rows = (data ?? []) as SocialMessageRow[];
+    const nextUserNames: Record<string, string> = {};
+    const nextUserColours: Record<string, string> = {};
+
+    const liveItems = await Promise.all(
+      rows.map(async (message, index): Promise<FeedItem | null> => {
+        const proof = firstRelation(message.proof);
+
+        const sender = firstRelation(message.sender);
+        const userId = message.sender_id ?? proof?.user_id;
+        if (!userId) return null;
+
+        nextUserNames[userId] =
+          sender?.display_name ?? sender?.username ?? "Unknown";
+        nextUserColours[userId] ??=
+          GROUP_USER_COLOURS[
+            Object.keys(nextUserColours).length % GROUP_USER_COLOURS.length
+          ];
+
+        if (message.kind === "text") {
+          if (!message.body) return null;
+
+          return {
+            kind: "message",
+            id: message.id,
+            userId,
+            text: message.body,
+            timestamp: formatTimestamp(message.created_at),
+            replyToId: message.reply_to_id ?? undefined,
+          };
+        }
+
+        if (message.kind !== "proof" || !proof) return null;
+
+        const goal = firstRelation(proof.goal);
+        const { data: signedImage, error: signedImageError } =
+          await supabase.storage
+            .from("proofs")
+            .createSignedUrl(proof.image_path, 60 * 60);
+
+        if (signedImageError) {
+          console.log("[social] proof image error:", signedImageError.message);
+        }
+
+        return {
+          kind: "completed",
+          id: message.id,
+          userId,
+          goalTitle: goal?.title ?? "Goal",
+          photoUri: signedImage?.signedUrl ?? null,
+          timestamp: formatTimestamp(message.created_at),
+        };
+      }),
+    );
+
+    setUserNames(nextUserNames);
+    setUserColours(nextUserColours);
+    setFeed(liveItems.filter((item): item is FeedItem => item !== null));
   }, [group]);
 
   useEffect(() => {
     refreshFeed();
   }, [refreshFeed]);
 
-  const handleReply = useCallback((item: FeedItem) => {
-    setReplyingTo(buildReplyInfo(item));
-  }, []);
+  useEffect(() => {
+    if (!group) return;
+
+    const channel = supabase
+      .channel(`social-feed:${group.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "messages",
+          filter: `group_id=eq.${group.id}`,
+        },
+        () => {
+          refreshFeed();
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [group, refreshFeed]);
+
+  const handleReply = useCallback(
+    (item: FeedItem) => {
+      setReplyingTo({
+        ...buildReplyInfo(item),
+        userName: resolveUserName(item.userId),
+        userColour: resolveUserColour(item.userId),
+      });
+    },
+    [resolveUserColour, resolveUserName],
+  );
 
   const clearReply = useCallback(() => {
     setReplyingTo(null);
@@ -173,9 +310,38 @@ export default function Social() {
 
   const handleSheetReply = useCallback(() => {
     if (sheetItem) {
-      setReplyingTo(buildReplyInfo(sheetItem));
+      setReplyingTo({
+        ...buildReplyInfo(sheetItem),
+        userName: resolveUserName(sheetItem.userId),
+        userColour: resolveUserColour(sheetItem.userId),
+      });
     }
-  }, [sheetItem]);
+  }, [resolveUserColour, resolveUserName, sheetItem]);
+
+  const handleSendMessage = useCallback(
+    async (text: string) => {
+      if (!group || !user) {
+        throw new Error("Cannot send without an active group and user.");
+      }
+
+      const { error } = await supabase.from("messages").insert({
+        group_id: group.id,
+        sender_id: user.id,
+        kind: "text",
+        body: text,
+        reply_to_id: replyingTo?.id ?? null,
+      });
+
+      if (error) {
+        console.log("[social] send error:", error.message);
+        throw error;
+      }
+
+      setReplyingTo(null);
+      await refreshFeed();
+    },
+    [group, refreshFeed, replyingTo?.id, user],
+  );
 
   useEffect(() => {
     if (replyingTo) {
@@ -185,14 +351,14 @@ export default function Social() {
 
   const renderItem = useCallback(
     ({ item, index }: { item: FeedItem; index: number }) => {
-      const originalIndex = socialFeed.length - 1 - index;
+      const originalIndex = feed.length - 1 - index;
 
       if (item.kind === "activity") {
         return (
           <ScreenTimeLog
             type={item.type}
-            name={getUserName(item.userId)}
-            nameColour={getUserColour(item.userId)}
+            name={resolveUserName(item.userId)}
+            nameColour={resolveUserColour(item.userId)}
             app={item.app}
             duration={item.duration}
             reason={item.reason}
@@ -205,16 +371,21 @@ export default function Social() {
       }
 
       if (item.kind === "message") {
-        const prev = socialFeed[originalIndex - 1];
+        const prev = feed[originalIndex - 1];
         return (
           <ChatBubble
-            name={getUserName(item.userId)}
-            nameColour={getUserColour(item.userId)}
+            name={resolveUserName(item.userId)}
+            nameColour={resolveUserColour(item.userId)}
             text={item.text}
             timestamp={item.timestamp}
-            position={getMessagePosition(socialFeed, originalIndex)}
+            position={getMessagePosition(feed, originalIndex)}
             afterActivity={prev?.kind === "activity"}
-            replyTo={buildReplyTo(item)}
+            replyTo={buildReplyTo(
+              item,
+              feed,
+              resolveUserName,
+              resolveUserColour,
+            )}
             reactions={item.reactions}
             onDoubleTap={() => handleReply(item)}
             onLongPress={() => handleLongPress(item)}
@@ -225,8 +396,8 @@ export default function Social() {
       if (item.kind === "completed") {
         return (
           <CompletedCard
-            name={getUserName(item.userId)}
-            nameColour={getUserColour(item.userId)}
+            name={resolveUserName(item.userId)}
+            nameColour={resolveUserColour(item.userId)}
             goalTitle={item.goalTitle}
             photoUri={item.photoUri}
             timestamp={item.timestamp}
@@ -239,7 +410,7 @@ export default function Social() {
 
       return null;
     },
-    [handleReply, handleLongPress],
+    [feed, handleReply, handleLongPress, resolveUserColour, resolveUserName],
   );
 
   return (
@@ -270,14 +441,15 @@ export default function Social() {
             replyingTo={replyingTo}
             onClearReply={clearReply}
             inputRef={inputRef}
+            onSend={handleSendMessage}
           />
         </View>
       </KeyboardAvoidingView>
       <LongPressSheet
         visible={sheetVisible}
         item={sheetItem}
-        userName={sheetItem ? getUserName(sheetItem.userId) : ""}
-        userColour={sheetItem ? getUserColour(sheetItem.userId) : ""}
+        userName={sheetItem ? resolveUserName(sheetItem.userId) : ""}
+        userColour={sheetItem ? resolveUserColour(sheetItem.userId) : ""}
         onClose={closeSheet}
         onReact={handleSheetReact}
         onReply={handleSheetReply}

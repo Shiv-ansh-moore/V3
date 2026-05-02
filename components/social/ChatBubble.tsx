@@ -133,6 +133,7 @@ const styles = StyleSheet.create({
   name: {
     fontFamily: Fonts.medium,
     fontSize: 13,
+    marginRight: 10,
   },
   timestamp: {
     fontFamily: Fonts.regular,
