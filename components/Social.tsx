@@ -14,7 +14,7 @@ import LongPressSheet from "./social/LongPressSheet";
 import MessageInput, { ReplyInfo } from "./social/MessageInput";
 import { FlatList } from "react-native-gesture-handler";
 import { Colours } from "../constants/Colours";
-import { ChatMessage, FeedItem, socialUsers } from "../testData/mockSocial";
+import { ChatMessage, FeedItem } from "../testData/mockSocial";
 import { ReplyQuoteProps } from "./social/ReplyQuote";
 import {
   KeyboardAvoidingView,
@@ -29,9 +29,11 @@ import type { Database } from "../lib/database.types";
 type ProfileRow = Database["public"]["Tables"]["profiles"]["Row"];
 type ProofRow = Database["public"]["Tables"]["proofs"]["Row"];
 type GoalRow = Database["public"]["Tables"]["goals"]["Row"];
+type GroupMemberRow = Database["public"]["Tables"]["group_members"]["Row"] & {
+  profile: ProfileRow | ProfileRow[] | null;
+};
 
 type SocialMessageRow = Database["public"]["Tables"]["messages"]["Row"] & {
-  sender: ProfileRow | ProfileRow[] | null;
   proof:
     | (ProofRow & {
         goal: GoalRow | GoalRow[] | null;
@@ -51,16 +53,6 @@ function formatTimestamp(value: string): string {
     hour: "2-digit",
     minute: "2-digit",
   }).format(new Date(value));
-}
-
-function getUserName(userId: string): string {
-  return socialUsers.find((u) => u.id === userId)?.name ?? "Unknown";
-}
-
-function getUserColour(userId: string): string {
-  return (
-    socialUsers.find((u) => u.id === userId)?.color ?? Colours.secondaryText
-  );
 }
 
 function getMessagePosition(feed: FeedItem[], index: number): BubblePosition {
@@ -121,9 +113,6 @@ function buildReplyTo(
 }
 
 function buildReplyInfo(item: FeedItem): ReplyInfo {
-  const userName = getUserName(item.userId);
-  const userColour = getUserColour(item.userId);
-
   let text: string;
   if (item.kind === "message") {
     text = item.text;
@@ -136,7 +125,12 @@ function buildReplyInfo(item: FeedItem): ReplyInfo {
         : `locked ${item.app} after ${item.duration}`;
   }
 
-  return { id: item.id, userName, userColour, text };
+  return {
+    id: item.id,
+    userName: "Unknown",
+    userColour: Colours.secondaryText,
+    text,
+  };
 }
 
 export default function Social() {
@@ -152,12 +146,13 @@ export default function Social() {
   const reversedFeed = useMemo(() => [...feed].reverse(), [feed]);
 
   const resolveUserName = useCallback(
-    (userId: string): string => userNames[userId] ?? getUserName(userId),
+    (userId: string): string => userNames[userId] ?? "Unknown",
     [userNames],
   );
 
   const resolveUserColour = useCallback(
-    (userId: string): string => userColours[userId] ?? getUserColour(userId),
+    (userId: string): string =>
+      userColours[userId] ?? Colours.secondaryText,
     [userColours],
   );
 
@@ -167,12 +162,38 @@ export default function Social() {
       return;
     }
 
+    const { data: membersData, error: membersError } = await supabase
+      .from("group_members")
+      .select(
+        `
+      *,
+      profile:profiles!group_members_user_id_fkey(*)
+    `,
+      )
+      .eq("group_id", group.id)
+      .order("joined_at", { ascending: true });
+
+    if (membersError) {
+      console.log("[social] group members fetch error:", membersError.message);
+      return;
+    }
+
+    const nextUserNames: Record<string, string> = {};
+    const nextUserColours: Record<string, string> = {};
+
+    ((membersData ?? []) as GroupMemberRow[]).forEach((member, index) => {
+      const profile = firstRelation(member.profile);
+      nextUserNames[member.user_id] =
+        profile?.display_name ?? profile?.username ?? "Unknown";
+      nextUserColours[member.user_id] =
+        GROUP_USER_COLOURS[index % GROUP_USER_COLOURS.length];
+    });
+
     const { data, error } = await supabase
       .from("messages")
       .select(
         `
       *,
-      sender:profiles!messages_sender_id_fkey(*),
       proof:proofs(
         *,
         goal:goals(*)
@@ -188,23 +209,12 @@ export default function Social() {
     }
 
     const rows = (data ?? []) as SocialMessageRow[];
-    const nextUserNames: Record<string, string> = {};
-    const nextUserColours: Record<string, string> = {};
 
     const liveItems = await Promise.all(
-      rows.map(async (message, index): Promise<FeedItem | null> => {
+      rows.map(async (message): Promise<FeedItem | null> => {
         const proof = firstRelation(message.proof);
-
-        const sender = firstRelation(message.sender);
         const userId = message.sender_id ?? proof?.user_id;
         if (!userId) return null;
-
-        nextUserNames[userId] =
-          sender?.display_name ?? sender?.username ?? "Unknown";
-        nextUserColours[userId] ??=
-          GROUP_USER_COLOURS[
-            Object.keys(nextUserColours).length % GROUP_USER_COLOURS.length
-          ];
 
         if (message.kind === "text") {
           if (!message.body) return null;
