@@ -1,5 +1,11 @@
 import { StyleSheet, View, Platform, TextInput } from "react-native";
-import React, { useMemo, useCallback, useState, useRef, useEffect } from "react";
+import React, {
+  useMemo,
+  useCallback,
+  useState,
+  useRef,
+  useEffect,
+} from "react";
 import AvatarRow from "./social/AvatarRow";
 import ChatBubble, { BubblePosition } from "./social/ChatBubble";
 import CompletedCard from "./social/CompletedCard";
@@ -20,6 +26,8 @@ import {
   KeyboardGestureArea,
 } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { supabase } from "../lib/supabase";
+import { useAuth } from "../lib/AuthContext";
 
 function getUserName(userId: string): string {
   return socialUsers.find((u) => u.id === userId)?.name ?? "Unknown";
@@ -108,8 +116,38 @@ export default function Social() {
   const [replyingTo, setReplyingTo] = useState<ReplyInfo | null>(null);
   const [sheetItem, setSheetItem] = useState<FeedItem | null>(null);
   const [sheetVisible, setSheetVisible] = useState(false);
-
   const reversedFeed = useMemo(() => [...socialFeed].reverse(), []);
+  const { group } = useAuth();
+
+  const refreshFeed = useCallback(async () => {
+    if (!group) return;
+
+    const { data, error } = await supabase
+      .from("messages")
+      .select(
+        `
+      *,
+      sender:profiles!messages_sender_id_fkey(*),
+      proof:proofs(
+        *,
+        goal:goals(*)
+      )
+    `,
+      )
+      .eq("group_id", group.id)
+      .order("created_at", { ascending: true });
+
+    if (error) {
+      console.log("[social] fetch error:", error.message);
+      return;
+    }
+
+    console.log("[social] feed data:", data);
+  }, [group]);
+
+  useEffect(() => {
+    refreshFeed();
+  }, [refreshFeed]);
 
   const handleReply = useCallback((item: FeedItem) => {
     setReplyingTo(buildReplyInfo(item));
@@ -201,49 +239,49 @@ export default function Social() {
 
       return null;
     },
-    [handleReply, handleLongPress]
+    [handleReply, handleLongPress],
   );
 
   return (
     <>
-    <KeyboardAvoidingView
-      style={[
-        styles.container,
-        { paddingLeft: insets.left, paddingRight: insets.right },
-      ]}
-      behavior={"padding"}
-      keyboardVerticalOffset={
-        Platform.OS === "ios" ? insets.top : insets.top + 15
-      }
-    >
-      <AvatarRow />
-      <KeyboardGestureArea interpolator="ios" style={styles.messagesArea}>
-        <FlatList
-          data={reversedFeed}
-          renderItem={renderItem}
-          keyExtractor={(item) => item.id}
-          inverted
-          style={styles.messagesArea}
-          contentContainerStyle={styles.feed}
-        />
-      </KeyboardGestureArea>
-      <View style={{ paddingBottom: insets.bottom }}>
-        <MessageInput
-          replyingTo={replyingTo}
-          onClearReply={clearReply}
-          inputRef={inputRef}
-        />
-      </View>
-    </KeyboardAvoidingView>
-    <LongPressSheet
-      visible={sheetVisible}
-      item={sheetItem}
-      userName={sheetItem ? getUserName(sheetItem.userId) : ""}
-      userColour={sheetItem ? getUserColour(sheetItem.userId) : ""}
-      onClose={closeSheet}
-      onReact={handleSheetReact}
-      onReply={handleSheetReply}
-    />
+      <KeyboardAvoidingView
+        style={[
+          styles.container,
+          { paddingLeft: insets.left, paddingRight: insets.right },
+        ]}
+        behavior={"padding"}
+        keyboardVerticalOffset={
+          Platform.OS === "ios" ? insets.top : insets.top + 15
+        }
+      >
+        <AvatarRow />
+        <KeyboardGestureArea interpolator="ios" style={styles.messagesArea}>
+          <FlatList
+            data={reversedFeed}
+            renderItem={renderItem}
+            keyExtractor={(item) => item.id}
+            inverted
+            style={styles.messagesArea}
+            contentContainerStyle={styles.feed}
+          />
+        </KeyboardGestureArea>
+        <View style={{ paddingBottom: insets.bottom }}>
+          <MessageInput
+            replyingTo={replyingTo}
+            onClearReply={clearReply}
+            inputRef={inputRef}
+          />
+        </View>
+      </KeyboardAvoidingView>
+      <LongPressSheet
+        visible={sheetVisible}
+        item={sheetItem}
+        userName={sheetItem ? getUserName(sheetItem.userId) : ""}
+        userColour={sheetItem ? getUserColour(sheetItem.userId) : ""}
+        onClose={closeSheet}
+        onReact={handleSheetReact}
+        onReply={handleSheetReply}
+      />
     </>
   );
 }
