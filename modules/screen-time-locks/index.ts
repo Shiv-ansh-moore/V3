@@ -3,6 +3,11 @@ import { Platform } from 'react-native';
 
 const ScreenTimeLocks = requireNativeModule('ScreenTimeLocks')
 
+export interface AndroidAppInfo {
+  name: string;
+  packageName: string;
+}
+
 export async function requestAuthorization(): Promise<string> {
   if (Platform.OS !== 'ios') {
     return 'not_supported';
@@ -13,6 +18,15 @@ export async function requestAuthorization(): Promise<string> {
 export async function showAppPicker(): Promise<{ selectedApps: number }> {
   return await ScreenTimeLocks.showAppPicker();
 }
+
+export async function getInstalledApps(): Promise<AndroidAppInfo[]> {
+  if (Platform.OS !== 'android') {
+    return [];
+  }
+
+  return await ScreenTimeLocks.getInstalledApps();
+}
+
 export async function blockApps(packageNames: string[]): Promise<{ blocked: number }> {
   return await ScreenTimeLocks.blockApps(packageNames);
 }

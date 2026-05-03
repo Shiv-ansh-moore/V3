@@ -1,8 +1,10 @@
 package expo.modules.screentimelocks
 
+import android.content.Intent
 import android.util.Log
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
+import java.util.Locale
 
 class ScreenTimeLocksModule : Module() {
   override fun definition() = ModuleDefinition {
@@ -14,6 +16,29 @@ class ScreenTimeLocksModule : Module() {
 
     AsyncFunction("showAppPicker") {
       return@AsyncFunction mapOf("selectedApps" to 0)
+    }
+
+    AsyncFunction("getInstalledApps") {
+      val context = appContext.reactContext ?: return@AsyncFunction emptyList<Map<String, String>>()
+      val packageManager = context.packageManager
+      val launcherIntent = Intent(Intent.ACTION_MAIN).apply {
+        addCategory(Intent.CATEGORY_LAUNCHER)
+      }
+
+      val apps = packageManager.queryIntentActivities(launcherIntent, 0)
+        .mapNotNull { resolveInfo ->
+          val packageName = resolveInfo.activityInfo?.packageName ?: return@mapNotNull null
+          if (packageName == context.packageName) return@mapNotNull null
+
+          mapOf(
+            "name" to resolveInfo.loadLabel(packageManager).toString(),
+            "packageName" to packageName
+          )
+        }
+        .distinctBy { it["packageName"] }
+        .sortedBy { it["name"]?.lowercase(Locale.ROOT) ?: "" }
+
+      return@AsyncFunction apps
     }
 
     // ===== Blocking =====

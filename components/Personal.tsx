@@ -26,8 +26,6 @@ import type { Database } from "../lib/database.types";
 import {
   relockNow,
   getActiveUnlock,
-  blockApps,
-  removeBlockedApp,
 } from "../modules/screen-time-locks";
 
 type Goal = Omit<Database["public"]["Tables"]["goals"]["Row"], "status"> & {
@@ -66,12 +64,6 @@ export default function Personal() {
   useEffect(() => {
     refreshGoals();
   }, [refreshGoals]);
-
-  useEffect(() => {
-    // Test: block Instagram and Snapchat
-    blockApps(["com.instagram.android", "com.snapchat.android"]);
-    removeBlockedApp("com.snapchat.android");
-  }, []);
 
   useEffect(() => {
     const active = getActiveUnlock();
