@@ -1,4 +1,4 @@
-import { Animated, StyleSheet, View } from "react-native";
+import { Animated, Platform, StyleSheet, View } from "react-native";
 import PagerView from "react-native-pager-view";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Social from "../../components/Social";
@@ -13,6 +13,8 @@ export default function MyPager() {
   const scrollPosition = useRef(new Animated.Value(0)).current;
   const pagerRef = useRef<PagerView>(null);
   useEffect(() => {
+    if (Platform.OS !== "ios") return;
+
     requestAuthorization()
       .then((result) => console.log("Screen Time:", result))
       .catch((err) => console.error("Screen Time error:", err));

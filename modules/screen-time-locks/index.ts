@@ -1,8 +1,13 @@
 import { requireNativeModule } from 'expo';
+import { Platform } from 'react-native';
 
 const ScreenTimeLocks = requireNativeModule('ScreenTimeLocks')
 
 export async function requestAuthorization(): Promise<string> {
+  if (Platform.OS !== 'ios') {
+    return 'not_supported';
+  }
+
   return await ScreenTimeLocks.requestAuthorization();
 }
 export async function showAppPicker(): Promise<{ selectedApps: number }> {
