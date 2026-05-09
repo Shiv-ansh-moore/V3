@@ -12,6 +12,7 @@ interface CompletedCardProps {
   nameColour: string;
   goalTitle: string;
   photoUri: string | null;
+  caption?: string | null;
   timestamp: string;
   reactions?: Reaction[];
   onDoubleTap?: () => void;
@@ -23,6 +24,7 @@ export default function CompletedCard({
   nameColour,
   goalTitle,
   photoUri,
+  caption,
   timestamp,
   reactions,
   onDoubleTap,
@@ -60,6 +62,7 @@ export default function CompletedCard({
           )}
         </View>
         <Text style={styles.goalTitle}>{goalTitle}</Text>
+        {caption ? <Text style={styles.caption}>{caption}</Text> : null}
       </View>
       {reactions && <ReactionRow reactions={reactions} />}
     </View>
@@ -120,5 +123,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: Colours.text,
     marginTop: 6,
+  },
+  caption: {
+    fontFamily: Fonts.regular,
+    fontSize: 14,
+    color: Colours.secondaryText,
+    marginTop: 1,
+    width: 184,
   },
 });

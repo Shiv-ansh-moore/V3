@@ -41,6 +41,7 @@ export interface CompletedGoal {
   userId: string;
   goalTitle: string;
   photoUri: string | null;
+  caption?: string | null;
   timestamp: string;
   reactions?: Reaction[];
 }

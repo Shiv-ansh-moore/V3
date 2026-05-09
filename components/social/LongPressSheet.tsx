@@ -133,9 +133,7 @@ export default function LongPressSheet({
                     </Text>
                     <Text style={styles.quoteTimestamp}>{item.timestamp}</Text>
                   </View>
-                  <Text style={styles.quoteGoalLabel}>
-                    Completed {item.goalTitle} ✅
-                  </Text>
+                  <Text style={styles.quoteGoalLabel}>Completed</Text>
                   <View style={styles.quoteImageWrap}>
                     {item.photoUri ? (
                       <Image
@@ -151,6 +149,10 @@ export default function LongPressSheet({
                       />
                     )}
                   </View>
+                  <Text style={styles.quoteProofTitle}>{item.goalTitle}</Text>
+                  {item.caption ? (
+                    <Text style={styles.quoteCaption}>{item.caption}</Text>
+                  ) : null}
                 </View>
               </View>
             </View>
@@ -320,6 +322,19 @@ const styles = StyleSheet.create({
   },
   quoteImagePlaceholder: {
     backgroundColor: Colours.card,
+  },
+  quoteProofTitle: {
+    fontFamily: Fonts.semiBold,
+    fontSize: 12,
+    color: Colours.text,
+    marginTop: 4,
+  },
+  quoteCaption: {
+    fontFamily: Fonts.regular,
+    fontSize: 12,
+    color: Colours.secondaryText,
+    marginTop: 1,
+    width: 110,
   },
   quoteActivityIcon: {
     alignSelf: "center",

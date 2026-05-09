@@ -10,6 +10,7 @@ export interface ReplyQuoteProps {
   text: string;
   timestamp?: string;
   photoUri?: string | null;
+  caption?: string | null;
   activityType?: "lock" | "unlock";
 }
 
@@ -33,6 +34,7 @@ function PhotoQuote({
   text,
   timestamp,
   photoUri,
+  caption,
 }: ReplyQuoteProps) {
   return (
     <View style={styles.photoContainer}>
@@ -41,7 +43,7 @@ function PhotoQuote({
           <Text style={[styles.name, { color: userColour }]}>{userName}</Text>
           {timestamp && <Text style={styles.timestamp}>{timestamp}</Text>}
         </View>
-        <Text style={styles.goalLabel}>{text}</Text>
+        <Text style={styles.completedLabel}>Completed</Text>
         <View style={styles.imageWrapper}>
           {photoUri ? (
             <Image source={{ uri: photoUri }} style={styles.image} />
@@ -49,6 +51,8 @@ function PhotoQuote({
             <View style={[styles.image, styles.placeholder]} />
           )}
         </View>
+        <Text style={styles.photoTitle}>{text}</Text>
+        {caption ? <Text style={styles.photoCaption}>{caption}</Text> : null}
       </View>
     </View>
   );
@@ -132,7 +136,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colours.secondaryText,
   },
-  goalLabel: {
+  completedLabel: {
     fontFamily: Fonts.regular,
     fontSize: 11,
     color: Colours.secondaryText,
@@ -151,5 +155,18 @@ const styles = StyleSheet.create({
   },
   placeholder: {
     backgroundColor: Colours.card,
+  },
+  photoTitle: {
+    fontFamily: Fonts.semiBold,
+    fontSize: 12,
+    color: Colours.text,
+    marginTop: 4,
+  },
+  photoCaption: {
+    fontFamily: Fonts.regular,
+    fontSize: 12,
+    color: Colours.secondaryText,
+    marginTop: 1,
+    width: 110,
   },
 });

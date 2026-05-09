@@ -99,7 +99,7 @@ function buildReplyTo(
   if (ref.kind === "message") {
     text = ref.text;
   } else if (ref.kind === "completed") {
-    text = `Completed ${ref.goalTitle} ✅`;
+    text = ref.goalTitle;
   } else {
     text =
       ref.type === "unlock"
@@ -113,6 +113,7 @@ function buildReplyTo(
     text,
     timestamp: ref.kind !== "activity" ? ref.timestamp : undefined,
     photoUri: ref.kind === "completed" ? ref.photoUri : undefined,
+    caption: ref.kind === "completed" ? ref.caption : undefined,
     activityType: ref.kind === "activity" ? ref.type : undefined,
   };
 }
@@ -122,7 +123,7 @@ function buildReplyInfo(item: FeedItem): ReplyInfo {
   if (item.kind === "message") {
     text = item.text;
   } else if (item.kind === "completed") {
-    text = `Completed ${item.goalTitle} ✅`;
+    text = `Completed ${item.goalTitle}`;
   } else {
     text =
       item.type === "unlock"
@@ -360,6 +361,7 @@ export default function Social() {
           userId,
           goalTitle: goal?.title ?? "Goal",
           photoUri: signedImage?.signedUrl ?? null,
+          caption: proof.caption,
           timestamp: formatTimestamp(message.created_at),
         };
       }),
@@ -575,6 +577,7 @@ export default function Social() {
             nameColour={resolveUserColour(item.userId)}
             goalTitle={item.goalTitle}
             photoUri={item.photoUri}
+            caption={item.caption}
             timestamp={item.timestamp}
             reactions={item.reactions}
             onDoubleTap={() => handleReply(item)}
