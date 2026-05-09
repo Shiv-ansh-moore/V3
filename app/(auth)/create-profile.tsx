@@ -115,6 +115,15 @@ export default function CreateProfile() {
     setPickerOpen(true);
   };
 
+  const handleSignOut = async () => {
+    if (loading || avatarUploading) return;
+    setError(null);
+    const { error: signOutError } = await supabase.auth.signOut();
+    if (signOutError) {
+      setError(signOutError.message);
+    }
+  };
+
   const handleSubmit = async () => {
     if (!user) return;
     setError(null);
@@ -229,6 +238,16 @@ export default function CreateProfile() {
               >
                 <Text style={styles.buttonText}>
                   {loading ? "Saving…" : "Continue"}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.signOutButton}
+                onPress={handleSignOut}
+                disabled={loading || avatarUploading}
+              >
+                <Text style={styles.signOutButtonText}>
+                  Cheeky sign out
                 </Text>
               </TouchableOpacity>
             </View>
@@ -366,6 +385,15 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.semiBold,
     fontSize: 16,
     color: Colours.text,
+  },
+  signOutButton: {
+    alignItems: "center",
+    paddingVertical: 12,
+  },
+  signOutButtonText: {
+    fontFamily: Fonts.semiBold,
+    fontSize: 14,
+    color: Colours.secondaryText,
   },
   sheetOverlay: {
     flex: 1,

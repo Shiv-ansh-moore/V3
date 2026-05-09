@@ -409,6 +409,26 @@ export type Database = {
         }
       }
       generate_invite_code: { Args: never; Returns: string }
+      get_group_recent_proofs: {
+        Args: { p_group_id: string }
+        Returns: {
+          caption: string | null
+          goal_id: string
+          goal_title: string
+          image_path: string
+          message_id: string | null
+          proof_id: string
+          submitted_at: string
+          user_id: string
+          viewed_by_me: boolean
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "*"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       is_group_member: {
         Args: { p_group_id: string; p_user_id: string }
         Returns: boolean
@@ -564,4 +584,3 @@ export const Constants = {
     Enums: {},
   },
 } as const
-

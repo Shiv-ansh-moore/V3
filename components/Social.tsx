@@ -6,12 +6,13 @@ import React, {
   useRef,
   useEffect,
 } from "react";
-import AvatarRow from "./social/AvatarRow";
+import AvatarRow, { AvatarRowMember } from "./social/AvatarRow";
 import ChatBubble, { BubblePosition } from "./social/ChatBubble";
 import CompletedCard from "./social/CompletedCard";
 import ScreenTimeLog from "./social/ScreenTimeLog";
 import LongPressSheet from "./social/LongPressSheet";
 import MessageInput, { ReplyInfo } from "./social/MessageInput";
+import StoryViewer, { StoryProof } from "./social/StoryViewer";
 import { FlatList } from "react-native-gesture-handler";
 import { Colours } from "../constants/Colours";
 import { ChatMessage, FeedItem } from "../testData/mockSocial";
@@ -29,6 +30,8 @@ import type { Database } from "../lib/database.types";
 type ProfileRow = Database["public"]["Tables"]["profiles"]["Row"];
 type ProofRow = Database["public"]["Tables"]["proofs"]["Row"];
 type GoalRow = Database["public"]["Tables"]["goals"]["Row"];
+type RecentProofRow =
+  Database["public"]["Functions"]["get_group_recent_proofs"]["Returns"][number];
 type GroupMemberRow = Database["public"]["Tables"]["group_members"]["Row"] & {
   profile: ProfileRow | ProfileRow[] | null;
 };
@@ -43,6 +46,8 @@ type SocialMessageRow = Database["public"]["Tables"]["messages"]["Row"] & {
       })[]
     | null;
 };
+
+type StoriesByUser = Record<string, StoryProof[]>;
 
 function firstRelation<T>(relation: T | T[] | null): T | null {
   return Array.isArray(relation) ? (relation[0] ?? null) : relation;
@@ -141,9 +146,20 @@ export default function Social() {
   const [sheetVisible, setSheetVisible] = useState(false);
   const { group, user } = useAuth();
   const [feed, setFeed] = useState<FeedItem[]>([]);
+  const [groupMembers, setGroupMembers] = useState<AvatarRowMember[]>([]);
+  const [storiesByUser, setStoriesByUser] = useState<StoriesByUser>({});
+  const [selectedStoryUserId, setSelectedStoryUserId] = useState<string | null>(
+    null,
+  );
+  const [selectedStoryInitialIndex, setSelectedStoryInitialIndex] = useState(0);
   const [userNames, setUserNames] = useState<Record<string, string>>({});
   const [userColours, setUserColours] = useState<Record<string, string>>({});
   const reversedFeed = useMemo(() => [...feed].reverse(), [feed]);
+  const selectedStoryMember =
+    groupMembers.find((member) => member.id === selectedStoryUserId) ?? null;
+  const selectedStories = selectedStoryUserId
+    ? (storiesByUser[selectedStoryUserId] ?? [])
+    : [];
 
   const resolveUserName = useCallback(
     (userId: string): string => userNames[userId] ?? "Unknown",
@@ -159,6 +175,9 @@ export default function Social() {
   const refreshFeed = useCallback(async () => {
     if (!group) {
       setFeed([]);
+      setGroupMembers([]);
+      setStoriesByUser({});
+      setSelectedStoryUserId(null);
       return;
     }
 
@@ -178,15 +197,109 @@ export default function Social() {
       return;
     }
 
+    const { data: storyRows, error: storyError } = await supabase.rpc(
+      "get_group_recent_proofs",
+      { p_group_id: group.id },
+    );
+
+    if (storyError) {
+      console.log("[social] story proofs fetch error:", storyError.message);
+    }
+
+    const nextStoriesByUser: StoriesByUser = {};
+    const signedStories = await Promise.all(
+      ((storyRows ?? []) as RecentProofRow[]).map(
+        async (proof): Promise<StoryProof> => {
+          const { data: signedImage, error: signedImageError } =
+            await supabase.storage
+              .from("proofs")
+              .createSignedUrl(proof.image_path, 60 * 60);
+
+          if (signedImageError) {
+            console.log(
+              "[social] story proof image error:",
+              signedImageError.message,
+            );
+          }
+
+          return {
+            proofId: proof.proof_id,
+            userId: proof.user_id,
+            messageId: proof.message_id,
+            goalId: proof.goal_id,
+            goalTitle: proof.goal_title,
+            caption: proof.caption,
+            imageUrl: signedImage?.signedUrl ?? null,
+            submittedAt: proof.submitted_at,
+            viewedByMe: proof.viewed_by_me,
+          };
+        },
+      ),
+    );
+
+    signedStories.forEach((story) => {
+      nextStoriesByUser[story.userId] = [
+        ...(nextStoriesByUser[story.userId] ?? []),
+        story,
+      ];
+    });
+
+    const latestStoryTimeByUser = new Map<string, number>();
+    signedStories.forEach((story) => {
+      const submittedAt = new Date(story.submittedAt).getTime();
+      const currentLatest = latestStoryTimeByUser.get(story.userId);
+      if (currentLatest === undefined || submittedAt > currentLatest) {
+        latestStoryTimeByUser.set(story.userId, submittedAt);
+      }
+    });
+
     const nextUserNames: Record<string, string> = {};
     const nextUserColours: Record<string, string> = {};
+    const nextGroupMembers: AvatarRowMember[] = [];
+    const groupMemberOrder = new Map<string, number>();
 
     ((membersData ?? []) as GroupMemberRow[]).forEach((member, index) => {
       const profile = firstRelation(member.profile);
-      nextUserNames[member.user_id] =
+      const displayName =
         profile?.display_name ?? profile?.username ?? "Unknown";
-      nextUserColours[member.user_id] =
-        GROUP_USER_COLOURS[index % GROUP_USER_COLOURS.length];
+      const colour = GROUP_USER_COLOURS[index % GROUP_USER_COLOURS.length];
+      groupMemberOrder.set(member.user_id, index);
+
+      if (member.user_id !== user?.id) {
+        nextGroupMembers.push({
+          id: member.user_id,
+          displayName,
+          avatarUrl: profile?.avatar_url ?? null,
+          colour,
+          storyStatus:
+            (nextStoriesByUser[member.user_id]?.length ?? 0) === 0
+              ? null
+              : nextStoriesByUser[member.user_id].some(
+                  (story) => !story.viewedByMe,
+                )
+                ? "unseen"
+                : "seen",
+        });
+      }
+
+      nextUserNames[member.user_id] = displayName;
+      nextUserColours[member.user_id] = colour;
+    });
+
+    nextGroupMembers.sort((a, b) => {
+      const aLatestStoryTime = latestStoryTimeByUser.get(a.id);
+      const bLatestStoryTime = latestStoryTimeByUser.get(b.id);
+
+      if (aLatestStoryTime !== undefined && bLatestStoryTime !== undefined) {
+        return bLatestStoryTime - aLatestStoryTime;
+      }
+
+      if (aLatestStoryTime !== undefined) return -1;
+      if (bLatestStoryTime !== undefined) return 1;
+
+      return (
+        (groupMemberOrder.get(a.id) ?? 0) - (groupMemberOrder.get(b.id) ?? 0)
+      );
     });
 
     const { data, error } = await supabase
@@ -254,8 +367,10 @@ export default function Social() {
 
     setUserNames(nextUserNames);
     setUserColours(nextUserColours);
+    setGroupMembers(nextGroupMembers);
+    setStoriesByUser(nextStoriesByUser);
     setFeed(liveItems.filter((item): item is FeedItem => item !== null));
-  }, [group]);
+  }, [group, user?.id]);
 
   useEffect(() => {
     refreshFeed();
@@ -274,6 +389,84 @@ export default function Social() {
 
   const clearReply = useCallback(() => {
     setReplyingTo(null);
+  }, []);
+
+  const openStoriesForMember = useCallback(
+    (member: AvatarRowMember) => {
+      const stories = storiesByUser[member.id] ?? [];
+      if (stories.length === 0) return;
+
+      const firstUnseenIndex = stories.findIndex((story) => !story.viewedByMe);
+      setSelectedStoryInitialIndex(
+        firstUnseenIndex === -1 ? 0 : firstUnseenIndex,
+      );
+      setSelectedStoryUserId(member.id);
+    },
+    [storiesByUser],
+  );
+
+  const closeStories = useCallback(() => {
+    setSelectedStoryUserId(null);
+  }, []);
+
+  const playNextMemberStories = useCallback(() => {
+    if (!selectedStoryUserId) {
+      setSelectedStoryUserId(null);
+      return;
+    }
+
+    const currentMemberIndex = groupMembers.findIndex(
+      (member) => member.id === selectedStoryUserId,
+    );
+    const nextMember = groupMembers
+      .slice(currentMemberIndex + 1)
+      .find((member) => (storiesByUser[member.id]?.length ?? 0) > 0);
+
+    if (!nextMember) {
+      setSelectedStoryUserId(null);
+      return;
+    }
+
+    const nextStories = storiesByUser[nextMember.id] ?? [];
+    const firstUnseenIndex = nextStories.findIndex(
+      (story) => !story.viewedByMe,
+    );
+    setSelectedStoryInitialIndex(firstUnseenIndex === -1 ? 0 : firstUnseenIndex);
+    setSelectedStoryUserId(nextMember.id);
+  }, [groupMembers, selectedStoryUserId, storiesByUser]);
+
+  const handleProofViewed = useCallback((proofId: string) => {
+    setStoriesByUser((currentStoriesByUser) => {
+      let viewedUserId: string | null = null;
+      const nextStoriesByUser: StoriesByUser = {};
+
+      Object.entries(currentStoriesByUser).forEach(([userId, stories]) => {
+        const nextStories = stories.map((story) => {
+          if (story.proofId !== proofId) return story;
+          viewedUserId = userId;
+          return { ...story, viewedByMe: true };
+        });
+        nextStoriesByUser[userId] = nextStories;
+      });
+
+      if (viewedUserId) {
+        const remainingUnseen =
+          nextStoriesByUser[viewedUserId]?.some((story) => !story.viewedByMe) ??
+          false;
+        setGroupMembers((members) =>
+          members.map((member) =>
+            member.id === viewedUserId
+              ? {
+                  ...member,
+                  storyStatus: remainingUnseen ? "unseen" : "seen",
+                }
+              : member,
+          ),
+        );
+      }
+
+      return nextStoriesByUser;
+    });
   }, []);
 
   const handleLongPress = useCallback((item: FeedItem) => {
@@ -407,7 +600,10 @@ export default function Social() {
           Platform.OS === "ios" ? insets.top : insets.top + 15
         }
       >
-        <AvatarRow />
+        <AvatarRow
+          members={groupMembers}
+          onMemberPress={openStoriesForMember}
+        />
         <KeyboardGestureArea interpolator="ios" style={styles.messagesArea}>
           <FlatList
             data={reversedFeed}
@@ -436,6 +632,20 @@ export default function Social() {
         onReact={handleSheetReact}
         onReply={handleSheetReply}
       />
+      {selectedStoryMember && (
+        <StoryViewer
+          key={selectedStoryMember.id}
+          visible={selectedStories.length > 0}
+          memberName={selectedStoryMember.displayName}
+          memberAvatarUrl={selectedStoryMember.avatarUrl}
+          memberColour={selectedStoryMember.colour}
+          stories={selectedStories}
+          initialIndex={selectedStoryInitialIndex}
+          onClose={closeStories}
+          onComplete={playNextMemberStories}
+          onProofViewed={handleProofViewed}
+        />
+      )}
     </>
   );
 }

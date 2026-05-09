@@ -1,14 +1,38 @@
-import { StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { ScrollView } from "react-native-gesture-handler";
+import { Image } from "expo-image";
 import { Fonts } from "../../constants/Fonts";
-import { socialUsers } from "../../testData/mockSocial";
 import React from "react";
 import { Colours } from "../../constants/Colours";
 
-const AVATAR_SIZE = 64;
+const AVATAR_SIZE = 70;
 const BORDER_WIDTH = 2;
+const INNER_AVATAR_SIZE = AVATAR_SIZE - BORDER_WIDTH * 2 - 4;
 
-export default function AvatarRow() {
+export interface AvatarRowMember {
+  id: string;
+  displayName: string;
+  avatarUrl: string | null;
+  colour: string;
+  storyStatus: "unseen" | "seen" | null;
+}
+
+interface AvatarRowProps {
+  members: AvatarRowMember[];
+  onMemberPress?: (member: AvatarRowMember) => void;
+}
+
+function getInitial(displayName: string): string {
+  return displayName.trim().charAt(0).toUpperCase() || "?";
+}
+
+function getRingColour(member: AvatarRowMember): string {
+  if (member.storyStatus === "unseen") return member.colour;
+  if (member.storyStatus === "seen") return Colours.cardHighlight;
+  return "transparent";
+}
+
+export default function AvatarRow({ members, onMemberPress }: AvatarRowProps) {
   return (
     <View>
       <ScrollView
@@ -16,24 +40,32 @@ export default function AvatarRow() {
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
-        {socialUsers.map((user) => (
-          <View key={user.id} style={styles.item}>
-            <View
+        {members.map((member) => (
+          <View key={member.id} style={styles.item}>
+            <Pressable
+              disabled={!member.storyStatus}
+              onPress={() => onMemberPress?.(member)}
               style={[
                 styles.avatarRing,
-                user.hasNewContent
-                  ? { borderColor: user.color }
-                  : { borderColor: "transparent" },
+                { borderColor: getRingColour(member) },
               ]}
             >
               <View style={styles.avatar}>
-                <Text style={styles.initial}>
-                  {user.name.charAt(0).toUpperCase()}
-                </Text>
+                {member.avatarUrl ? (
+                  <Image
+                    source={{ uri: member.avatarUrl }}
+                    style={styles.avatarImage}
+                    contentFit="cover"
+                  />
+                ) : (
+                  <Text style={[styles.initial, { color: member.colour }]}>
+                    {getInitial(member.displayName)}
+                  </Text>
+                )}
               </View>
-            </View>
+            </Pressable>
             <Text style={styles.name} numberOfLines={1}>
-              {user.name}
+              {member.displayName}
             </Text>
           </View>
         ))}
@@ -57,17 +89,21 @@ const styles = StyleSheet.create({
     height: AVATAR_SIZE,
     borderRadius: AVATAR_SIZE / 2,
     borderWidth: BORDER_WIDTH,
-    padding: 2,
     justifyContent: "center",
     alignItems: "center",
   },
   avatar: {
-    width: AVATAR_SIZE - BORDER_WIDTH * 2 - 4,
-    height: AVATAR_SIZE - BORDER_WIDTH * 2 - 4,
-    borderRadius: (AVATAR_SIZE - BORDER_WIDTH * 2 - 4) / 2,
+    width: INNER_AVATAR_SIZE,
+    height: INNER_AVATAR_SIZE,
+    borderRadius: INNER_AVATAR_SIZE / 2,
     backgroundColor: Colours.card,
     justifyContent: "center",
     alignItems: "center",
+    overflow: "hidden",
+  },
+  avatarImage: {
+    width: "100%",
+    height: "100%",
   },
   initial: {
     fontFamily: Fonts.semiBold,
@@ -76,15 +112,16 @@ const styles = StyleSheet.create({
   },
   name: {
     fontFamily: Fonts.regular,
-    fontSize: 10,
+    fontSize: 12,
     color: Colours.secondaryText,
     textAlign: "center",
-    marginTop: 2,
+    marginTop: 0,
   },
   divider: {
     height: 2,
     backgroundColor: Colours.cardHighlight,
     marginHorizontal: 19,
-    marginTop: 8,
+    // marginTop: 2,
+    marginBottom: 2,
   },
 });
