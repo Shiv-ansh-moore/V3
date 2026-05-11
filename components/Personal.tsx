@@ -5,7 +5,8 @@ import {
   ScrollView,
   TouchableOpacity,
 } from "react-native";
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { mockLocks } from "../testData/mockLocks";
 import GoalTile from "./personal/GoalTile";
 import LockCard from "./personal/LockCard";
@@ -24,6 +25,7 @@ import { supabase } from "../lib/supabase";
 import { useAuth } from "../lib/AuthContext";
 import type { Database } from "../lib/database.types";
 import {
+  unlockForDuration,
   relockNow,
   getActiveUnlock,
 } from "../modules/screen-time-locks";
@@ -31,6 +33,23 @@ import {
 type Goal = Omit<Database["public"]["Tables"]["goals"]["Row"], "status"> & {
   status: "active" | "done";
 };
+type ScreenSession = Database["public"]["Tables"]["screen_sessions"]["Row"];
+type PendingScreenSessionLock = {
+  sessionId: string;
+  actualSeconds: number;
+};
+type PendingScreenSessionCompletion = {
+  sessionId: string;
+};
+
+const ACTIVE_SCREEN_SESSION_KEY = "v3.activeScreenSessionId";
+const PENDING_SCREEN_SESSION_LOCK_KEY = "v3.pendingScreenSessionLock";
+const PENDING_SCREEN_SESSION_COMPLETION_KEY =
+  "v3.pendingScreenSessionCompletion";
+
+function clampActualSeconds(actualSeconds: number, grantedSeconds: number) {
+  return Math.max(0, Math.min(actualSeconds, Math.max(0, grantedSeconds - 1)));
+}
 
 export default function Personal() {
   const { user } = useAuth();
@@ -42,6 +61,8 @@ export default function Personal() {
   const [unlockEndTime, setUnlockEndTime] = useState<number | null>(null);
   const [unlockSecondsLeft, setUnlockSecondsLeft] = useState(0);
   const [unlockTotalSeconds, setUnlockTotalSeconds] = useState(0);
+  const [unlockSessionId, setUnlockSessionId] = useState<string | null>(null);
+  const completingSessionIdsRef = useRef<Set<string>>(new Set());
 
   const activeGoals = goals.filter((g) => g.status === "active");
   const doneGoals = goals.filter((g) => g.status === "done");
@@ -65,38 +86,276 @@ export default function Personal() {
     refreshGoals();
   }, [refreshGoals]);
 
-  useEffect(() => {
-    const active = getActiveUnlock();
-    if (active) {
-      setUnlockEndTime(active.endTime * 1000);
-      setUnlockTotalSeconds(active.totalDuration);
-    }
-  }, []);
+  const logCompletedScreenSession = useCallback(
+    async (sessionId: string): Promise<boolean> => {
+      if (!user) return false;
+      if (completingSessionIdsRef.current.has(sessionId)) return true;
 
-  const handleUnlock = (minutes: number, _reason: string) => {
+      completingSessionIdsRef.current.add(sessionId);
+
+      try {
+        const { error } = await supabase.rpc("complete_screen_session", {
+          p_session_id: sessionId,
+        });
+
+        if (error) throw error;
+
+        await AsyncStorage.multiRemove([
+          ACTIVE_SCREEN_SESSION_KEY,
+          PENDING_SCREEN_SESSION_COMPLETION_KEY,
+        ]);
+        return true;
+      } catch (e) {
+        const pendingCompletion: PendingScreenSessionCompletion = {
+          sessionId,
+        };
+        await AsyncStorage.setItem(
+          PENDING_SCREEN_SESSION_COMPLETION_KEY,
+          JSON.stringify(pendingCompletion),
+        );
+        await AsyncStorage.removeItem(ACTIVE_SCREEN_SESSION_KEY);
+        console.log("[screen session] timer completion logging failed:", e);
+        return false;
+      } finally {
+        completingSessionIdsRef.current.delete(sessionId);
+      }
+    },
+    [user],
+  );
+
+  const flushPendingScreenSessionLock = useCallback(async () => {
+    if (!user) return false;
+
+    const pendingJson = await AsyncStorage.getItem(
+      PENDING_SCREEN_SESSION_LOCK_KEY,
+    );
+    if (pendingJson) {
+      let pending: PendingScreenSessionLock;
+      try {
+        pending = JSON.parse(pendingJson) as PendingScreenSessionLock;
+      } catch {
+        await AsyncStorage.removeItem(PENDING_SCREEN_SESSION_LOCK_KEY);
+        return true;
+      }
+
+      if (!pending.sessionId || pending.actualSeconds < 0) {
+        await AsyncStorage.removeItem(PENDING_SCREEN_SESSION_LOCK_KEY);
+        return true;
+      }
+
+      const { error } = await supabase.rpc("finish_screen_session", {
+        p_session_id: pending.sessionId,
+        p_actual_seconds: pending.actualSeconds,
+      });
+
+      if (error) {
+        console.log("[screen session] pending lock retry failed:", error.message);
+        return false;
+      }
+
+      await AsyncStorage.multiRemove([
+        ACTIVE_SCREEN_SESSION_KEY,
+        PENDING_SCREEN_SESSION_LOCK_KEY,
+        PENDING_SCREEN_SESSION_COMPLETION_KEY,
+      ]);
+      setUnlockSessionId((current) =>
+        current === pending.sessionId ? null : current,
+      );
+    }
+
+    const pendingCompletionJson = await AsyncStorage.getItem(
+      PENDING_SCREEN_SESSION_COMPLETION_KEY,
+    );
+    if (!pendingCompletionJson) return true;
+
+    let pendingCompletion: PendingScreenSessionCompletion;
+    try {
+      pendingCompletion = JSON.parse(
+        pendingCompletionJson,
+      ) as PendingScreenSessionCompletion;
+    } catch {
+      await AsyncStorage.removeItem(PENDING_SCREEN_SESSION_COMPLETION_KEY);
+      return true;
+    }
+
+    if (!pendingCompletion.sessionId) {
+      await AsyncStorage.removeItem(PENDING_SCREEN_SESSION_COMPLETION_KEY);
+      return true;
+    }
+
+    return logCompletedScreenSession(pendingCompletion.sessionId);
+  }, [logCompletedScreenSession, user]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const hydrateActiveUnlock = async () => {
+      const pendingFlushComplete = await flushPendingScreenSessionLock();
+
+      const active = getActiveUnlock();
+      const storedSessionId = await AsyncStorage.getItem(
+        ACTIVE_SCREEN_SESSION_KEY,
+      );
+
+      if (cancelled) return;
+
+      if (active) {
+        setUnlockEndTime(active.endTime * 1000);
+        setUnlockSecondsLeft(
+          Math.max(0, Math.ceil(active.endTime - Date.now() / 1000)),
+        );
+        setUnlockTotalSeconds(active.totalDuration);
+        setUnlockSessionId(storedSessionId);
+        return;
+      }
+
+      if (storedSessionId && pendingFlushComplete) {
+        await logCompletedScreenSession(storedSessionId);
+        if (cancelled) return;
+      } else {
+        await AsyncStorage.removeItem(ACTIVE_SCREEN_SESSION_KEY);
+      }
+
+      if (cancelled) return;
+      setUnlockSessionId(null);
+    };
+
+    hydrateActiveUnlock();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [flushPendingScreenSessionLock, logCompletedScreenSession]);
+
+  const handleUnlock = async (minutes: number, reason: string) => {
+    if (!user) {
+      throw new Error("Cannot unlock apps without an authenticated user.");
+    }
+
     const totalSecs = minutes * 60;
-    setUnlockEndTime(Date.now() + totalSecs * 1000);
-    setUnlockSecondsLeft(totalSecs);
-    setUnlockTotalSeconds(totalSecs);
+    let nativeUnlocked = false;
+    let sessionCreated = false;
+
+    try {
+      await unlockForDuration(minutes, reason);
+      nativeUnlocked = true;
+
+      const { data, error } = await supabase.rpc("start_screen_session", {
+        p_granted_seconds: totalSecs,
+        p_reason: reason,
+        p_app_name: "Apps",
+        p_app_icon: null,
+      });
+
+      if (error) throw error;
+
+      const session = data as ScreenSession | null;
+      if (!session?.id) {
+        throw new Error("Screen session was not created.");
+      }
+
+      sessionCreated = true;
+      const active = getActiveUnlock();
+      try {
+        await AsyncStorage.setItem(ACTIVE_SCREEN_SESSION_KEY, session.id);
+        await AsyncStorage.multiRemove([
+          PENDING_SCREEN_SESSION_LOCK_KEY,
+          PENDING_SCREEN_SESSION_COMPLETION_KEY,
+        ]);
+      } catch (storageError) {
+        console.log(
+          "[screen session] active session persistence failed:",
+          storageError,
+        );
+      }
+      setUnlockSessionId(session.id);
+      setUnlockEndTime(
+        active ? active.endTime * 1000 : Date.now() + totalSecs * 1000,
+      );
+      setUnlockSecondsLeft(active?.totalDuration ?? totalSecs);
+      setUnlockTotalSeconds(active?.totalDuration ?? totalSecs);
+    } catch (e) {
+      if (nativeUnlocked && !sessionCreated) {
+        try {
+          await relockNow();
+        } catch (relockError) {
+          console.log("[screen session] rollback relock failed:", relockError);
+        }
+      }
+
+      await AsyncStorage.removeItem(ACTIVE_SCREEN_SESSION_KEY);
+      setUnlockSessionId(null);
+      setUnlockEndTime(null);
+      setUnlockSecondsLeft(0);
+      setUnlockTotalSeconds(0);
+      console.log("[screen session] unlock logging failed:", e);
+      throw e;
+    }
   };
 
   const handleLockNow = async () => {
     const active = getActiveUnlock();
+    const storedSessionId =
+      unlockSessionId ??
+      (await AsyncStorage.getItem(ACTIVE_SCREEN_SESSION_KEY));
+    const grantedSeconds = active?.totalDuration ?? unlockTotalSeconds;
+    const rawActualSeconds = active
+      ? Math.floor(Date.now() / 1000 - active.startTime)
+      : unlockTotalSeconds - unlockSecondsLeft;
+    const actualSeconds = clampActualSeconds(rawActualSeconds, grantedSeconds);
+
     try {
       await relockNow();
     } catch (e) {
       console.log("Relock failed:", e);
+      return;
     }
+
     if (active) {
-      const actualSeconds = Math.round(Date.now() / 1000 - active.startTime);
       const mins = Math.floor(actualSeconds / 60);
       const secs = actualSeconds % 60;
       console.log(
         `Apps were unlocked for ${mins}m ${secs}s (reason: ${active.reason})`,
       );
     }
+
     setUnlockEndTime(null);
     setUnlockSecondsLeft(0);
+    setUnlockTotalSeconds(0);
+    setUnlockSessionId(null);
+
+    if (!storedSessionId) {
+      await AsyncStorage.removeItem(ACTIVE_SCREEN_SESSION_KEY);
+      console.log("[screen session] no active session id to finish");
+      return;
+    }
+
+    const pendingLock: PendingScreenSessionLock = {
+      sessionId: storedSessionId,
+      actualSeconds,
+    };
+
+    try {
+      const { error } = await supabase.rpc("finish_screen_session", {
+        p_session_id: storedSessionId,
+        p_actual_seconds: actualSeconds,
+      });
+
+      if (error) throw error;
+
+      await AsyncStorage.multiRemove([
+        ACTIVE_SCREEN_SESSION_KEY,
+        PENDING_SCREEN_SESSION_LOCK_KEY,
+        PENDING_SCREEN_SESSION_COMPLETION_KEY,
+      ]);
+    } catch (e) {
+      await AsyncStorage.removeItem(PENDING_SCREEN_SESSION_COMPLETION_KEY);
+      await AsyncStorage.setItem(
+        PENDING_SCREEN_SESSION_LOCK_KEY,
+        JSON.stringify(pendingLock),
+      );
+      console.log("[screen session] lock logging failed:", e);
+    }
   };
 
   useEffect(() => {
@@ -112,14 +371,37 @@ export default function Personal() {
         console.log(
           `Unlock timer expired (full duration: ${unlockTotalSeconds / 60}m)`,
         );
+        const logExpiredSession = async () => {
+          const sessionId =
+            unlockSessionId ??
+            (await AsyncStorage.getItem(ACTIVE_SCREEN_SESSION_KEY));
+
+          if (!sessionId) {
+            await AsyncStorage.removeItem(ACTIVE_SCREEN_SESSION_KEY);
+            return;
+          }
+
+          await logCompletedScreenSession(sessionId);
+        };
+
+        logExpiredSession().catch((error) => {
+          console.log("[screen session] timer completion failed:", error);
+        });
+        setUnlockSessionId(null);
         setUnlockEndTime(null);
+        setUnlockTotalSeconds(0);
       }
     };
 
     tick();
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
-  }, [unlockEndTime]);
+  }, [
+    logCompletedScreenSession,
+    unlockEndTime,
+    unlockSessionId,
+    unlockTotalSeconds,
+  ]);
 
   const buildRows = () => {
     const result: { goal: Goal; size: "small" | "large" }[] = [];

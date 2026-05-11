@@ -6,7 +6,7 @@ import { LockSimpleOpenIcon } from "phosphor-react-native";
 import UnlockSheet from "./UnlockSheet";
 
 interface UnlockAppsMVPProps {
-  onUnlock: (minutes: number, reason: string) => void;
+  onUnlock: (minutes: number, reason: string) => Promise<void> | void;
 }
 
 export default function UnlockAppsMVP({ onUnlock }: UnlockAppsMVPProps) {

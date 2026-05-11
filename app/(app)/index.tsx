@@ -5,13 +5,14 @@ import Social from "../../components/Social";
 import Personal from "../../components/Personal";
 import TabBar from "../../components/TabBar";
 import { Colours } from "../../constants/Colours";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { requestAuthorization } from "../../modules/screen-time-locks";
 
 export default function MyPager() {
   const scrollPosition = useRef(new Animated.Value(0)).current;
   const pagerRef = useRef<PagerView>(null);
+  const [activePage, setActivePage] = useState(0);
   useEffect(() => {
     if (Platform.OS !== "ios") return;
 
@@ -25,12 +26,16 @@ export default function MyPager() {
       <SafeAreaView style={styles.container} edges={{ top: "additive" }}>
         <TabBar
           scrollPosition={scrollPosition}
-          onTabPress={(index) => pagerRef.current?.setPage(index)}
+          onTabPress={(index) => {
+            setActivePage(index);
+            pagerRef.current?.setPage(index);
+          }}
         />
         <PagerView
           ref={pagerRef}
           style={styles.container}
           initialPage={0}
+          onPageSelected={(e) => setActivePage(e.nativeEvent.position)}
           onPageScroll={(e) => {
             const { position, offset } = e.nativeEvent;
             scrollPosition.setValue(position + offset);
@@ -40,7 +45,7 @@ export default function MyPager() {
             <Personal />
           </View>
           <View key="1">
-            <Social />
+            <Social active={activePage === 1} />
           </View>
         </PagerView>
       </SafeAreaView>

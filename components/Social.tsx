@@ -30,6 +30,8 @@ import type { Database } from "../lib/database.types";
 type ProfileRow = Database["public"]["Tables"]["profiles"]["Row"];
 type ProofRow = Database["public"]["Tables"]["proofs"]["Row"];
 type GoalRow = Database["public"]["Tables"]["goals"]["Row"];
+type ScreenSessionRow =
+  Database["public"]["Tables"]["screen_sessions"]["Row"];
 type RecentProofRow =
   Database["public"]["Functions"]["get_group_recent_proofs"]["Returns"][number];
 type GroupMemberRow = Database["public"]["Tables"]["group_members"]["Row"] & {
@@ -45,9 +47,21 @@ type SocialMessageRow = Database["public"]["Tables"]["messages"]["Row"] & {
         goal: GoalRow | GoalRow[] | null;
       })[]
     | null;
+  session: ScreenSessionRow | ScreenSessionRow[] | null;
 };
 
 type StoriesByUser = Record<string, StoryProof[]>;
+
+interface SocialProps {
+  active?: boolean;
+}
+
+type ScreenSessionSummary = {
+  id: string;
+  userId: string;
+  startedAt: string;
+  seconds: number;
+};
 
 function firstRelation<T>(relation: T | T[] | null): T | null {
   return Array.isArray(relation) ? (relation[0] ?? null) : relation;
@@ -58,6 +72,64 @@ function formatTimestamp(value: string): string {
     hour: "2-digit",
     minute: "2-digit",
   }).format(new Date(value));
+}
+
+function formatDuration(totalSeconds: number): string {
+  const clamped = Math.max(0, Math.round(totalSeconds));
+  const mins = Math.floor(clamped / 60);
+  const secs = clamped % 60;
+
+  if (mins === 0) {
+    return `${secs} sec${secs === 1 ? "" : "s"}`;
+  }
+
+  const minuteText = `${mins} min${mins === 1 ? "" : "s"}`;
+  if (secs === 0) return minuteText;
+
+  return `${minuteText} ${secs} sec${secs === 1 ? "" : "s"}`;
+}
+
+function getLocalDayKey(value: string): string {
+  const date = new Date(value);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function getUsedSeconds(session: ScreenSessionRow): number {
+  return session.actual_seconds ?? session.granted_seconds;
+}
+
+function buildDailyTotalLookup(
+  sessionsById: Map<string, ScreenSessionSummary>,
+): Map<string, number> {
+  const sessionsByUserDay = new Map<string, ScreenSessionSummary[]>();
+  const dailyTotals = new Map<string, number>();
+
+  sessionsById.forEach((session, sessionId) => {
+    const key = `${session.userId}:${getLocalDayKey(session.startedAt)}`;
+    sessionsByUserDay.set(key, [
+      ...(sessionsByUserDay.get(key) ?? []),
+      session,
+    ]);
+    dailyTotals.set(sessionId, 0);
+  });
+
+  sessionsByUserDay.forEach((sessions) => {
+    sessions.sort(
+      (a, b) =>
+        new Date(a.startedAt).getTime() - new Date(b.startedAt).getTime(),
+    );
+
+    let runningTotal = 0;
+    sessions.forEach((session) => {
+      runningTotal += session.seconds;
+      dailyTotals.set(session.id, runningTotal);
+    });
+  });
+
+  return dailyTotals;
 }
 
 function getMessagePosition(feed: FeedItem[], index: number): BubblePosition {
@@ -139,7 +211,7 @@ function buildReplyInfo(item: FeedItem): ReplyInfo {
   };
 }
 
-export default function Social() {
+export default function Social({ active = true }: SocialProps) {
   const insets = useSafeAreaInsets();
   const inputRef = useRef<TextInput>(null);
   const [replyingTo, setReplyingTo] = useState<ReplyInfo | null>(null);
@@ -311,7 +383,8 @@ export default function Social() {
       proof:proofs(
         *,
         goal:goals(*)
-      )
+      ),
+      session:screen_sessions(*)
     `,
       )
       .eq("group_id", group.id)
@@ -323,11 +396,27 @@ export default function Social() {
     }
 
     const rows = (data ?? []) as SocialMessageRow[];
+    const screenSessionsById = new Map<string, ScreenSessionSummary>();
+
+    rows.forEach((message) => {
+      const session = firstRelation(message.session);
+      if (!session) return;
+
+      screenSessionsById.set(session.id, {
+        id: session.id,
+        userId: message.sender_id ?? session.user_id,
+        startedAt: session.started_at,
+        seconds: getUsedSeconds(session),
+      });
+    });
+
+    const dailySessionTotals = buildDailyTotalLookup(screenSessionsById);
 
     const liveItems = await Promise.all(
       rows.map(async (message): Promise<FeedItem | null> => {
         const proof = firstRelation(message.proof);
-        const userId = message.sender_id ?? proof?.user_id;
+        const session = firstRelation(message.session);
+        const userId = message.sender_id ?? proof?.user_id ?? session?.user_id;
         if (!userId) return null;
 
         if (message.kind === "text") {
@@ -340,6 +429,39 @@ export default function Social() {
             text: message.body,
             timestamp: formatTimestamp(message.created_at),
             replyToId: message.reply_to_id ?? undefined,
+          };
+        }
+
+        if (
+          (message.kind === "unlock" || message.kind === "lock") &&
+          session
+        ) {
+          const actualSeconds =
+            session.actual_seconds ?? session.granted_seconds;
+          const duration =
+            message.kind === "unlock"
+              ? formatDuration(session.granted_seconds)
+              : formatDuration(actualSeconds);
+          const reason =
+            message.kind === "unlock"
+              ? (session.reason ?? undefined)
+              : undefined;
+          const dailyTotalSeconds =
+            dailySessionTotals.get(session.id) ?? actualSeconds;
+          const totalTime =
+            message.kind === "lock"
+              ? `${formatDuration(dailyTotalSeconds)} total time today`
+              : undefined;
+
+          return {
+            kind: "activity",
+            id: message.id,
+            userId,
+            type: message.kind,
+            app: session.app_name ?? "Apps",
+            duration,
+            reason,
+            totalTime,
           };
         }
 
@@ -375,8 +497,10 @@ export default function Social() {
   }, [group, user?.id]);
 
   useEffect(() => {
-    refreshFeed();
-  }, [refreshFeed]);
+    if (active) {
+      refreshFeed();
+    }
+  }, [active, refreshFeed]);
 
   const handleReply = useCallback(
     (item: FeedItem) => {

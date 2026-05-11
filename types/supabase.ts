@@ -393,6 +393,25 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      complete_screen_session: {
+        Args: { p_session_id: string }
+        Returns: {
+          actual_seconds: number | null
+          app_icon: string | null
+          app_name: string | null
+          granted_seconds: number
+          id: string
+          reason: string | null
+          started_at: string
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "screen_sessions"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       create_group: {
         Args: never
         Returns: {
@@ -404,6 +423,25 @@ export type Database = {
         SetofOptions: {
           from: "*"
           to: "groups"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      finish_screen_session: {
+        Args: { p_actual_seconds: number; p_session_id: string }
+        Returns: {
+          actual_seconds: number | null
+          app_icon: string | null
+          app_name: string | null
+          granted_seconds: number
+          id: string
+          reason: string | null
+          started_at: string
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "screen_sessions"
           isOneToOne: true
           isSetofReturn: false
         }
@@ -449,6 +487,30 @@ export type Database = {
         }
       }
       shares_group_with: { Args: { p_other_user_id: string }; Returns: boolean }
+      start_screen_session: {
+        Args: {
+          p_app_icon: string | null
+          p_app_name: string | null
+          p_granted_seconds: number
+          p_reason: string | null
+        }
+        Returns: {
+          actual_seconds: number | null
+          app_icon: string | null
+          app_name: string | null
+          granted_seconds: number
+          id: string
+          reason: string | null
+          started_at: string
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "screen_sessions"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
     }
     Enums: {
       [_ in never]: never

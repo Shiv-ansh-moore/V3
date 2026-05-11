@@ -10,14 +10,13 @@ import {
 } from "react-native";
 import { Colours } from "../../constants/Colours";
 import { Fonts } from "../../constants/Fonts";
-import { unlockForDuration } from "../../modules/screen-time-locks";
 
 const DURATIONS = [15, 30];
 
 interface UnlockSheetProps {
   visible: boolean;
   onClose: () => void;
-  onUnlock: (minutes: number, reason: string) => void;
+  onUnlock: (minutes: number, reason: string) => Promise<void> | void;
 }
 
 export default function UnlockSheet({
@@ -33,8 +32,7 @@ export default function UnlockSheet({
     if (!selectedMinutes) return;
     setLoading(true);
     try {
-      await unlockForDuration(selectedMinutes, reason);
-      onUnlock(selectedMinutes, reason);
+      await onUnlock(selectedMinutes, reason);
       setReason("");
       setSelectedMinutes(null);
       onClose();
