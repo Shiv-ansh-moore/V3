@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Modal,
   Platform,
@@ -11,13 +12,18 @@ import {
   View,
   TouchableOpacity,
 } from "react-native";
+import * as Clipboard from "expo-clipboard";
 import {
   AppWindowIcon,
   CaretRightIcon,
+  CopyIcon,
   SignOutIcon,
+  UserMinusIcon,
+  UsersThreeIcon,
 } from "phosphor-react-native";
 import { Colours } from "../../constants/Colours";
 import { Fonts } from "../../constants/Fonts";
+import { useAuth } from "../../lib/AuthContext";
 import {
   type AndroidAppInfo,
   blockApps,
@@ -38,7 +44,9 @@ interface ProfileSheetProps {
 }
 
 export default function ProfileSheet({ visible, onClose }: ProfileSheetProps) {
+  const { group, user, refreshGroup } = useAuth();
   const [showAndroidPicker, setShowAndroidPicker] = useState(false);
+  const [showGroupOptions, setShowGroupOptions] = useState(false);
   const [androidApps, setAndroidApps] = useState<AndroidAppInfo[]>([]);
   const [selectedPackages, setSelectedPackages] = useState<Set<string>>(
     new Set(),
@@ -46,6 +54,8 @@ export default function ProfileSheet({ visible, onClose }: ProfileSheetProps) {
   const [pickerLoading, setPickerLoading] = useState(false);
   const [pickerSaving, setPickerSaving] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [copiedInviteCode, setCopiedInviteCode] = useState(false);
+  const [leavingGroup, setLeavingGroup] = useState(false);
   const filteredAndroidApps = androidApps.filter((app) => {
     const query = searchQuery.trim().toLowerCase();
     if (!query) return true;
@@ -113,6 +123,59 @@ export default function ProfileSheet({ visible, onClose }: ProfileSheetProps) {
     }
   };
 
+  const openGroupOptions = () => {
+    setCopiedInviteCode(false);
+    setShowGroupOptions(true);
+  };
+
+  const closeGroupOptions = () => {
+    setShowGroupOptions(false);
+    setCopiedInviteCode(false);
+  };
+
+  const copyInviteCode = async () => {
+    if (!group?.invite_code) return;
+    await Clipboard.setStringAsync(group.invite_code);
+    setCopiedInviteCode(true);
+  };
+
+  const leaveGroup = async () => {
+    if (!group || !user || leavingGroup) return;
+
+    setLeavingGroup(true);
+    const { error } = await supabase
+      .from("group_members")
+      .delete()
+      .eq("group_id", group.id)
+      .eq("user_id", user.id);
+
+    if (error) {
+      Alert.alert("Could not leave group", error.message);
+      setLeavingGroup(false);
+      return;
+    }
+
+    closeGroupOptions();
+    onClose();
+    await refreshGroup();
+    setLeavingGroup(false);
+  };
+
+  const confirmLeaveGroup = () => {
+    Alert.alert(
+      "Leave group?",
+      "You will need an invite code to join a group again.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Leave",
+          style: "destructive",
+          onPress: leaveGroup,
+        },
+      ],
+    );
+  };
+
   return (
     <Modal visible={visible} transparent animationType="slide">
       <Pressable style={styles.overlay} onPress={onClose}>
@@ -124,6 +187,18 @@ export default function ProfileSheet({ visible, onClose }: ProfileSheetProps) {
               <AppWindowIcon size={20} weight="bold" color={Colours.text} />
             </View>
             <Text style={styles.rowLabel}>Manage Blocked Apps</Text>
+            <CaretRightIcon
+              size={16}
+              weight="bold"
+              color={Colours.secondaryText}
+            />
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.row} onPress={openGroupOptions}>
+            <View style={styles.iconBox}>
+              <UsersThreeIcon size={20} weight="bold" color={Colours.text} />
+            </View>
+            <Text style={styles.rowLabel}>Group Options</Text>
             <CaretRightIcon
               size={16}
               weight="bold"
@@ -220,6 +295,52 @@ export default function ProfileSheet({ visible, onClose }: ProfileSheetProps) {
           </Pressable>
         </Pressable>
       </Modal>
+
+      <Modal
+        visible={showGroupOptions}
+        transparent
+        animationType="slide"
+        onRequestClose={closeGroupOptions}
+      >
+        <Pressable style={styles.overlay} onPress={closeGroupOptions}>
+          <Pressable style={styles.sheet}>
+            <Text style={styles.title}>Group Options</Text>
+
+            <View style={styles.inviteSection}>
+              <Text style={styles.sectionLabel}>Invite Code</Text>
+              <View style={styles.codeRow}>
+                <Text style={styles.codeText}>
+                  {group?.invite_code ?? "Unavailable"}
+                </Text>
+                <TouchableOpacity
+                  style={styles.copyButton}
+                  onPress={copyInviteCode}
+                  disabled={!group?.invite_code}
+                >
+                  <CopyIcon size={18} weight="bold" color={Colours.text} />
+                  <Text style={styles.copyButtonText}>
+                    {copiedInviteCode ? "Copied" : "Copy"}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <TouchableOpacity
+              style={[styles.row, styles.destructiveRow]}
+              onPress={confirmLeaveGroup}
+              disabled={!group || !user || leavingGroup}
+            >
+              <View style={[styles.iconBox, styles.destructiveIconBox]}>
+                <UserMinusIcon size={20} weight="bold" color="#FF5A5A" />
+              </View>
+              <Text style={styles.destructiveLabel}>
+                {leavingGroup ? "Leaving group..." : "Leave Group"}
+              </Text>
+              <CaretRightIcon size={16} weight="bold" color="#FF5A5A" />
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </Modal>
   );
 }
@@ -264,6 +385,61 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontFamily: Fonts.medium,
     color: Colours.text,
+  },
+  inviteSection: {
+    paddingHorizontal: 19,
+    paddingBottom: 14,
+    gap: 8,
+  },
+  sectionLabel: {
+    fontSize: 12,
+    fontFamily: Fonts.medium,
+    color: Colours.secondaryText,
+    textTransform: "uppercase",
+  },
+  codeRow: {
+    minHeight: 56,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    backgroundColor: Colours.cardHighlight,
+    borderRadius: 10,
+    paddingLeft: 14,
+    paddingRight: 8,
+  },
+  codeText: {
+    flex: 1,
+    fontSize: 22,
+    fontFamily: Fonts.bold,
+    color: Colours.brand,
+    letterSpacing: 3,
+  },
+  copyButton: {
+    minHeight: 40,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    borderRadius: 8,
+    backgroundColor: Colours.brand,
+    paddingHorizontal: 12,
+  },
+  copyButtonText: {
+    fontSize: 14,
+    fontFamily: Fonts.bold,
+    color: Colours.text,
+  },
+  destructiveRow: {
+    marginTop: 2,
+  },
+  destructiveIconBox: {
+    backgroundColor: "rgba(255,90,90,0.12)",
+  },
+  destructiveLabel: {
+    flex: 1,
+    fontSize: 15,
+    fontFamily: Fonts.medium,
+    color: "#FF5A5A",
   },
   pickerSheet: {
     maxHeight: "82%",
