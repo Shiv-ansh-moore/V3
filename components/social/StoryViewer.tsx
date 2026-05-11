@@ -1,4 +1,6 @@
 import {
+  Animated,
+  Easing,
   Modal,
   Pressable,
   StyleSheet,
@@ -7,8 +9,13 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import type { DimensionValue } from "react-native";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { Image } from "expo-image";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { XIcon } from "phosphor-react-native";
@@ -18,7 +25,6 @@ import { supabase } from "../../lib/supabase";
 import { useAuth } from "../../lib/AuthContext";
 
 const STORY_DURATION_MS = 5000;
-const PROGRESS_TICK_MS = 50;
 const PROOF_EMOJIS = ["🔥", "💪", "👏", "🫡", "❤️"];
 
 export interface StoryProof {
@@ -69,20 +75,39 @@ export default function StoryViewer({
 }: StoryViewerProps) {
   const { user } = useAuth();
   const [index, setIndex] = useState(initialIndex);
-  const [progress, setProgress] = useState(0);
-  const [paused, setPaused] = useState(false);
+  const progressAnimation = useRef(new Animated.Value(0)).current;
+  const progressValueRef = useRef(0);
+  const isPausedRef = useRef(false);
+  const animationRunRef = useRef(0);
+  const onCompleteRef = useRef(onComplete);
+  const goNextRef = useRef<() => void>(() => {});
 
   const current = stories[index] ?? null;
+  const storyImageUrlKey = useMemo(
+    () =>
+      stories
+        .map((story) => story.imageUrl)
+        .filter((url): url is string => Boolean(url))
+        .join("\n"),
+    [stories],
+  );
+
+  useEffect(() => {
+    onCompleteRef.current = onComplete;
+  }, [onComplete]);
 
   useEffect(() => {
     if (!visible) return;
+    animationRunRef.current += 1;
+    isPausedRef.current = false;
+    progressValueRef.current = 0;
+    progressAnimation.stopAnimation();
+    progressAnimation.setValue(0);
     setIndex(initialIndex);
-    setProgress(0);
-    setPaused(false);
-  }, [initialIndex, visible]);
+  }, [initialIndex, progressAnimation, visible]);
 
   useEffect(() => {
-    if (!visible || !current || !user) return;
+    if (!visible || !current || !user || current.viewedByMe) return;
 
     supabase
       .from("proof_views")
@@ -99,57 +124,145 @@ export default function StoryViewer({
       });
   }, [current, onProofViewed, user, visible]);
 
+  useEffect(() => {
+    if (!visible || !storyImageUrlKey) return;
+
+    void Image.prefetch(storyImageUrlKey.split("\n"), "memory-disk").catch(
+      (error: unknown) => {
+        console.log(
+          "[stories] image prefetch error:",
+          error instanceof Error ? error.message : String(error),
+        );
+      },
+    );
+  }, [storyImageUrlKey, visible]);
+
+  const resetProgress = useCallback(() => {
+    animationRunRef.current += 1;
+    isPausedRef.current = false;
+    progressValueRef.current = 0;
+    progressAnimation.stopAnimation();
+    progressAnimation.setValue(0);
+  }, [progressAnimation]);
+
   const goNext = useCallback(() => {
-    setProgress(0);
+    resetProgress();
     if (index >= stories.length - 1) {
-      requestAnimationFrame(onComplete);
+      requestAnimationFrame(() => onCompleteRef.current());
       return;
     }
     setIndex(index + 1);
-  }, [index, onComplete, stories.length]);
-
-  const goBack = useCallback(() => {
-    setProgress(0);
-    setIndex((currentIndex) => Math.max(0, currentIndex - 1));
-  }, []);
+  }, [index, resetProgress, stories.length]);
 
   useEffect(() => {
-    if (!visible || paused || stories.length === 0) return;
+    goNextRef.current = goNext;
+  }, [goNext]);
 
-    const interval = setInterval(() => {
-      setProgress((currentProgress) => {
-        const nextProgress =
-          currentProgress + PROGRESS_TICK_MS / STORY_DURATION_MS;
-        if (nextProgress >= 1) {
-          requestAnimationFrame(goNext);
-          return 1;
+  const startProgressAnimation = useCallback(
+    (fromValue = progressValueRef.current) => {
+      if (!visible || stories.length === 0 || isPausedRef.current) return;
+
+      const normalizedValue = Math.min(Math.max(fromValue, 0), 1);
+      const runId = animationRunRef.current + 1;
+      const duration = Math.max(
+        0,
+        (1 - normalizedValue) * STORY_DURATION_MS,
+      );
+
+      animationRunRef.current = runId;
+      progressValueRef.current = normalizedValue;
+      progressAnimation.setValue(normalizedValue);
+
+      Animated.timing(progressAnimation, {
+        toValue: 1,
+        duration,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      }).start(({ finished }) => {
+        if (
+          finished &&
+          animationRunRef.current === runId &&
+          !isPausedRef.current
+        ) {
+          progressValueRef.current = 1;
+          requestAnimationFrame(() => goNextRef.current());
         }
-        return nextProgress;
       });
-    }, PROGRESS_TICK_MS);
+    },
+    [progressAnimation, stories.length, visible],
+  );
 
-    return () => clearInterval(interval);
-  }, [goNext, paused, stories.length, visible]);
+  const goBack = useCallback(() => {
+    resetProgress();
+    if (index === 0) {
+      requestAnimationFrame(() => startProgressAnimation(0));
+      return;
+    }
+    setIndex(index - 1);
+  }, [index, resetProgress, startProgressAnimation]);
+
+  const pauseProgress = useCallback(() => {
+    if (!visible || stories.length === 0 || isPausedRef.current) return;
+
+    animationRunRef.current += 1;
+    isPausedRef.current = true;
+    progressAnimation.stopAnimation((value) => {
+      progressValueRef.current = Math.min(Math.max(value, 0), 1);
+    });
+  }, [progressAnimation, stories.length, visible]);
+
+  const resumeProgress = useCallback(() => {
+    if (!isPausedRef.current) return;
+
+    isPausedRef.current = false;
+    startProgressAnimation(progressValueRef.current);
+  }, [startProgressAnimation]);
+
+  useEffect(() => {
+    if (!visible || stories.length === 0) return;
+
+    isPausedRef.current = false;
+    progressValueRef.current = 0;
+    progressAnimation.setValue(0);
+    startProgressAnimation(0);
+
+    return () => {
+      animationRunRef.current += 1;
+      progressAnimation.stopAnimation();
+    };
+  }, [
+    index,
+    progressAnimation,
+    startProgressAnimation,
+    stories.length,
+    visible,
+  ]);
 
   const progressSegments = useMemo(
     () =>
       stories.map((story, storyIndex) => {
-        let width = "0%";
-        if (storyIndex < index) width = "100%";
-        if (storyIndex === index) width = `${Math.min(progress, 1) * 100}%`;
+        const fill =
+          storyIndex < index ? (
+            <View style={[styles.progressFill, styles.progressFillComplete]} />
+          ) : storyIndex === index ? (
+            <Animated.View
+              style={[
+                styles.progressFill,
+                styles.progressFillActive,
+                { transform: [{ scaleX: progressAnimation }] },
+              ]}
+            />
+          ) : (
+            <View style={[styles.progressFill, styles.progressFillEmpty]} />
+          );
 
         return (
           <View key={story.proofId} style={styles.progressTrack}>
-            <View
-              style={[
-                styles.progressFill,
-                { width: width as DimensionValue },
-              ]}
-            />
+            {fill}
           </View>
         );
       }),
-    [index, progress, stories],
+    [index, progressAnimation, stories],
   );
 
   if (!current) return null;
@@ -168,7 +281,9 @@ export default function StoryViewer({
               {current.imageUrl ? (
                 <Image
                   source={{ uri: current.imageUrl }}
+                  cachePolicy="memory-disk"
                   contentFit="cover"
+                  priority="high"
                   style={styles.imagePlaceholder}
                 />
               ) : (
@@ -224,14 +339,14 @@ export default function StoryViewer({
                 <Pressable
                   style={styles.tapZone}
                   onPress={goBack}
-                  onPressIn={() => setPaused(true)}
-                  onPressOut={() => setPaused(false)}
+                  onPressIn={pauseProgress}
+                  onPressOut={resumeProgress}
                 />
                 <Pressable
                   style={styles.tapZone}
                   onPress={goNext}
-                  onPressIn={() => setPaused(true)}
-                  onPressOut={() => setPaused(false)}
+                  onPressIn={pauseProgress}
+                  onPressOut={resumeProgress}
                 />
               </View>
             </View>
@@ -316,6 +431,16 @@ const styles = StyleSheet.create({
   progressFill: {
     height: "100%",
     backgroundColor: Colours.text,
+  },
+  progressFillComplete: {
+    width: "100%",
+  },
+  progressFillActive: {
+    width: "100%",
+    transformOrigin: "left center",
+  },
+  progressFillEmpty: {
+    width: 0,
   },
   header: {
     flexDirection: "row",

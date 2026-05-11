@@ -439,35 +439,42 @@ export default function Social() {
 
   const handleProofViewed = useCallback((proofId: string) => {
     setStoriesByUser((currentStoriesByUser) => {
-      let viewedUserId: string | null = null;
-      const nextStoriesByUser: StoriesByUser = {};
-
-      Object.entries(currentStoriesByUser).forEach(([userId, stories]) => {
-        const nextStories = stories.map((story) => {
-          if (story.proofId !== proofId) return story;
-          viewedUserId = userId;
-          return { ...story, viewedByMe: true };
-        });
-        nextStoriesByUser[userId] = nextStories;
-      });
-
-      if (viewedUserId) {
-        const remainingUnseen =
-          nextStoriesByUser[viewedUserId]?.some((story) => !story.viewedByMe) ??
-          false;
-        setGroupMembers((members) =>
-          members.map((member) =>
-            member.id === viewedUserId
-              ? {
-                  ...member,
-                  storyStatus: remainingUnseen ? "unseen" : "seen",
-                }
-              : member,
-          ),
+      for (const [userId, stories] of Object.entries(currentStoriesByUser)) {
+        const storyIndex = stories.findIndex(
+          (story) => story.proofId === proofId,
         );
+
+        if (storyIndex === -1) continue;
+
+        const story = stories[storyIndex];
+        if (story.viewedByMe) return currentStoriesByUser;
+
+        const nextStories = [...stories];
+        nextStories[storyIndex] = { ...story, viewedByMe: true };
+        const remainingUnseen = nextStories.some(
+          (nextStory) => !nextStory.viewedByMe,
+        );
+        const nextStoryStatus = remainingUnseen ? "unseen" : "seen";
+
+        setGroupMembers((members) =>
+          members.map((member) => {
+            if (member.id !== userId) return member;
+            if (member.storyStatus === nextStoryStatus) return member;
+
+            return {
+              ...member,
+              storyStatus: nextStoryStatus,
+            };
+          }),
+        );
+
+        return {
+          ...currentStoriesByUser,
+          [userId]: nextStories,
+        };
       }
 
-      return nextStoriesByUser;
+      return currentStoriesByUser;
     });
   }, []);
 
