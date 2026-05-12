@@ -36,6 +36,12 @@ import {
 type Goal = Omit<Database["public"]["Tables"]["goals"]["Row"], "status"> & {
   status: "active" | "done" | "deleted";
 };
+type RecentDoneProof = Pick<
+  Database["public"]["Tables"]["proofs"]["Row"],
+  "goal_id" | "submitted_at"
+> & {
+  goal: Goal | Goal[] | null;
+};
 type ScreenSession = Database["public"]["Tables"]["screen_sessions"]["Row"];
 type PendingScreenSessionLock = {
   sessionId: string;
@@ -62,6 +68,10 @@ function isDoneGoalVisible(submittedAt: string | undefined, nowMs: number) {
   if (!Number.isFinite(submittedAtMs)) return false;
 
   return nowMs - submittedAtMs < DONE_GOAL_VISIBLE_MS;
+}
+
+function firstRelation<T>(relation: T | T[] | null): T | null {
+  return Array.isArray(relation) ? (relation[0] ?? null) : relation;
 }
 
 export default function Personal() {
@@ -92,47 +102,59 @@ export default function Personal() {
 
   const refreshGoals = useCallback(async () => {
     if (!user) return;
-    const { data, error } = await supabase
-      .from("goals")
-      .select("*")
-      .eq("user_id", user.id)
-      .is("archived_at", null)
-      .is("deleted_at", null)
-      .neq("status", "deleted")
-      .order("created_at", { ascending: true });
-    if (error) {
-      console.log("[goals] fetch error:", error.message);
+
+    const refreshedAtMs = Date.now();
+    const recentDoneCutoff = new Date(
+      refreshedAtMs - DONE_GOAL_VISIBLE_MS,
+    ).toISOString();
+
+    const [activeGoalResult, recentDoneProofResult] = await Promise.all([
+      supabase
+        .from("goals")
+        .select("*")
+        .eq("user_id", user.id)
+        .eq("status", "active")
+        .is("archived_at", null)
+        .is("deleted_at", null)
+        .order("created_at", { ascending: true }),
+      supabase
+        .from("proofs")
+        .select("goal_id, submitted_at, goal:goals!inner(*)")
+        .eq("user_id", user.id)
+        .gte("submitted_at", recentDoneCutoff)
+        .eq("goal.status", "done")
+        .is("goal.archived_at", null)
+        .is("goal.deleted_at", null)
+        .order("submitted_at", { ascending: true }),
+    ]);
+
+    if (activeGoalResult.error) {
+      console.log("[goals] fetch error:", activeGoalResult.error.message);
       return;
     }
 
-    const nextGoals = (data ?? []) as Goal[];
-    const doneGoalIds = nextGoals
-      .filter((goal) => goal.status === "done")
-      .map((goal) => goal.id);
-
-    setGoals(nextGoals);
-    setNowMs(Date.now());
-
-    if (doneGoalIds.length === 0) {
+    if (recentDoneProofResult.error) {
+      console.log(
+        "[proofs] fetch recent goal completions error:",
+        recentDoneProofResult.error.message,
+      );
+      setGoals((activeGoalResult.data ?? []) as Goal[]);
       setProofSubmittedAtByGoalId({});
       return;
     }
 
-    const { data: proofData, error: proofError } = await supabase
-      .from("proofs")
-      .select("goal_id, submitted_at")
-      .eq("user_id", user.id)
-      .in("goal_id", doneGoalIds);
+    const recentDoneProofs =
+      (recentDoneProofResult.data ?? []) as RecentDoneProof[];
+    const recentDoneGoals = recentDoneProofs
+      .map((proof) => firstRelation(proof.goal))
+      .filter((goal): goal is Goal => goal !== null)
+      .sort((a, b) => a.created_at.localeCompare(b.created_at));
 
-    if (proofError) {
-      console.log("[proofs] fetch goal completion times error:", proofError.message);
-      setProofSubmittedAtByGoalId({});
-      return;
-    }
-
+    setGoals([...(activeGoalResult.data ?? []), ...recentDoneGoals] as Goal[]);
+    setNowMs(refreshedAtMs);
     setProofSubmittedAtByGoalId(
       Object.fromEntries(
-        (proofData ?? []).map((proof) => [proof.goal_id, proof.submitted_at]),
+        recentDoneProofs.map((proof) => [proof.goal_id, proof.submitted_at]),
       ),
     );
   }, [user]);
