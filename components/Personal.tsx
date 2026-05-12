@@ -1,4 +1,7 @@
 import {
+  Alert,
+  Modal,
+  Pressable,
   StyleSheet,
   Text,
   View,
@@ -31,7 +34,7 @@ import {
 } from "../modules/screen-time-locks";
 
 type Goal = Omit<Database["public"]["Tables"]["goals"]["Row"], "status"> & {
-  status: "active" | "done";
+  status: "active" | "done" | "deleted";
 };
 type ScreenSession = Database["public"]["Tables"]["screen_sessions"]["Row"];
 type PendingScreenSessionLock = {
@@ -57,6 +60,8 @@ export default function Personal() {
   const [showAddGoal, setShowAddGoal] = useState(false);
   const [showProofCamera, setShowProofCamera] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
+  const [goalToDelete, setGoalToDelete] = useState<Goal | null>(null);
+  const [deletingGoalId, setDeletingGoalId] = useState<string | null>(null);
   const [proofGoal, setProofGoal] = useState<Goal | null>(null);
   const [unlockEndTime, setUnlockEndTime] = useState<number | null>(null);
   const [unlockSecondsLeft, setUnlockSecondsLeft] = useState(0);
@@ -74,6 +79,8 @@ export default function Personal() {
       .select("*")
       .eq("user_id", user.id)
       .is("archived_at", null)
+      .is("deleted_at", null)
+      .neq("status", "deleted")
       .order("created_at", { ascending: true });
     if (error) {
       console.log("[goals] fetch error:", error.message);
@@ -85,6 +92,51 @@ export default function Personal() {
   useEffect(() => {
     refreshGoals();
   }, [refreshGoals]);
+
+  const deleteGoal = useCallback(
+    async (goal: Goal) => {
+      if (!user) return;
+
+      setDeletingGoalId(goal.id);
+      const { error } = await supabase
+        .from("goals")
+        .update({
+          status: "deleted",
+          deleted_at: new Date().toISOString(),
+        })
+        .eq("id", goal.id)
+        .eq("user_id", user.id);
+
+      if (error) {
+        console.log("[goals] delete error:", error.message);
+        setDeletingGoalId(null);
+        Alert.alert("Could not delete goal", error.message);
+        return;
+      }
+
+      setGoals((current) => current.filter((item) => item.id !== goal.id));
+      setGoalToDelete(null);
+      setDeletingGoalId(null);
+    },
+    [user],
+  );
+
+  const confirmDeleteGoal = useCallback(
+    (goal: Goal) => {
+      setGoalToDelete(goal);
+    },
+    [],
+  );
+
+  const closeDeleteGoalModal = () => {
+    if (deletingGoalId) return;
+    setGoalToDelete(null);
+  };
+
+  const handleConfirmDeleteGoal = () => {
+    if (!goalToDelete || deletingGoalId) return;
+    deleteGoal(goalToDelete);
+  };
 
   const logCompletedScreenSession = useCallback(
     async (sessionId: string): Promise<boolean> => {
@@ -470,6 +522,7 @@ export default function Personal() {
                 setProofGoal(item.goal);
                 setShowProofCamera(true);
               }}
+              onLongPress={() => confirmDeleteGoal(item.goal)}
             />
           </View>,
         );
@@ -487,6 +540,7 @@ export default function Personal() {
                 setProofGoal(item.goal);
                 setShowProofCamera(true);
               }}
+              onLongPress={() => confirmDeleteGoal(item.goal)}
             />
             {next && (
               <GoalTile
@@ -498,6 +552,7 @@ export default function Personal() {
                   setProofGoal(next.goal);
                   setShowProofCamera(true);
                 }}
+                onLongPress={() => confirmDeleteGoal(next.goal)}
               />
             )}
           </View>,
@@ -565,6 +620,7 @@ export default function Personal() {
             title={first.title}
             duration={first.duration ?? undefined}
             status={first.status}
+            onLongPress={() => confirmDeleteGoal(first)}
           />
           {second && (
             <GoalTile
@@ -572,6 +628,7 @@ export default function Personal() {
               title={second.title}
               duration={second.duration ?? undefined}
               status={second.status}
+              onLongPress={() => confirmDeleteGoal(second)}
             />
           )}
         </View>,
@@ -631,6 +688,50 @@ export default function Personal() {
         visible={showProfile}
         onClose={() => setShowProfile(false)}
       />
+
+      <Modal
+        visible={goalToDelete !== null}
+        transparent
+        animationType="slide"
+        onRequestClose={closeDeleteGoalModal}
+      >
+        <Pressable
+          style={styles.deleteOverlay}
+          onPress={closeDeleteGoalModal}
+        >
+          <Pressable style={styles.deleteSheet}>
+            <Text style={styles.deleteTitle}>Delete goal?</Text>
+            <Text style={styles.deleteBody}>
+              {goalToDelete
+                ? `This removes "${goalToDelete.title}" from your goals.`
+                : "This removes the goal from your goals."}
+            </Text>
+            <View style={styles.deleteActions}>
+              <TouchableOpacity
+                style={styles.cancelDeleteButton}
+                activeOpacity={0.8}
+                onPress={closeDeleteGoalModal}
+                disabled={!!deletingGoalId}
+              >
+                <Text style={styles.cancelDeleteText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.confirmDeleteButton,
+                  deletingGoalId && styles.deleteButtonDisabled,
+                ]}
+                activeOpacity={0.8}
+                onPress={handleConfirmDeleteGoal}
+                disabled={!!deletingGoalId}
+              >
+                <Text style={styles.confirmDeleteText}>
+                  {deletingGoalId ? "Deleting..." : "Delete goal"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -709,5 +810,66 @@ const styles = StyleSheet.create({
     backgroundColor: Colours.cardHighlight,
     alignItems: "center",
     justifyContent: "center",
+  },
+  deleteOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.65)",
+    justifyContent: "flex-end",
+  },
+  deleteSheet: {
+    backgroundColor: Colours.card,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingHorizontal: 19,
+    paddingTop: 18,
+    paddingBottom: 34,
+  },
+  deleteTitle: {
+    fontFamily: Fonts.bold,
+    fontSize: 16,
+    color: Colours.text,
+    marginBottom: 8,
+  },
+  deleteBody: {
+    fontFamily: Fonts.regular,
+    fontSize: 13,
+    lineHeight: 19,
+    color: Colours.secondaryText,
+    marginBottom: 18,
+  },
+  deleteActions: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  cancelDeleteButton: {
+    flex: 1,
+    minHeight: 46,
+    borderRadius: 10,
+    backgroundColor: Colours.cardHighlight,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  confirmDeleteButton: {
+    flex: 1,
+    minHeight: 46,
+    borderRadius: 10,
+    backgroundColor: "rgba(255,90,90,0.16)",
+    borderWidth: 1,
+    borderColor: "rgba(255,90,90,0.38)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  deleteButtonDisabled: {
+    opacity: 0.6,
+  },
+  cancelDeleteText: {
+    fontFamily: Fonts.bold,
+    fontSize: 14,
+    color: Colours.text,
+  },
+  confirmDeleteText: {
+    fontFamily: Fonts.bold,
+    fontSize: 14,
+    color: "#FF5A5A",
   },
 });

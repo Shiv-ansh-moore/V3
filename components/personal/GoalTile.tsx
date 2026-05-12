@@ -1,5 +1,5 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import React from "react";
+import React, { useRef } from "react";
 import * as Haptics from "expo-haptics";
 import { CheckCircleIcon } from "phosphor-react-native";
 import { Colours } from "../../constants/Colours";
@@ -10,8 +10,9 @@ interface GoalTileProps {
   icon: string;
   title: string;
   duration?: string;
-  status: "active" | "done";
+  status: "active" | "done" | "deleted";
   onPress?: () => void;
+  onLongPress?: () => void;
 }
 
 export default function GoalTile({
@@ -20,25 +21,60 @@ export default function GoalTile({
   duration,
   status,
   onPress,
+  onLongPress,
 }: GoalTileProps) {
+  const longPressTriggeredRef = useRef(false);
+
+  const handleLongPress = () => {
+    if (!onLongPress) return;
+
+    longPressTriggeredRef.current = true;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    onLongPress();
+  };
+
+  const handlePress = () => {
+    if (longPressTriggeredRef.current) {
+      longPressTriggeredRef.current = false;
+      return;
+    }
+
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    onPress?.();
+  };
+
+  if (status === "deleted") {
+    return null;
+  }
+
   if (status === "done") {
     return (
-      <View style={styles.doneTile}>
+      <Pressable
+        onPressIn={() => {
+          longPressTriggeredRef.current = false;
+        }}
+        onLongPress={handleLongPress}
+        style={({ pressed }) => [
+          styles.doneTile,
+          pressed && styles.tilePressed,
+        ]}
+      >
         <View style={styles.doneIconContainer}>
           <GoalIcon name={icon} size={30} />
         </View>
         <Text style={styles.doneTitle}>{title}</Text>
         <CheckCircleIcon size={20} color="#22C55E" weight="fill" />
-      </View>
+      </Pressable>
     );
   }
 
   return (
     <Pressable
-      onPress={() => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        onPress?.();
+      onPressIn={() => {
+        longPressTriggeredRef.current = false;
       }}
+      onPress={handlePress}
+      onLongPress={handleLongPress}
       style={({ pressed }) => [styles.tile, pressed && styles.tilePressed]}
     >
       <View style={styles.iconContainer}>
@@ -104,6 +140,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: Colours.card,
     borderRadius: 20,
+    borderWidth: 2,
+    borderColor: "transparent",
     paddingVertical: 22,
     paddingHorizontal: 16,
     gap: 13,
