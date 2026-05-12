@@ -388,14 +388,15 @@ export default function Social({ active = true }: SocialProps) {
     `,
       )
       .eq("group_id", group.id)
-      .order("created_at", { ascending: true });
+      .order("created_at", { ascending: false })
+      .limit(50);
 
     if (error) {
       console.log("[social] fetch error:", error.message);
       return;
     }
 
-    const rows = (data ?? []) as SocialMessageRow[];
+    const rows = [...((data ?? []) as SocialMessageRow[])].reverse();
     const screenSessionsById = new Map<string, ScreenSessionSummary>();
 
     rows.forEach((message) => {
@@ -501,6 +502,34 @@ export default function Social({ active = true }: SocialProps) {
       refreshFeed();
     }
   }, [active, refreshFeed]);
+
+  useEffect(() => {
+    if (!active || !group) return;
+
+    const channel = supabase
+      .channel(`social-messages:${group.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "messages",
+          filter: `group_id=eq.${group.id}`,
+        },
+        () => {
+          void refreshFeed();
+        },
+      )
+      .subscribe((status) => {
+        if (status === "CHANNEL_ERROR") {
+          console.log("[social] realtime subscription error");
+        }
+      });
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [active, group, refreshFeed]);
 
   const handleReply = useCallback(
     (item: FeedItem) => {
