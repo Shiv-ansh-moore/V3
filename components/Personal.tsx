@@ -45,6 +45,7 @@ type PendingScreenSessionCompletion = {
   sessionId: string;
 };
 
+const DONE_GOAL_VISIBLE_MS = 24 * 60 * 60 * 1000;
 const ACTIVE_SCREEN_SESSION_KEY = "v3.activeScreenSessionId";
 const PENDING_SCREEN_SESSION_LOCK_KEY = "v3.pendingScreenSessionLock";
 const PENDING_SCREEN_SESSION_COMPLETION_KEY =
@@ -54,9 +55,22 @@ function clampActualSeconds(actualSeconds: number, grantedSeconds: number) {
   return Math.max(0, Math.min(actualSeconds, Math.max(0, grantedSeconds - 1)));
 }
 
+function isDoneGoalVisible(submittedAt: string | undefined, nowMs: number) {
+  if (!submittedAt) return false;
+
+  const submittedAtMs = new Date(submittedAt).getTime();
+  if (!Number.isFinite(submittedAtMs)) return false;
+
+  return nowMs - submittedAtMs < DONE_GOAL_VISIBLE_MS;
+}
+
 export default function Personal() {
   const { user } = useAuth();
   const [goals, setGoals] = useState<Goal[]>([]);
+  const [proofSubmittedAtByGoalId, setProofSubmittedAtByGoalId] = useState<
+    Record<string, string>
+  >({});
+  const [nowMs, setNowMs] = useState(() => Date.now());
   const [showAddGoal, setShowAddGoal] = useState(false);
   const [showProofCamera, setShowProofCamera] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
@@ -70,7 +84,11 @@ export default function Personal() {
   const completingSessionIdsRef = useRef<Set<string>>(new Set());
 
   const activeGoals = goals.filter((g) => g.status === "active");
-  const doneGoals = goals.filter((g) => g.status === "done");
+  const visibleDoneGoals = goals.filter(
+    (g) =>
+      g.status === "done" &&
+      isDoneGoalVisible(proofSubmittedAtByGoalId[g.id], nowMs),
+  );
 
   const refreshGoals = useCallback(async () => {
     if (!user) return;
@@ -86,12 +104,71 @@ export default function Personal() {
       console.log("[goals] fetch error:", error.message);
       return;
     }
-    setGoals((data ?? []) as Goal[]);
+
+    const nextGoals = (data ?? []) as Goal[];
+    const doneGoalIds = nextGoals
+      .filter((goal) => goal.status === "done")
+      .map((goal) => goal.id);
+
+    setGoals(nextGoals);
+    setNowMs(Date.now());
+
+    if (doneGoalIds.length === 0) {
+      setProofSubmittedAtByGoalId({});
+      return;
+    }
+
+    const { data: proofData, error: proofError } = await supabase
+      .from("proofs")
+      .select("goal_id, submitted_at")
+      .eq("user_id", user.id)
+      .in("goal_id", doneGoalIds);
+
+    if (proofError) {
+      console.log("[proofs] fetch goal completion times error:", proofError.message);
+      setProofSubmittedAtByGoalId({});
+      return;
+    }
+
+    setProofSubmittedAtByGoalId(
+      Object.fromEntries(
+        (proofData ?? []).map((proof) => [proof.goal_id, proof.submitted_at]),
+      ),
+    );
   }, [user]);
 
   useEffect(() => {
     refreshGoals();
   }, [refreshGoals]);
+
+  useEffect(() => {
+    if (user) return;
+
+    setGoals([]);
+    setProofSubmittedAtByGoalId({});
+  }, [user]);
+
+  useEffect(() => {
+    let nextExpirationMs = Number.POSITIVE_INFINITY;
+
+    Object.values(proofSubmittedAtByGoalId).forEach((submittedAt) => {
+      const submittedAtMs = new Date(submittedAt).getTime();
+      if (!Number.isFinite(submittedAtMs)) return;
+
+      const expiresAtMs = submittedAtMs + DONE_GOAL_VISIBLE_MS;
+      if (expiresAtMs <= nowMs) return;
+
+      nextExpirationMs = Math.min(nextExpirationMs, expiresAtMs);
+    });
+
+    if (!Number.isFinite(nextExpirationMs)) return;
+
+    const timeout = setTimeout(() => {
+      setNowMs(Date.now());
+    }, Math.max(0, nextExpirationMs - Date.now()));
+
+    return () => clearTimeout(timeout);
+  }, [proofSubmittedAtByGoalId, nowMs]);
 
   const deleteGoal = useCallback(
     async (goal: Goal) => {
@@ -610,9 +687,9 @@ export default function Personal() {
 
   const renderDoneGoals = () => {
     const elements: React.ReactNode[] = [];
-    for (let i = 0; i < doneGoals.length; i += 2) {
-      const first = doneGoals[i];
-      const second = doneGoals[i + 1];
+    for (let i = 0; i < visibleDoneGoals.length; i += 2) {
+      const first = visibleDoneGoals[i];
+      const second = visibleDoneGoals[i + 1];
       elements.push(
         <View key={first.id} style={styles.row}>
           <GoalTile
@@ -645,11 +722,11 @@ export default function Personal() {
       >
         {renderLocks()}
         <View style={styles.grid}>{renderActiveGoals()}</View>
-        {doneGoals.length > 0 && (
+        {visibleDoneGoals.length > 0 && (
           <>
             <View style={styles.dividerRow}>
               <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>DONE TODAY</Text>
+              <Text style={styles.dividerText}>DONE LAST 24H</Text>
               <View style={styles.dividerLine} />
             </View>
             <View style={styles.grid}>{renderDoneGoals()}</View>
