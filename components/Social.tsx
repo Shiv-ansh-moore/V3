@@ -245,7 +245,7 @@ export default function Social({ active = true }: SocialProps) {
     [userColours],
   );
 
-  const refreshFeed = useCallback(async () => {
+  const performRefreshFeed = useCallback(async () => {
     if (!group) {
       setFeed([]);
       setGroupMembers([]);
@@ -496,6 +496,38 @@ export default function Social({ active = true }: SocialProps) {
     setStoriesByUser(nextStoriesByUser);
     setFeed(liveItems.filter((item): item is FeedItem => item !== null));
   }, [group, user?.id]);
+
+  const latestRefreshFeedRef = useRef(performRefreshFeed);
+  const refreshInFlightRef = useRef<Promise<void> | null>(null);
+  const refreshQueuedRef = useRef(false);
+
+  useEffect(() => {
+    latestRefreshFeedRef.current = performRefreshFeed;
+  }, [performRefreshFeed]);
+
+  const refreshFeed = useCallback(() => {
+    latestRefreshFeedRef.current = performRefreshFeed;
+
+    if (refreshInFlightRef.current) {
+      refreshQueuedRef.current = true;
+      return refreshInFlightRef.current;
+    }
+
+    const refreshPromise = (async () => {
+      try {
+        do {
+          refreshQueuedRef.current = false;
+          await latestRefreshFeedRef.current();
+        } while (refreshQueuedRef.current);
+      } finally {
+        refreshInFlightRef.current = null;
+        refreshQueuedRef.current = false;
+      }
+    })();
+
+    refreshInFlightRef.current = refreshPromise;
+    return refreshPromise;
+  }, [performRefreshFeed]);
 
   useEffect(() => {
     if (active) {
