@@ -56,6 +56,14 @@ interface SocialProps {
   active?: boolean;
 }
 
+type SignedProofImageUrl = {
+  signedUrl: string;
+  expiresAt: number;
+};
+
+const PROOF_IMAGE_URL_TTL_SECONDS = 60 * 60;
+const PROOF_IMAGE_URL_REFRESH_BUFFER_MS = 5 * 60 * 1000;
+
 type ScreenSessionSummary = {
   id: string;
   userId: string;
@@ -227,6 +235,7 @@ export default function Social({ active = true }: SocialProps) {
   const [selectedStoryInitialIndex, setSelectedStoryInitialIndex] = useState(0);
   const [userNames, setUserNames] = useState<Record<string, string>>({});
   const [userColours, setUserColours] = useState<Record<string, string>>({});
+  const signedProofImageUrlsRef = useRef(new Map<string, SignedProofImageUrl>());
   const reversedFeed = useMemo(() => [...feed].reverse(), [feed]);
   const selectedStoryMember =
     groupMembers.find((member) => member.id === selectedStoryUserId) ?? null;
@@ -243,6 +252,40 @@ export default function Social({ active = true }: SocialProps) {
     (userId: string): string =>
       userColours[userId] ?? Colours.secondaryText,
     [userColours],
+  );
+
+  const getSignedProofImageUrl = useCallback(
+    async (imagePath: string): Promise<string | null> => {
+      const cached = signedProofImageUrlsRef.current.get(imagePath);
+      const now = Date.now();
+
+      if (
+        cached &&
+        cached.expiresAt - PROOF_IMAGE_URL_REFRESH_BUFFER_MS > now
+      ) {
+        return cached.signedUrl;
+      }
+
+      const { data: signedImage, error: signedImageError } =
+        await supabase.storage
+          .from("proofs")
+          .createSignedUrl(imagePath, PROOF_IMAGE_URL_TTL_SECONDS);
+
+      if (signedImageError) {
+        console.log("[social] proof image error:", signedImageError.message);
+        return cached?.signedUrl ?? null;
+      }
+
+      if (!signedImage?.signedUrl) return cached?.signedUrl ?? null;
+
+      signedProofImageUrlsRef.current.set(imagePath, {
+        signedUrl: signedImage.signedUrl,
+        expiresAt: now + PROOF_IMAGE_URL_TTL_SECONDS * 1000,
+      });
+
+      return signedImage.signedUrl;
+    },
+    [],
   );
 
   const performRefreshFeed = useCallback(async () => {
@@ -469,21 +512,14 @@ export default function Social({ active = true }: SocialProps) {
         if (message.kind !== "proof" || !proof) return null;
 
         const goal = firstRelation(proof.goal);
-        const { data: signedImage, error: signedImageError } =
-          await supabase.storage
-            .from("proofs")
-            .createSignedUrl(proof.image_path, 60 * 60);
-
-        if (signedImageError) {
-          console.log("[social] proof image error:", signedImageError.message);
-        }
+        const photoUri = await getSignedProofImageUrl(proof.image_path);
 
         return {
           kind: "completed",
           id: message.id,
           userId,
           goalTitle: goal?.title ?? "Goal",
-          photoUri: signedImage?.signedUrl ?? null,
+          photoUri,
           caption: proof.caption,
           timestamp: formatTimestamp(message.created_at),
         };
@@ -495,7 +531,7 @@ export default function Social({ active = true }: SocialProps) {
     setGroupMembers(nextGroupMembers);
     setStoriesByUser(nextStoriesByUser);
     setFeed(liveItems.filter((item): item is FeedItem => item !== null));
-  }, [group, user?.id]);
+  }, [getSignedProofImageUrl, group, user?.id]);
 
   const latestRefreshFeedRef = useRef(performRefreshFeed);
   const refreshInFlightRef = useRef<Promise<void> | null>(null);

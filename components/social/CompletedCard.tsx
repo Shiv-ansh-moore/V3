@@ -1,4 +1,5 @@
-import { Image, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
+import { Image } from "expo-image";
 import React from "react";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import * as Haptics from "expo-haptics";
@@ -56,7 +57,12 @@ export default function CompletedCard({
         <Text style={styles.completed}>Completed</Text>
         <View style={styles.imageWrapper}>
           {photoUri ? (
-            <Image source={{ uri: photoUri }} style={styles.image} />
+            <Image
+              source={{ uri: photoUri }}
+              cachePolicy="memory-disk"
+              contentFit="cover"
+              style={styles.image}
+            />
           ) : (
             <View style={styles.placeholder} />
           )}

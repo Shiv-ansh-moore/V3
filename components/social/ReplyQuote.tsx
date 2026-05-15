@@ -1,4 +1,5 @@
-import { Image, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
+import { Image } from "expo-image";
 import React from "react";
 import { LockSimpleIcon, LockSimpleOpenIcon } from "phosphor-react-native";
 import { Fonts } from "../../constants/Fonts";
@@ -46,7 +47,12 @@ function PhotoQuote({
         <Text style={styles.completedLabel}>Completed</Text>
         <View style={styles.imageWrapper}>
           {photoUri ? (
-            <Image source={{ uri: photoUri }} style={styles.image} />
+            <Image
+              source={{ uri: photoUri }}
+              cachePolicy="memory-disk"
+              contentFit="cover"
+              style={styles.image}
+            />
           ) : (
             <View style={[styles.image, styles.placeholder]} />
           )}
