@@ -21,17 +21,18 @@ import {
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 const SHEET_MAX = SCREEN_HEIGHT * 0.55;
 
-const MESSAGE_EMOJIS = ["😂", "❤️", "🔥", "💀", "👍"];
-const COMPLETED_EMOJIS = ["🔥", "💪", "👏", "🫡", "❤️"];
-const ACTIVITY_EMOJIS = ["😂", "💀", "🫡", "👏", "🔥"];
+const MESSAGE_EMOJIS = ["😂", "❤️", "🔥", "💀", "👍", "😝"];
+const COMPLETED_EMOJIS = ["🔥", "💪", "👏", "🫡", "❤️", "😝"];
+const ACTIVITY_EMOJIS = ["😂", "💀", "🫡", "👏", "🔥", "😝"];
 
 interface LongPressSheetProps {
   visible: boolean;
   item: FeedItem | null;
   userName: string;
   userColour: string;
+  activeReactionEmojis?: string[];
   onClose: () => void;
-  onReact: (emoji: string) => void;
+  onReact: (emoji: string) => void | Promise<void>;
   onReply: () => void;
 }
 
@@ -40,31 +41,33 @@ export default function LongPressSheet({
   item,
   userName,
   userColour,
+  activeReactionEmojis = [],
   onClose,
   onReact,
   onReply,
 }: LongPressSheetProps) {
-  const translateY = useRef(new Animated.Value(SHEET_MAX)).current;
+  const sheetOffset = useRef(new Animated.Value(-SHEET_MAX)).current;
 
   useEffect(() => {
     if (visible) {
-      Animated.spring(translateY, {
+      sheetOffset.setValue(-SHEET_MAX);
+      Animated.spring(sheetOffset, {
         toValue: 0,
-        useNativeDriver: true,
+        useNativeDriver: false,
         damping: 20,
         stiffness: 200,
       }).start();
     } else {
-      translateY.setValue(SHEET_MAX);
+      sheetOffset.setValue(-SHEET_MAX);
     }
-  }, [visible]);
+  }, [sheetOffset, visible]);
 
   const dismiss = () => {
     onClose();
   };
 
   const handleReact = (emoji: string) => {
-    onReact(emoji);
+    void onReact(emoji);
     dismiss();
   };
 
@@ -91,142 +94,146 @@ export default function LongPressSheet({
       statusBarTranslucent
     >
       <Pressable style={styles.backdrop} onPress={dismiss}>
-        <Animated.View
-          style={[styles.sheet, { transform: [{ translateY }] }]}
-          onStartShouldSetResponder={() => true}
-        >
-          {/* Handle */}
-          <View style={styles.handleArea}>
-            <View style={styles.handle} />
-          </View>
+        <Animated.View style={{ marginBottom: sheetOffset }}>
+          <Pressable style={styles.sheet}>
+            {/* Handle */}
+            <View style={styles.handleArea}>
+              <View style={styles.handle} />
+            </View>
 
-          {/* Preview — styled like ReplyQuote with accent bar */}
-          {item.kind === "message" && (
-            <View style={styles.previewWrap}>
-              <View style={styles.quoteBox}>
-                <View
-                  style={[styles.accentBar, { backgroundColor: userColour }]}
-                />
-                <View style={styles.quoteContent}>
-                  <View style={styles.quoteHeader}>
-                    <Text style={[styles.quoteName, { color: userColour }]}>
-                      {userName}
-                    </Text>
-                    <Text style={styles.quoteTimestamp}>{item.timestamp}</Text>
+            {/* Preview — styled like ReplyQuote with accent bar */}
+            {item.kind === "message" && (
+              <View style={styles.previewWrap}>
+                <View style={styles.quoteBox}>
+                  <View
+                    style={[styles.accentBar, { backgroundColor: userColour }]}
+                  />
+                  <View style={styles.quoteContent}>
+                    <View style={styles.quoteHeader}>
+                      <Text style={[styles.quoteName, { color: userColour }]}>
+                        {userName}
+                      </Text>
+                      <Text style={styles.quoteTimestamp}>
+                        {item.timestamp}
+                      </Text>
+                    </View>
+                    <Text style={styles.quoteText}>{item.text}</Text>
                   </View>
-                  <Text style={styles.quoteText}>{item.text}</Text>
                 </View>
               </View>
-            </View>
-          )}
+            )}
 
-          {item.kind === "completed" && (
-            <View style={styles.previewWrap}>
-              <View style={styles.quotePhotoBox}>
-                <View
-                  style={[styles.accentBar, { backgroundColor: userColour }]}
-                />
-                <View style={styles.quoteContent}>
-                  <View style={styles.quoteHeader}>
-                    <Text style={[styles.quoteName, { color: userColour }]}>
-                      {userName}
-                    </Text>
-                    <Text style={styles.quoteTimestamp}>{item.timestamp}</Text>
+            {item.kind === "completed" && (
+              <View style={styles.previewWrap}>
+                <View style={styles.quotePhotoBox}>
+                  <View
+                    style={[styles.accentBar, { backgroundColor: userColour }]}
+                  />
+                  <View style={styles.quoteContent}>
+                    <View style={styles.quoteHeader}>
+                      <Text style={[styles.quoteName, { color: userColour }]}>
+                        {userName}
+                      </Text>
+                      <Text style={styles.quoteTimestamp}>
+                        {item.timestamp}
+                      </Text>
+                    </View>
+                    <Text style={styles.quoteGoalLabel}>Completed</Text>
+                    <View style={styles.quoteImageWrap}>
+                      {item.photoUri ? (
+                        <Image
+                          source={{ uri: item.photoUri }}
+                          style={styles.quoteImage}
+                        />
+                      ) : (
+                        <View
+                          style={[
+                            styles.quoteImage,
+                            styles.quoteImagePlaceholder,
+                          ]}
+                        />
+                      )}
+                    </View>
+                    <Text style={styles.quoteProofTitle}>{item.goalTitle}</Text>
+                    {item.caption ? (
+                      <Text style={styles.quoteCaption}>{item.caption}</Text>
+                    ) : null}
                   </View>
-                  <Text style={styles.quoteGoalLabel}>Completed</Text>
-                  <View style={styles.quoteImageWrap}>
-                    {item.photoUri ? (
-                      <Image
-                        source={{ uri: item.photoUri }}
-                        style={styles.quoteImage}
-                      />
-                    ) : (
-                      <View
-                        style={[
-                          styles.quoteImage,
-                          styles.quoteImagePlaceholder,
-                        ]}
-                      />
-                    )}
-                  </View>
-                  <Text style={styles.quoteProofTitle}>{item.goalTitle}</Text>
-                  {item.caption ? (
-                    <Text style={styles.quoteCaption}>{item.caption}</Text>
-                  ) : null}
                 </View>
               </View>
-            </View>
-          )}
+            )}
 
-          {item.kind === "activity" && (
-            <View style={styles.previewWrap}>
-              <View style={styles.quoteBox}>
-                <View
-                  style={[styles.accentBar, { backgroundColor: userColour }]}
-                />
-                <View style={styles.quoteContent}>
-                  <View style={styles.quoteActivityIcon}>
-                    {item.type === "unlock" ? (
-                      <LockSimpleOpenIcon
-                        size={16}
-                        color={Colours.secondaryText}
-                        weight="fill"
-                      />
-                    ) : (
-                      <LockSimpleIcon
-                        size={16}
-                        color={Colours.secondaryText}
-                        weight="fill"
-                      />
-                    )}
+            {item.kind === "activity" && (
+              <View style={styles.previewWrap}>
+                <View style={styles.quoteBox}>
+                  <View
+                    style={[styles.accentBar, { backgroundColor: userColour }]}
+                  />
+                  <View style={styles.quoteContent}>
+                    <View style={styles.quoteActivityIcon}>
+                      {item.type === "unlock" ? (
+                        <LockSimpleOpenIcon
+                          size={16}
+                          color={Colours.secondaryText}
+                          weight="fill"
+                        />
+                      ) : (
+                        <LockSimpleIcon
+                          size={16}
+                          color={Colours.secondaryText}
+                          weight="fill"
+                        />
+                      )}
+                    </View>
+                    <Text style={styles.quoteActivityLine} numberOfLines={1}>
+                      <Text style={[styles.quoteName, { color: userColour }]}>
+                        {userName}{" "}
+                      </Text>
+                      <Text style={styles.quoteText}>
+                        {item.type === "unlock"
+                          ? `unlocked ${item.app} for ${item.duration}`
+                          : `locked ${item.app} after ${item.duration}`}
+                      </Text>
+                    </Text>
                   </View>
-                  <Text style={styles.quoteActivityLine} numberOfLines={1}>
-                    <Text style={[styles.quoteName, { color: userColour }]}>
-                      {userName}{" "}
-                    </Text>
-                    <Text style={styles.quoteText}>
-                      {item.type === "unlock"
-                        ? `unlocked ${item.app} for ${item.duration}`
-                        : `locked ${item.app} after ${item.duration}`}
-                    </Text>
-                  </Text>
                 </View>
               </View>
-            </View>
-          )}
+            )}
 
-          {/* Emoji row */}
-          <View style={styles.emojiRow}>
-            {emojis.map((e) => (
-              <Pressable
-                key={e}
-                style={styles.emojiBtn}
-                onPress={() => handleReact(e)}
-              >
-                <Text style={styles.emojiBtnText}>{e}</Text>
+            {/* Emoji row */}
+            <View style={styles.emojiRow}>
+              {emojis.map((e) => {
+                const isActive = activeReactionEmojis.includes(e);
+
+                return (
+                  <Pressable
+                    key={e}
+                    style={[styles.emojiBtn, isActive && styles.emojiBtnActive]}
+                    onPress={() => handleReact(e)}
+                  >
+                    <Text style={styles.emojiBtnText}>{e}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            {/* Divider */}
+            <View style={styles.divider} />
+
+            {/* Actions */}
+            <View style={styles.actions}>
+              <Pressable style={styles.action} onPress={handleReply}>
+                <View style={styles.actionIcon}>
+                  <ArrowBendUpLeftIcon
+                    size={15}
+                    color={Colours.text}
+                    weight="bold"
+                  />
+                </View>
+                <Text style={styles.actionLabel}>Reply</Text>
               </Pressable>
-            ))}
-            <View style={styles.emojiPlus}>
-              <Text style={styles.emojiPlusText}>＋</Text>
             </View>
-          </View>
-
-          {/* Divider */}
-          <View style={styles.divider} />
-
-          {/* Actions */}
-          <View style={styles.actions}>
-            <Pressable style={styles.action} onPress={handleReply}>
-              <View style={styles.actionIcon}>
-                <ArrowBendUpLeftIcon
-                  size={15}
-                  color={Colours.text}
-                  weight="bold"
-                />
-              </View>
-              <Text style={styles.actionLabel}>Reply</Text>
-            </Pressable>
-          </View>
+          </Pressable>
         </Animated.View>
       </Pressable>
     </Modal>
@@ -358,26 +365,18 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: "transparent",
     alignItems: "center",
     justifyContent: "center",
+  },
+  emojiBtnActive: {
+    backgroundColor: "rgba(255, 106, 0, 0.14)",
+    borderColor: Colours.brand,
   },
   emojiBtnText: {
     fontSize: 22,
   },
-  emojiPlus: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    borderWidth: 1.5,
-    borderColor: "#333",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  emojiPlusText: {
-    fontSize: 16,
-    color: Colours.secondaryText,
-  },
-
   // Divider
   divider: {
     height: StyleSheet.hairlineWidth,

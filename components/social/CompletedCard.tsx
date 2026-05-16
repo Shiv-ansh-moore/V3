@@ -16,6 +16,7 @@ interface CompletedCardProps {
   caption?: string | null;
   timestamp: string;
   reactions?: Reaction[];
+  currentUserId?: string;
   onDoubleTap?: () => void;
   onLongPress?: () => void;
 }
@@ -28,6 +29,7 @@ export default function CompletedCard({
   caption,
   timestamp,
   reactions,
+  currentUserId,
   onDoubleTap,
   onLongPress,
 }: CompletedCardProps) {
@@ -70,7 +72,9 @@ export default function CompletedCard({
         <Text style={styles.goalTitle}>{goalTitle}</Text>
         {caption ? <Text style={styles.caption}>{caption}</Text> : null}
       </View>
-      {reactions && <ReactionRow reactions={reactions} />}
+      {reactions && (
+        <ReactionRow reactions={reactions} currentUserId={currentUserId} />
+      )}
     </View>
     </GestureDetector>
   );

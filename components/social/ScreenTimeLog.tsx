@@ -17,6 +17,7 @@ interface ScreenTimeLogProps {
   reason?: string;
   totalTime?: string;
   reactions?: Reaction[];
+  currentUserId?: string;
   onDoubleTap?: () => void;
   onLongPress?: () => void;
 }
@@ -30,6 +31,7 @@ export default function ScreenTimeLog({
   reason,
   totalTime,
   reactions,
+  currentUserId,
   onDoubleTap,
   onLongPress,
 }: ScreenTimeLogProps) {
@@ -74,7 +76,13 @@ export default function ScreenTimeLog({
         </Text>
       </Text>
       {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
-      {reactions && <ReactionRow reactions={reactions} centred />}
+      {reactions && (
+        <ReactionRow
+          reactions={reactions}
+          currentUserId={currentUserId}
+          centred
+        />
+      )}
     </View>
     </GestureDetector>
   );

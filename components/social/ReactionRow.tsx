@@ -4,11 +4,10 @@ import { Colours } from "../../constants/Colours";
 import { Fonts } from "../../constants/Fonts";
 import { Reaction } from "../../testData/mockSocial";
 
-const CURRENT_USER = "u1";
-
 interface ReactionRowProps {
   reactions: Reaction[];
   centred?: boolean;
+  currentUserId?: string;
 }
 
 interface GroupedReaction {
@@ -17,15 +16,23 @@ interface GroupedReaction {
   isMine: boolean;
 }
 
-function groupReactions(reactions: Reaction[]): GroupedReaction[] {
+function groupReactions(
+  reactions: Reaction[],
+  currentUserId?: string,
+): GroupedReaction[] {
   const map = new Map<string, { count: number; isMine: boolean }>();
   for (const r of reactions) {
     const existing = map.get(r.emoji);
     if (existing) {
       existing.count++;
-      if (r.userId === CURRENT_USER) existing.isMine = true;
+      if (currentUserId && r.userId === currentUserId) {
+        existing.isMine = true;
+      }
     } else {
-      map.set(r.emoji, { count: 1, isMine: r.userId === CURRENT_USER });
+      map.set(r.emoji, {
+        count: 1,
+        isMine: !!currentUserId && r.userId === currentUserId,
+      });
     }
   }
   return Array.from(map, ([emoji, { count, isMine }]) => ({
@@ -35,10 +42,14 @@ function groupReactions(reactions: Reaction[]): GroupedReaction[] {
   }));
 }
 
-export default function ReactionRow({ reactions, centred }: ReactionRowProps) {
+export default function ReactionRow({
+  reactions,
+  centred,
+  currentUserId,
+}: ReactionRowProps) {
   if (!reactions || reactions.length === 0) return null;
 
-  const grouped = groupReactions(reactions);
+  const grouped = groupReactions(reactions, currentUserId);
 
   return (
     <View style={[styles.row, centred && styles.rowCentred]}>

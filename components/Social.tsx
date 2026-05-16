@@ -1,4 +1,4 @@
-import { StyleSheet, View, Platform, TextInput } from "react-native";
+import { StyleSheet, View, Platform, TextInput, Keyboard } from "react-native";
 import React, {
   useMemo,
   useCallback,
@@ -15,23 +15,25 @@ import MessageInput, { ReplyInfo } from "./social/MessageInput";
 import StoryViewer, { StoryProof } from "./social/StoryViewer";
 import { FlatList } from "react-native-gesture-handler";
 import { Colours } from "../constants/Colours";
-import { ChatMessage, FeedItem } from "../testData/mockSocial";
 import { ReplyQuoteProps } from "./social/ReplyQuote";
 import {
   KeyboardAvoidingView,
   KeyboardGestureArea,
 } from "react-native-keyboard-controller";
+import * as Haptics from "expo-haptics";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../lib/AuthContext";
 import { GROUP_USER_COLOURS } from "../lib/groupColours";
 import type { Database } from "../lib/database.types";
+import type { ChatMessage, FeedItem, Reaction } from "../testData/mockSocial";
 
 type ProfileRow = Database["public"]["Tables"]["profiles"]["Row"];
 type ProofRow = Database["public"]["Tables"]["proofs"]["Row"];
 type GoalRow = Database["public"]["Tables"]["goals"]["Row"];
 type ScreenSessionRow =
   Database["public"]["Tables"]["screen_sessions"]["Row"];
+type ReactionRow = Database["public"]["Tables"]["reactions"]["Row"];
 type RecentProofRow =
   Database["public"]["Functions"]["get_group_recent_proofs"]["Returns"][number];
 type GroupMemberRow = Database["public"]["Tables"]["group_members"]["Row"] & {
@@ -48,6 +50,7 @@ type SocialMessageRow = Database["public"]["Tables"]["messages"]["Row"] & {
       })[]
     | null;
   session: ScreenSessionRow | ScreenSessionRow[] | null;
+  reactions: ReactionRow[] | null;
 };
 
 type StoriesByUser = Record<string, StoryProof[]>;
@@ -63,6 +66,7 @@ type SignedProofImageUrl = {
 
 const PROOF_IMAGE_URL_TTL_SECONDS = 60 * 60;
 const PROOF_IMAGE_URL_REFRESH_BUFFER_MS = 5 * 60 * 1000;
+const REACTION_REFRESH_DEBOUNCE_MS = 150;
 
 type ScreenSessionSummary = {
   id: string;
@@ -107,6 +111,13 @@ function getLocalDayKey(value: string): string {
 
 function getUsedSeconds(session: ScreenSessionRow): number {
   return session.actual_seconds ?? session.granted_seconds;
+}
+
+function mapReactions(reactions?: ReactionRow[] | null): Reaction[] {
+  return (reactions ?? []).map((reaction) => ({
+    userId: reaction.user_id,
+    emoji: reaction.emoji,
+  }));
 }
 
 function buildDailyTotalLookup(
@@ -242,6 +253,18 @@ export default function Social({ active = true }: SocialProps) {
   const selectedStories = selectedStoryUserId
     ? (storiesByUser[selectedStoryUserId] ?? [])
     : [];
+  const currentSheetItem = useMemo(() => {
+    if (!sheetItem) return null;
+
+    return feed.find((item) => item.id === sheetItem.id) ?? sheetItem;
+  }, [feed, sheetItem]);
+  const activeReactionEmojis = useMemo(() => {
+    if (!currentSheetItem || !user) return [];
+
+    return (currentSheetItem.reactions ?? [])
+      .filter((reaction) => reaction.userId === user.id)
+      .map((reaction) => reaction.emoji);
+  }, [currentSheetItem, user]);
 
   const resolveUserName = useCallback(
     (userId: string): string => userNames[userId] ?? "Unknown",
@@ -427,7 +450,11 @@ export default function Social({ active = true }: SocialProps) {
         *,
         goal:goals(*)
       ),
-      session:screen_sessions(*)
+      session:screen_sessions(*),
+      reactions(
+        user_id,
+        emoji
+      )
     `,
       )
       .eq("group_id", group.id)
@@ -461,6 +488,7 @@ export default function Social({ active = true }: SocialProps) {
         const proof = firstRelation(message.proof);
         const session = firstRelation(message.session);
         const userId = message.sender_id ?? proof?.user_id ?? session?.user_id;
+        const reactions = mapReactions(message.reactions);
         if (!userId) return null;
 
         if (message.kind === "text") {
@@ -473,6 +501,7 @@ export default function Social({ active = true }: SocialProps) {
             text: message.body,
             timestamp: formatTimestamp(message.created_at),
             replyToId: message.reply_to_id ?? undefined,
+            reactions,
           };
         }
 
@@ -506,6 +535,7 @@ export default function Social({ active = true }: SocialProps) {
             duration,
             reason,
             totalTime,
+            reactions,
           };
         }
 
@@ -522,6 +552,7 @@ export default function Social({ active = true }: SocialProps) {
           photoUri,
           caption: proof.caption,
           timestamp: formatTimestamp(message.created_at),
+          reactions,
         };
       }),
     );
@@ -536,6 +567,9 @@ export default function Social({ active = true }: SocialProps) {
   const latestRefreshFeedRef = useRef(performRefreshFeed);
   const refreshInFlightRef = useRef<Promise<void> | null>(null);
   const refreshQueuedRef = useRef(false);
+  const reactionRefreshTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
 
   useEffect(() => {
     latestRefreshFeedRef.current = performRefreshFeed;
@@ -565,6 +599,25 @@ export default function Social({ active = true }: SocialProps) {
     return refreshPromise;
   }, [performRefreshFeed]);
 
+  const scheduleReactionRefresh = useCallback(() => {
+    if (reactionRefreshTimeoutRef.current) {
+      clearTimeout(reactionRefreshTimeoutRef.current);
+    }
+
+    reactionRefreshTimeoutRef.current = setTimeout(() => {
+      reactionRefreshTimeoutRef.current = null;
+      void refreshFeed();
+    }, REACTION_REFRESH_DEBOUNCE_MS);
+  }, [refreshFeed]);
+
+  useEffect(() => {
+    return () => {
+      if (reactionRefreshTimeoutRef.current) {
+        clearTimeout(reactionRefreshTimeoutRef.current);
+      }
+    };
+  }, []);
+
   useEffect(() => {
     if (active) {
       refreshFeed();
@@ -588,6 +641,17 @@ export default function Social({ active = true }: SocialProps) {
           void refreshFeed();
         },
       )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "reactions",
+        },
+        () => {
+          scheduleReactionRefresh();
+        },
+      )
       .subscribe((status) => {
         if (status === "CHANNEL_ERROR") {
           console.log("[social] realtime subscription error");
@@ -597,7 +661,7 @@ export default function Social({ active = true }: SocialProps) {
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [active, group, refreshFeed]);
+  }, [active, group, refreshFeed, scheduleReactionRefresh]);
 
   const handleReply = useCallback(
     (item: FeedItem) => {
@@ -700,6 +764,7 @@ export default function Social({ active = true }: SocialProps) {
   }, []);
 
   const handleLongPress = useCallback((item: FeedItem) => {
+    Keyboard.dismiss();
     setSheetItem(item);
     setSheetVisible(true);
   }, []);
@@ -709,19 +774,49 @@ export default function Social({ active = true }: SocialProps) {
     setSheetItem(null);
   }, []);
 
-  const handleSheetReact = useCallback((_emoji: string) => {
-    // Reaction handling — would add to item.reactions in a real app
-  }, []);
+  const handleSheetReact = useCallback(
+    async (emoji: string) => {
+      if (!currentSheetItem || !user) return;
+
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+      const hasReaction = (currentSheetItem.reactions ?? []).some(
+        (reaction) => reaction.userId === user.id && reaction.emoji === emoji,
+      );
+
+      const mutation = hasReaction
+        ? supabase
+            .from("reactions")
+            .delete()
+            .eq("message_id", currentSheetItem.id)
+            .eq("user_id", user.id)
+            .eq("emoji", emoji)
+        : supabase.from("reactions").insert({
+            message_id: currentSheetItem.id,
+            user_id: user.id,
+            emoji,
+          });
+
+      const { error } = await mutation;
+
+      if (error) {
+        console.log("[social] reaction error:", error.message);
+      }
+
+      await refreshFeed();
+    },
+    [currentSheetItem, refreshFeed, user],
+  );
 
   const handleSheetReply = useCallback(() => {
-    if (sheetItem) {
+    if (currentSheetItem) {
       setReplyingTo({
-        ...buildReplyInfo(sheetItem),
-        userName: resolveUserName(sheetItem.userId),
-        userColour: resolveUserColour(sheetItem.userId),
+        ...buildReplyInfo(currentSheetItem),
+        userName: resolveUserName(currentSheetItem.userId),
+        userColour: resolveUserColour(currentSheetItem.userId),
       });
     }
-  }, [resolveUserColour, resolveUserName, sheetItem]);
+  }, [currentSheetItem, resolveUserColour, resolveUserName]);
 
   const handleSendMessage = useCallback(
     async (text: string) => {
@@ -769,6 +864,7 @@ export default function Social({ active = true }: SocialProps) {
             reason={item.reason}
             totalTime={item.totalTime}
             reactions={item.reactions}
+            currentUserId={user?.id}
             onDoubleTap={() => handleReply(item)}
             onLongPress={() => handleLongPress(item)}
           />
@@ -792,6 +888,7 @@ export default function Social({ active = true }: SocialProps) {
               resolveUserColour,
             )}
             reactions={item.reactions}
+            currentUserId={user?.id}
             onDoubleTap={() => handleReply(item)}
             onLongPress={() => handleLongPress(item)}
           />
@@ -808,6 +905,7 @@ export default function Social({ active = true }: SocialProps) {
             caption={item.caption}
             timestamp={item.timestamp}
             reactions={item.reactions}
+            currentUserId={user?.id}
             onDoubleTap={() => handleReply(item)}
             onLongPress={() => handleLongPress(item)}
           />
@@ -816,7 +914,14 @@ export default function Social({ active = true }: SocialProps) {
 
       return null;
     },
-    [feed, handleReply, handleLongPress, resolveUserColour, resolveUserName],
+    [
+      feed,
+      handleReply,
+      handleLongPress,
+      resolveUserColour,
+      resolveUserName,
+      user?.id,
+    ],
   );
 
   return (
@@ -856,9 +961,12 @@ export default function Social({ active = true }: SocialProps) {
       </KeyboardAvoidingView>
       <LongPressSheet
         visible={sheetVisible}
-        item={sheetItem}
-        userName={sheetItem ? resolveUserName(sheetItem.userId) : ""}
-        userColour={sheetItem ? resolveUserColour(sheetItem.userId) : ""}
+        item={currentSheetItem}
+        userName={currentSheetItem ? resolveUserName(currentSheetItem.userId) : ""}
+        userColour={
+          currentSheetItem ? resolveUserColour(currentSheetItem.userId) : ""
+        }
+        activeReactionEmojis={activeReactionEmojis}
         onClose={closeSheet}
         onReact={handleSheetReact}
         onReply={handleSheetReply}

@@ -21,6 +21,7 @@ interface ChatBubbleProps {
   afterActivity?: boolean;
   replyTo?: ReplyQuoteProps;
   reactions?: Reaction[];
+  currentUserId?: string;
   onDoubleTap?: () => void;
   onLongPress?: () => void;
 }
@@ -62,6 +63,7 @@ export default function ChatBubble({
   afterActivity,
   replyTo,
   reactions,
+  currentUserId,
   onDoubleTap,
   onLongPress,
 }: ChatBubbleProps) {
@@ -105,7 +107,9 @@ export default function ChatBubble({
           {replyTo && <ReplyQuote {...replyTo} />}
           <Text style={styles.message}>{text}</Text>
         </View>
-        {reactions && <ReactionRow reactions={reactions} />}
+        {reactions && (
+          <ReactionRow reactions={reactions} currentUserId={currentUserId} />
+        )}
       </View>
     </GestureDetector>
   );
