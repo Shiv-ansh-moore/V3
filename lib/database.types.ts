@@ -318,22 +318,32 @@ export type Database = {
         Row: {
           created_at: string
           emoji: string
+          group_id: string
           message_id: string
           user_id: string
         }
         Insert: {
           created_at?: string
           emoji: string
+          group_id: string
           message_id: string
           user_id: string
         }
         Update: {
           created_at?: string
           emoji?: string
+          group_id?: string
           message_id?: string
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "reactions_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "reactions_message_id_fkey"
             columns: ["message_id"]

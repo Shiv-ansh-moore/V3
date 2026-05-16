@@ -647,6 +647,7 @@ export default function Social({ active = true }: SocialProps) {
           event: "*",
           schema: "public",
           table: "reactions",
+          filter: `group_id=eq.${group.id}`,
         },
         () => {
           scheduleReactionRefresh();
@@ -776,7 +777,7 @@ export default function Social({ active = true }: SocialProps) {
 
   const handleSheetReact = useCallback(
     async (emoji: string) => {
-      if (!currentSheetItem || !user) return;
+      if (!currentSheetItem || !user || !group) return;
 
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
@@ -790,9 +791,11 @@ export default function Social({ active = true }: SocialProps) {
             .delete()
             .eq("message_id", currentSheetItem.id)
             .eq("user_id", user.id)
+            .eq("group_id", group.id)
             .eq("emoji", emoji)
         : supabase.from("reactions").insert({
             message_id: currentSheetItem.id,
+            group_id: group.id,
             user_id: user.id,
             emoji,
           });
@@ -805,7 +808,7 @@ export default function Social({ active = true }: SocialProps) {
 
       await refreshFeed();
     },
-    [currentSheetItem, refreshFeed, user],
+    [currentSheetItem, group, refreshFeed, user],
   );
 
   const handleSheetReply = useCallback(() => {
