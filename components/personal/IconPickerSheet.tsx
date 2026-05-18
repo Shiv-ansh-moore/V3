@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import {
   StyleSheet,
   Text,
@@ -7,7 +7,9 @@ import {
   Pressable,
   TextInput,
   FlatList,
+  Keyboard,
 } from "react-native";
+import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { Colours } from "../../constants/Colours";
 import { Fonts } from "../../constants/Fonts";
 import GoalIcon, { iconMap } from "./GoalIcon";
@@ -26,9 +28,10 @@ export default function IconPickerSheet({
   onSelect,
 }: IconPickerSheetProps) {
   const [search, setSearch] = useState("");
+  const inputRef = useRef<TextInput>(null);
 
   const filtered = iconNames.filter((name) =>
-    name.toLowerCase().includes(search.toLowerCase())
+    name.toLowerCase().includes(search.toLowerCase()),
   );
 
   const handleSelect = (name: string) => {
@@ -43,39 +46,57 @@ export default function IconPickerSheet({
 
   return (
     <Modal visible={visible} transparent animationType="none">
-      <Pressable style={styles.overlay} onPress={handleClose}>
-        <Pressable style={styles.sheet}>
-          <Text style={styles.title}>Choose Icon</Text>
-          <View style={styles.inputRow}>
-            <TextInput
-              style={styles.input}
-              placeholder="Search icons..."
-              placeholderTextColor={Colours.secondaryText}
-              value={search}
-              onChangeText={setSearch}
+      <Pressable
+        style={styles.overlay}
+        onPress={() => {
+          if (inputRef.current?.isFocused()) {
+            Keyboard.dismiss();
+          } else {
+            handleClose();
+          }
+        }}
+      >
+        <KeyboardAvoidingView
+          behavior="position"
+          style={styles.avoidingView}
+          contentContainerStyle={styles.avoidingContent}
+        >
+          <Pressable style={styles.sheet}>
+            <Text style={styles.title}>Choose Icon</Text>
+            <View style={styles.inputRow}>
+              <TextInput
+                ref={inputRef}
+                style={styles.input}
+                placeholder="Search icons..."
+                placeholderTextColor={Colours.secondaryText}
+                value={search}
+                onChangeText={setSearch}
+                returnKeyType="search"
+              />
+            </View>
+            <FlatList
+              data={filtered}
+              numColumns={4}
+              keyExtractor={(item) => item}
+              contentContainerStyle={styles.grid}
+              columnWrapperStyle={styles.gridRow}
+              keyboardShouldPersistTaps="handled"
+              renderItem={({ item }) => (
+                <Pressable
+                  style={styles.iconCell}
+                  onPress={() => handleSelect(item)}
+                >
+                  <View style={styles.iconBox}>
+                    <GoalIcon name={item} size={28} />
+                  </View>
+                  <Text style={styles.iconLabel} numberOfLines={1}>
+                    {item.replace("Icon", "").replace("Logo", "")}
+                  </Text>
+                </Pressable>
+              )}
             />
-          </View>
-          <FlatList
-            data={filtered}
-            numColumns={4}
-            keyExtractor={(item) => item}
-            contentContainerStyle={styles.grid}
-            columnWrapperStyle={styles.gridRow}
-            renderItem={({ item }) => (
-              <Pressable
-                style={styles.iconCell}
-                onPress={() => handleSelect(item)}
-              >
-                <View style={styles.iconBox}>
-                  <GoalIcon name={item} size={28} />
-                </View>
-                <Text style={styles.iconLabel} numberOfLines={1}>
-                  {item.replace("Icon", "").replace("Logo", "")}
-                </Text>
-              </Pressable>
-            )}
-          />
-        </Pressable>
+          </Pressable>
+        </KeyboardAvoidingView>
       </Pressable>
     </Modal>
   );
@@ -93,6 +114,14 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 20,
     paddingBottom: 34,
     maxHeight: "60%",
+  },
+  avoidingView: {
+    flex: 1,
+    width: "100%",
+  },
+  avoidingContent: {
+    flex: 1,
+    justifyContent: "flex-end",
   },
   title: {
     fontSize: 16,

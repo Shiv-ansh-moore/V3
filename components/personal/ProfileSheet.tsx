@@ -1,17 +1,22 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Animated,
+  Easing,
   FlatList,
+  Keyboard,
   Modal,
   Platform,
   Pressable,
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
   TouchableOpacity,
 } from "react-native";
+import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import * as Clipboard from "expo-clipboard";
 import {
   AppWindowIcon,
@@ -38,6 +43,10 @@ const handleSignOut = async () => {
   if (error) console.log("Sign out failed:", error.message);
 };
 
+const PICKER_OPEN_HEIGHT = 0.7;
+const PICKER_SEARCH_HEIGHT = 0.48;
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
 interface ProfileSheetProps {
   visible: boolean;
   onClose: () => void;
@@ -45,6 +54,11 @@ interface ProfileSheetProps {
 
 export default function ProfileSheet({ visible, onClose }: ProfileSheetProps) {
   const { group, user, refreshGroup } = useAuth();
+  const { height: windowHeight } = useWindowDimensions();
+  const searchInputRef = useRef<TextInput>(null);
+  const pickerHeightProgress = useRef(
+    new Animated.Value(PICKER_OPEN_HEIGHT),
+  ).current;
   const [showAndroidPicker, setShowAndroidPicker] = useState(false);
   const [showGroupOptions, setShowGroupOptions] = useState(false);
   const [androidApps, setAndroidApps] = useState<AndroidAppInfo[]>([]);
@@ -54,6 +68,7 @@ export default function ProfileSheet({ visible, onClose }: ProfileSheetProps) {
   const [pickerLoading, setPickerLoading] = useState(false);
   const [pickerSaving, setPickerSaving] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [searchFocused, setSearchFocused] = useState(false);
   const [copiedInviteCode, setCopiedInviteCode] = useState(false);
   const [leavingGroup, setLeavingGroup] = useState(false);
   const filteredAndroidApps = androidApps.filter((app) => {
@@ -65,6 +80,25 @@ export default function ProfileSheet({ visible, onClose }: ProfileSheetProps) {
       app.packageName.toLowerCase().includes(query)
     );
   });
+
+  useEffect(() => {
+    Animated.timing(pickerHeightProgress, {
+      toValue: searchFocused ? PICKER_SEARCH_HEIGHT : PICKER_OPEN_HEIGHT,
+      duration: 220,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: false,
+    }).start();
+  }, [pickerHeightProgress, searchFocused]);
+
+  const pickerAnimatedStyle = useMemo(
+    () => ({
+      height: pickerHeightProgress.interpolate({
+        inputRange: [0, 1],
+        outputRange: [0, windowHeight],
+      }),
+    }),
+    [pickerHeightProgress, windowHeight],
+  );
 
   const handleManageBlockedApps = async () => {
     if (Platform.OS === "ios") {
@@ -83,6 +117,7 @@ export default function ProfileSheet({ visible, onClose }: ProfileSheetProps) {
 
     setShowAndroidPicker(true);
     setSearchQuery("");
+    setSearchFocused(false);
     setPickerLoading(true);
     try {
       const [apps, blocked] = await Promise.all([
@@ -115,6 +150,7 @@ export default function ProfileSheet({ visible, onClose }: ProfileSheetProps) {
     try {
       const result = await blockApps(Array.from(selectedPackages));
       console.log("Blocked", result.blocked, "apps");
+      setSearchFocused(false);
       setShowAndroidPicker(false);
     } catch (e) {
       console.log("Save blocked apps failed:", e);
@@ -223,76 +259,94 @@ export default function ProfileSheet({ visible, onClose }: ProfileSheetProps) {
       <Modal visible={showAndroidPicker} transparent animationType="slide">
         <Pressable
           style={styles.overlay}
-          onPress={() => setShowAndroidPicker(false)}
+          onPress={() => {
+            if (searchInputRef.current?.isFocused()) {
+              Keyboard.dismiss();
+            } else {
+              setSearchFocused(false);
+              setShowAndroidPicker(false);
+            }
+          }}
         >
-          <Pressable style={styles.pickerSheet}>
-            <View style={styles.pickerHeader}>
-              <View>
-                <Text style={styles.title}>Blocked Apps</Text>
-                <Text style={styles.subtitle}>
-                  {selectedPackages.size} selected
-                </Text>
+          <KeyboardAvoidingView
+            behavior="position"
+            style={styles.pickerAvoidingView}
+            contentContainerStyle={styles.pickerAvoidingContent}
+          >
+            <AnimatedPressable style={[styles.pickerSheet, pickerAnimatedStyle]}>
+              <View style={styles.pickerHeader}>
+                <View>
+                  <Text style={styles.title}>Blocked Apps</Text>
+                  <Text style={styles.subtitle}>
+                    {selectedPackages.size} selected
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.saveButton}
+                  onPress={handleSaveAndroidPicker}
+                  disabled={pickerSaving}
+                >
+                  <Text style={styles.saveButtonText}>
+                    {pickerSaving ? "Saving" : "Save"}
+                  </Text>
+                </TouchableOpacity>
               </View>
-              <TouchableOpacity
-                style={styles.saveButton}
-                onPress={handleSaveAndroidPicker}
-                disabled={pickerSaving}
-              >
-                <Text style={styles.saveButtonText}>
-                  {pickerSaving ? "Saving" : "Save"}
-                </Text>
-              </TouchableOpacity>
-            </View>
 
-            <TextInput
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              placeholder="Search apps"
-              placeholderTextColor={Colours.secondaryText}
-              autoCapitalize="none"
-              autoCorrect={false}
-              style={styles.searchInput}
-            />
-
-            {pickerLoading ? (
-              <View style={styles.loadingState}>
-                <ActivityIndicator color={Colours.brand} />
-              </View>
-            ) : (
-              <FlatList
-                data={filteredAndroidApps}
-                keyExtractor={(item) => item.packageName}
-                contentContainerStyle={styles.appList}
-                showsVerticalScrollIndicator={false}
-                extraData={selectedPackages}
-                renderItem={({ item }) => {
-                  const selected = selectedPackages.has(item.packageName);
-                  return (
-                    <TouchableOpacity
-                      style={styles.appRow}
-                      onPress={() => togglePackage(item.packageName)}
-                      activeOpacity={0.75}
-                    >
-                      <View
-                        style={[
-                          styles.checkbox,
-                          selected && styles.checkboxSelected,
-                        ]}
-                      >
-                        {selected && <View style={styles.checkboxDot} />}
-                      </View>
-                      <View style={styles.appTextBlock}>
-                        <Text style={styles.appName}>{item.name}</Text>
-                        <Text style={styles.packageName}>
-                          {item.packageName}
-                        </Text>
-                      </View>
-                    </TouchableOpacity>
-                  );
-                }}
+              <TextInput
+                ref={searchInputRef}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                placeholder="Search apps"
+                placeholderTextColor={Colours.secondaryText}
+                autoCapitalize="none"
+                autoCorrect={false}
+                onFocus={() => setSearchFocused(true)}
+                onBlur={() => setSearchFocused(false)}
+                style={styles.searchInput}
               />
-            )}
-          </Pressable>
+
+              {pickerLoading ? (
+                <View style={styles.loadingState}>
+                  <ActivityIndicator color={Colours.brand} />
+                </View>
+              ) : (
+                <FlatList
+                  style={styles.appListScroller}
+                  data={filteredAndroidApps}
+                  keyExtractor={(item) => item.packageName}
+                  contentContainerStyle={styles.appList}
+                  showsVerticalScrollIndicator={false}
+                  keyboardShouldPersistTaps="handled"
+                  extraData={selectedPackages}
+                  renderItem={({ item }) => {
+                    const selected = selectedPackages.has(item.packageName);
+                    return (
+                      <TouchableOpacity
+                        style={styles.appRow}
+                        onPress={() => togglePackage(item.packageName)}
+                        activeOpacity={0.75}
+                      >
+                        <View
+                          style={[
+                            styles.checkbox,
+                            selected && styles.checkboxSelected,
+                          ]}
+                        >
+                          {selected && <View style={styles.checkboxDot} />}
+                        </View>
+                        <View style={styles.appTextBlock}>
+                          <Text style={styles.appName}>{item.name}</Text>
+                          <Text style={styles.packageName}>
+                            {item.packageName}
+                          </Text>
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  }}
+                />
+              )}
+            </AnimatedPressable>
+          </KeyboardAvoidingView>
         </Pressable>
       </Modal>
 
@@ -442,11 +496,18 @@ const styles = StyleSheet.create({
     color: "#FF5A5A",
   },
   pickerSheet: {
-    maxHeight: "82%",
     backgroundColor: Colours.card,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     paddingBottom: 24,
+  },
+  pickerAvoidingView: {
+    flex: 1,
+    width: "100%",
+  },
+  pickerAvoidingContent: {
+    flex: 1,
+    justifyContent: "flex-end",
   },
   pickerHeader: {
     flexDirection: "row",
@@ -495,6 +556,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 19,
     paddingTop: 12,
     paddingBottom: 12,
+  },
+  appListScroller: {
+    flex: 1,
   },
   appRow: {
     minHeight: 58,
