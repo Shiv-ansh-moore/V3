@@ -13,7 +13,7 @@ class WarningActivity : AppCompatActivity() {
 
         // "Open V3" button — launch V3 directly
         findViewById<Button>(R.id.btnOpenV3).setOnClickListener {
-            val launchIntent = packageManager.getLaunchIntentForPackage("com.anonymous.V3App")
+            val launchIntent = packageManager.getLaunchIntentForPackage(applicationContext.packageName)
             if (launchIntent != null) {
                 launchIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
                 startActivity(launchIntent)
