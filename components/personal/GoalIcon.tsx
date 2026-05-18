@@ -1,32 +1,9 @@
 import React from "react";
-import {
-  BarbellIcon,
-  MusicNoteIcon,
-  BookOpenIcon,
-  CodeIcon,
-  FilmSlateIcon,
-  ShowerIcon,
-  FlowerIcon,
-  InstagramLogoIcon,
-  TiktokLogoIcon,
-} from "phosphor-react-native";
 import type { IconWeight } from "phosphor-react-native";
 import { Colours } from "../../constants/Colours";
+import { fallbackGoalIconName, iconMap } from "./goalIconCatalog";
 
-export const iconMap: Record<
-  string,
-  React.ComponentType<{ size?: number; color?: string; weight?: IconWeight }>
-> = {
-  BarbellIcon,
-  MusicNoteIcon,
-  BookOpenIcon,
-  CodeIcon,
-  FilmSlateIcon,
-  ShowerIcon,
-  FlowerIcon,
-  InstagramLogoIcon,
-  TiktokLogoIcon,
-};
+export { iconMap } from "./goalIconCatalog";
 
 interface GoalIconProps {
   name: string;
@@ -41,7 +18,6 @@ export default function GoalIcon({
   color = Colours.fadedBrand,
   weight = "light",
 }: GoalIconProps) {
-  const IconComponent = iconMap[name];
-  if (!IconComponent) return null;
+  const IconComponent = iconMap[name] ?? iconMap[fallbackGoalIconName];
   return <IconComponent size={size} color={color} weight={weight} />;
 }

@@ -19,6 +19,7 @@ import IconPickerSheet from "./IconPickerSheet";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { supabase } from "../../lib/supabase";
 import { useAuth } from "../../lib/AuthContext";
+import { getGoalIconForTitle } from "./goalIconCatalog";
 
 interface AddGoalSheetProps {
   visible: boolean;
@@ -29,7 +30,7 @@ interface AddGoalSheetProps {
 interface PendingGoal {
   id: string;
   title: string;
-  icon: string; // Will be set up to auto match the word
+  icon: string;
 }
 
 export default function AddGoalSheet({
@@ -49,7 +50,11 @@ export default function AddGoalSheet({
     if (!trimmed) return;
     setGoals((prev) => [
       ...prev,
-      { id: Date.now().toString(), title: trimmed, icon: "BarbellIcon" },
+      {
+        id: Date.now().toString(),
+        title: trimmed,
+        icon: getGoalIconForTitle(trimmed),
+      },
     ]);
     setText("");
   };

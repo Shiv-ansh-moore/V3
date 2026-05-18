@@ -12,9 +12,8 @@ import {
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { Colours } from "../../constants/Colours";
 import { Fonts } from "../../constants/Fonts";
-import GoalIcon, { iconMap } from "./GoalIcon";
-
-const iconNames = Object.keys(iconMap);
+import GoalIcon from "./GoalIcon";
+import { goalIconCatalog, goalIconMatchesSearch } from "./goalIconCatalog";
 
 interface IconPickerSheetProps {
   visible: boolean;
@@ -30,8 +29,8 @@ export default function IconPickerSheet({
   const [search, setSearch] = useState("");
   const inputRef = useRef<TextInput>(null);
 
-  const filtered = iconNames.filter((name) =>
-    name.toLowerCase().includes(search.toLowerCase()),
+  const filtered = goalIconCatalog.filter((entry) =>
+    goalIconMatchesSearch(entry, search),
   );
 
   const handleSelect = (name: string) => {
@@ -77,20 +76,20 @@ export default function IconPickerSheet({
             <FlatList
               data={filtered}
               numColumns={4}
-              keyExtractor={(item) => item}
+              keyExtractor={(item) => item.name}
               contentContainerStyle={styles.grid}
               columnWrapperStyle={styles.gridRow}
               keyboardShouldPersistTaps="handled"
               renderItem={({ item }) => (
                 <Pressable
                   style={styles.iconCell}
-                  onPress={() => handleSelect(item)}
+                  onPress={() => handleSelect(item.name)}
                 >
                   <View style={styles.iconBox}>
-                    <GoalIcon name={item} size={28} />
+                    <GoalIcon name={item.name} size={28} />
                   </View>
                   <Text style={styles.iconLabel} numberOfLines={1}>
-                    {item.replace("Icon", "").replace("Logo", "")}
+                    {item.label}
                   </Text>
                 </Pressable>
               )}
