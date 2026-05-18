@@ -52,7 +52,7 @@ class ShieldConfigurationExtension: ShieldConfigurationDataSource {
       
       // Smaller text below the title — your motivational nudge
       subtitle: ShieldConfiguration.Label(
-        text: "Stay focused. You've got this.",
+        text: "Open V3 app to give a reason to unlock.",
         color: subtitleColor
       ),
       

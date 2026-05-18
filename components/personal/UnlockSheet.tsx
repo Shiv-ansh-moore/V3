@@ -30,12 +30,15 @@ export default function UnlockSheet({
   const inputRef = useRef<TextInput>(null);
   const [selectedMinutes, setSelectedMinutes] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
+  const trimmedReason = reason.trim();
+  const canUnlock =
+    selectedMinutes !== null && trimmedReason.length > 0 && !loading;
 
   const handleUnlock = async () => {
-    if (!selectedMinutes) return;
+    if (selectedMinutes === null || !trimmedReason) return;
     setLoading(true);
     try {
-      await onUnlock(selectedMinutes, reason);
+      await onUnlock(selectedMinutes, trimmedReason);
       setReason("");
       setSelectedMinutes(null);
       onClose();
@@ -61,7 +64,9 @@ export default function UnlockSheet({
         <KeyboardAvoidingView behavior={"padding"}>
           <Pressable style={styles.sheet}>
             <Text style={styles.title}>Unlock apps</Text>
-            <Text style={styles.subtitle}>Why do you need to unlock?</Text>
+            <Text style={styles.subtitle}>
+              Why do you need to unlock? (required)
+            </Text>
 
             <TextInput
               style={styles.input}
@@ -99,10 +104,10 @@ export default function UnlockSheet({
             <TouchableOpacity
               style={[
                 styles.confirmButton,
-                (!selectedMinutes || loading) && styles.confirmButtonDisabled,
+                !canUnlock && styles.confirmButtonDisabled,
               ]}
               onPress={handleUnlock}
-              disabled={!selectedMinutes || loading}
+              disabled={!canUnlock}
             >
               <Text style={styles.confirmText}>
                 {loading ? "Unlocking..." : "Unlock"}
