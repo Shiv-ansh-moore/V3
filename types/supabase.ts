@@ -239,6 +239,91 @@ export type Database = {
         }
         Relationships: []
       }
+      push_tokens: {
+        Row: {
+          app_version: string | null
+          created_at: string
+          device_id: string
+          enabled: boolean
+          expo_push_token: string
+          id: string
+          last_seen_at: string
+          platform: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          app_version?: string | null
+          created_at?: string
+          device_id: string
+          enabled?: boolean
+          expo_push_token: string
+          id?: string
+          last_seen_at?: string
+          platform?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          app_version?: string | null
+          created_at?: string
+          device_id?: string
+          enabled?: boolean
+          expo_push_token?: string
+          id?: string
+          last_seen_at?: string
+          platform?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "push_tokens_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notification_preferences: {
+        Row: {
+          created_at: string
+          messages_enabled: boolean
+          proofs_enabled: boolean
+          reactions_enabled: boolean
+          screen_unlocks_enabled: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          messages_enabled?: boolean
+          proofs_enabled?: boolean
+          reactions_enabled?: boolean
+          screen_unlocks_enabled?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          messages_enabled?: boolean
+          proofs_enabled?: boolean
+          reactions_enabled?: boolean
+          screen_unlocks_enabled?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_preferences_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       proof_views: {
         Row: {
           proof_id: string
@@ -495,6 +580,32 @@ export type Database = {
         SetofOptions: {
           from: "*"
           to: "groups"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      register_push_token: {
+        Args: {
+          p_app_version: string | null
+          p_device_id: string
+          p_expo_push_token: string
+          p_platform: string
+        }
+        Returns: {
+          app_version: string | null
+          created_at: string
+          device_id: string
+          enabled: boolean
+          expo_push_token: string
+          id: string
+          last_seen_at: string
+          platform: string
+          updated_at: string
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "push_tokens"
           isOneToOne: true
           isSetofReturn: false
         }

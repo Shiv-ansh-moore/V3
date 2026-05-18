@@ -8,11 +8,25 @@ import { Colours } from "../../constants/Colours";
 import { useEffect, useRef, useState } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { requestAuthorization } from "../../modules/screen-time-locks";
+import { useLocalSearchParams } from "expo-router";
 
 export default function MyPager() {
+  const params = useLocalSearchParams<{ tab?: string | string[] }>();
+  const tab = Array.isArray(params.tab) ? params.tab[0] : params.tab;
+  const initialPage = tab === "social" ? 1 : 0;
   const scrollPosition = useRef(new Animated.Value(0)).current;
   const pagerRef = useRef<PagerView>(null);
-  const [activePage, setActivePage] = useState(0);
+  const [activePage, setActivePage] = useState(initialPage);
+
+  useEffect(() => {
+    if (tab !== "social") return;
+
+    setActivePage(1);
+    requestAnimationFrame(() => {
+      pagerRef.current?.setPage(1);
+    });
+  }, [tab]);
+
   useEffect(() => {
     if (Platform.OS !== "ios") return;
 
@@ -34,7 +48,7 @@ export default function MyPager() {
         <PagerView
           ref={pagerRef}
           style={styles.container}
-          initialPage={0}
+          initialPage={initialPage}
           onPageSelected={(e) => setActivePage(e.nativeEvent.position)}
           onPageScroll={(e) => {
             const { position, offset } = e.nativeEvent;

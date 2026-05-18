@@ -14,11 +14,16 @@ import {
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { AuthProvider, useAuth } from "../lib/AuthContext";
 import { useEffect } from "react";
+import {
+  PushNotificationRegistrar,
+  useNotificationRouting,
+} from "../lib/pushNotifications";
 
 function RootNavigator() {
   const { session, profile, group, loading } = useAuth();
   const segments = useSegments() as string[];
   const router = useRouter();
+  useNotificationRouting();
 
   useEffect(() => {
     if (loading) return;
@@ -68,6 +73,7 @@ export default function RootLayout() {
   return (
     <KeyboardProvider>
       <AuthProvider>
+        <PushNotificationRegistrar />
         <RootNavigator />
       </AuthProvider>
     </KeyboardProvider>
