@@ -57,8 +57,24 @@ const PENDING_SCREEN_SESSION_LOCK_KEY = "v3.pendingScreenSessionLock";
 const PENDING_SCREEN_SESSION_COMPLETION_KEY =
   "v3.pendingScreenSessionCompletion";
 
+function getLocalTodayBounds() {
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+
+  const end = new Date(start);
+  end.setDate(end.getDate() + 1);
+
+  return { start, end };
+}
+
 function clampActualSeconds(actualSeconds: number, grantedSeconds: number) {
   return Math.max(0, Math.min(actualSeconds, Math.max(0, grantedSeconds - 1)));
+}
+
+function getUsedScreenSessionSeconds(
+  session: Pick<ScreenSession, "actual_seconds" | "granted_seconds">,
+) {
+  return session.actual_seconds ?? session.granted_seconds;
 }
 
 function isDoneGoalVisible(submittedAt: string | undefined, nowMs: number) {
@@ -91,6 +107,7 @@ export default function Personal() {
   const [unlockSecondsLeft, setUnlockSecondsLeft] = useState(0);
   const [unlockTotalSeconds, setUnlockTotalSeconds] = useState(0);
   const [unlockSessionId, setUnlockSessionId] = useState<string | null>(null);
+  const [todayUnlockedSeconds, setTodayUnlockedSeconds] = useState(0);
   const completingSessionIdsRef = useRef<Set<string>>(new Set());
   const radialMenuRef = useRef<RadialMenuHandle>(null);
 
@@ -238,6 +255,56 @@ export default function Personal() {
     deleteGoal(goalToDelete);
   };
 
+  const refreshTodayUnlockTotal = useCallback(async () => {
+    if (!user) {
+      setTodayUnlockedSeconds(0);
+      return;
+    }
+
+    const { start, end } = getLocalTodayBounds();
+    const pendingJson = await AsyncStorage.getItem(
+      PENDING_SCREEN_SESSION_LOCK_KEY,
+    );
+    let pendingLock: PendingScreenSessionLock | null = null;
+
+    if (pendingJson) {
+      try {
+        const parsed = JSON.parse(pendingJson) as PendingScreenSessionLock;
+        if (parsed.sessionId && parsed.actualSeconds >= 0) {
+          pendingLock = parsed;
+        }
+      } catch {
+        pendingLock = null;
+      }
+    }
+
+    const { data, error } = await supabase
+      .from("screen_sessions")
+      .select("id, actual_seconds, granted_seconds")
+      .eq("user_id", user.id)
+      .gte("started_at", start.toISOString())
+      .lt("started_at", end.toISOString());
+
+    if (error) {
+      console.log("[screen session] daily total fetch failed:", error.message);
+      return;
+    }
+
+    const totalSeconds = (data ?? []).reduce((sum, session) => {
+      if (pendingLock?.sessionId === session.id) {
+        return sum + pendingLock.actualSeconds;
+      }
+
+      return sum + getUsedScreenSessionSeconds(session);
+    }, 0);
+
+    setTodayUnlockedSeconds(totalSeconds);
+  }, [user]);
+
+  useEffect(() => {
+    refreshTodayUnlockTotal();
+  }, [refreshTodayUnlockTotal]);
+
   const logCompletedScreenSession = useCallback(
     async (sessionId: string): Promise<boolean> => {
       if (!user) return false;
@@ -256,6 +323,7 @@ export default function Personal() {
           ACTIVE_SCREEN_SESSION_KEY,
           PENDING_SCREEN_SESSION_COMPLETION_KEY,
         ]);
+        await refreshTodayUnlockTotal();
         return true;
       } catch (e) {
         const pendingCompletion: PendingScreenSessionCompletion = {
@@ -272,7 +340,7 @@ export default function Personal() {
         completingSessionIdsRef.current.delete(sessionId);
       }
     },
-    [user],
+    [refreshTodayUnlockTotal, user],
   );
 
   const flushPendingScreenSessionLock = useCallback(async () => {
@@ -310,6 +378,7 @@ export default function Personal() {
         PENDING_SCREEN_SESSION_LOCK_KEY,
         PENDING_SCREEN_SESSION_COMPLETION_KEY,
       ]);
+      await refreshTodayUnlockTotal();
       setUnlockSessionId((current) =>
         current === pending.sessionId ? null : current,
       );
@@ -336,7 +405,7 @@ export default function Personal() {
     }
 
     return logCompletedScreenSession(pendingCompletion.sessionId);
-  }, [logCompletedScreenSession, user]);
+  }, [logCompletedScreenSession, refreshTodayUnlockTotal, user]);
 
   useEffect(() => {
     let cancelled = false;
@@ -500,12 +569,14 @@ export default function Personal() {
         PENDING_SCREEN_SESSION_LOCK_KEY,
         PENDING_SCREEN_SESSION_COMPLETION_KEY,
       ]);
+      await refreshTodayUnlockTotal();
     } catch (e) {
       await AsyncStorage.removeItem(PENDING_SCREEN_SESSION_COMPLETION_KEY);
       await AsyncStorage.setItem(
         PENDING_SCREEN_SESSION_LOCK_KEY,
         JSON.stringify(pendingLock),
       );
+      await refreshTodayUnlockTotal();
       console.log("[screen session] lock logging failed:", e);
     }
   };
@@ -684,7 +755,7 @@ export default function Personal() {
     }
 
     if (mockLocks.length === 0) {
-      return <ScreenTimeBanner />;
+      return <ScreenTimeBanner todayUnlockedSeconds={todayUnlockedSeconds} />;
     }
 
     const elements: React.ReactNode[] = [];

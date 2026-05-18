@@ -2,14 +2,26 @@ import React from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { Colours } from "../../constants/Colours";
 import { Fonts } from "../../constants/Fonts";
-import { LockSimpleOpenIcon } from "phosphor-react-native";
 
-export default function ScreenTimeBanner() {
+interface ScreenTimeBannerProps {
+  todayUnlockedSeconds: number;
+}
+
+function formatTodayMinutes(totalSeconds: number) {
+  const minutes = Math.floor(Math.max(0, totalSeconds) / 60);
+  return `${minutes}m`;
+}
+
+export default function ScreenTimeBanner({
+  todayUnlockedSeconds,
+}: ScreenTimeBannerProps) {
   return (
     <View>
       <View style={styles.container}>
         <View style={styles.dot} />
-        <Text style={styles.text}>All apps locked · 0m today</Text>
+        <Text style={styles.text}>
+          All apps locked · {formatTodayMinutes(todayUnlockedSeconds)} today
+        </Text>
       </View>
     </View>
   );
