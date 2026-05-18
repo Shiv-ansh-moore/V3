@@ -1,8 +1,13 @@
-import React, { useRef, useState } from "react";
+import React, {
+  forwardRef,
+  useCallback,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from "react";
 import {
   StyleSheet,
   Text,
-  View,
   TouchableOpacity,
   Pressable,
   Animated,
@@ -31,29 +36,54 @@ interface RadialMenuProps {
   onNewPress?: () => void;
 }
 
-export default function RadialMenu({ onNewPress }: RadialMenuProps) {
+export interface RadialMenuHandle {
+  open: () => void;
+}
+
+function RadialMenu(
+  { onNewPress }: RadialMenuProps,
+  ref: React.ForwardedRef<RadialMenuHandle>,
+) {
   const [open, setOpen] = useState(false);
   const animation = useRef(new Animated.Value(0)).current;
 
-  const toggleMenu = () => {
-    const toValue = open ? 0 : 1;
-    setOpen(!open);
-    Animated.spring(animation, {
-      toValue,
-      friction: 6,
-      tension: 80,
-      useNativeDriver: false,
-    }).start();
-  };
+  const animateTo = useCallback(
+    (toValue: number) => {
+      Animated.spring(animation, {
+        toValue,
+        friction: 6,
+        tension: 80,
+        useNativeDriver: false,
+      }).start();
+    },
+    [animation],
+  );
 
-  const close = () => {
+  const openMenu = useCallback(() => {
+    setOpen(true);
+    animateTo(1);
+  }, [animateTo]);
+
+  const closeMenu = useCallback(() => {
     setOpen(false);
-    Animated.spring(animation, {
-      toValue: 0,
-      friction: 6,
-      tension: 80,
-      useNativeDriver: false,
-    }).start();
+    animateTo(0);
+  }, [animateTo]);
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      open: openMenu,
+    }),
+    [openMenu],
+  );
+
+  const toggleMenu = () => {
+    if (open) {
+      closeMenu();
+      return;
+    }
+
+    openMenu();
   };
 
   const fabRotation = animation.interpolate({
@@ -74,7 +104,7 @@ export default function RadialMenu({ onNewPress }: RadialMenuProps) {
   return (
     <>
       {open && (
-        <Pressable style={StyleSheet.absoluteFill} onPress={close}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={closeMenu}>
           <Animated.View
             style={[styles.overlay, { opacity: overlayOpacity }]}
           />
@@ -116,7 +146,7 @@ export default function RadialMenu({ onNewPress }: RadialMenuProps) {
               activeOpacity={0.7}
               onPress={() => {
                 if (item.key === "new" && onNewPress) {
-                  close();
+                  closeMenu();
                   onNewPress();
                 }
               }}
@@ -152,6 +182,8 @@ export default function RadialMenu({ onNewPress }: RadialMenuProps) {
     </>
   );
 }
+
+export default forwardRef<RadialMenuHandle, RadialMenuProps>(RadialMenu);
 
 const styles = StyleSheet.create({
   overlay: {

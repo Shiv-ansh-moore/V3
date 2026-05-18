@@ -18,7 +18,7 @@ import { Colours } from "../constants/Colours";
 import { Fonts } from "../constants/Fonts";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { UserIcon, PlusIcon } from "phosphor-react-native";
-import RadialMenu from "./personal/RadialMenu";
+import RadialMenu, { type RadialMenuHandle } from "./personal/RadialMenu";
 import AddGoalSheet from "./personal/AddGoalSheet";
 import ProofCamera from "./personal/ProofCamera";
 import ProfileSheet from "./personal/ProfileSheet";
@@ -92,6 +92,7 @@ export default function Personal() {
   const [unlockTotalSeconds, setUnlockTotalSeconds] = useState(0);
   const [unlockSessionId, setUnlockSessionId] = useState<string | null>(null);
   const completingSessionIdsRef = useRef<Set<string>>(new Set());
+  const radialMenuRef = useRef<RadialMenuHandle>(null);
 
   const activeGoals = goals.filter((g) => g.status === "active");
   const visibleDoneGoals = goals.filter(
@@ -592,7 +593,12 @@ export default function Personal() {
   const renderActiveGoals = () => {
     if (activeGoals.length === 0) {
       return (
-        <View style={styles.emptyState}>
+        <Pressable
+          style={styles.emptyState}
+          accessibilityRole="button"
+          accessibilityLabel="Open goal actions"
+          onPress={() => radialMenuRef.current?.open()}
+        >
           <View style={styles.emptyCircle}>
             <PlusIcon size={20} weight="bold" color={Colours.fadedBrand} />
           </View>
@@ -600,7 +606,7 @@ export default function Personal() {
           <Text style={styles.emptySubtitle}>
             Tap + to add your first goal
           </Text>
-        </View>
+        </Pressable>
       );
     }
     const items = buildRows();
@@ -769,7 +775,10 @@ export default function Personal() {
         <UserIcon size={20} weight="bold" color={Colours.secondaryText} />
       </TouchableOpacity>
 
-      <RadialMenu onNewPress={() => setShowAddGoal(true)} />
+      <RadialMenu
+        ref={radialMenuRef}
+        onNewPress={() => setShowAddGoal(true)}
+      />
       <AddGoalSheet
         visible={showAddGoal}
         onClose={() => setShowAddGoal(false)}
