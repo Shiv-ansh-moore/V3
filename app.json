@@ -16,13 +16,14 @@
       "supportsTablet": true
     },
     "android": {
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.V3App"
+      "package": "com.shivansh.v3app"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -46,6 +47,13 @@
       "expo-font",
       "expo-image"
     ],
-    "scheme": "v3"
+    "scheme": "v3",
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "c216ff36-ef54-4ce1-bc36-18280917c2d4"
+      }
+    },
+    "owner": "shiv_g"
   }
 }
