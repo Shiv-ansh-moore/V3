@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import {
   StyleSheet,
   Text,
@@ -7,7 +7,9 @@ import {
   Pressable,
   TouchableOpacity,
   TextInput,
+  Keyboard,
 } from "react-native";
+import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { Colours } from "../../constants/Colours";
 import { Fonts } from "../../constants/Fonts";
 
@@ -25,6 +27,7 @@ export default function UnlockSheet({
   onUnlock,
 }: UnlockSheetProps) {
   const [reason, setReason] = useState("");
+  const inputRef = useRef<TextInput>(null);
   const [selectedMinutes, setSelectedMinutes] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -45,56 +48,68 @@ export default function UnlockSheet({
 
   return (
     <Modal visible={visible} transparent animationType="slide">
-      <Pressable style={styles.overlay} onPress={onClose}>
-        <Pressable style={styles.sheet}>
-          <Text style={styles.title}>Unlock apps</Text>
-          <Text style={styles.subtitle}>Why do you need to unlock?</Text>
+      <Pressable
+        style={styles.overlay}
+        onPress={() => {
+          if (inputRef.current?.isFocused()) {
+            Keyboard.dismiss();
+          } else {
+            onClose();
+          }
+        }}
+      >
+        <KeyboardAvoidingView behavior={"padding"}>
+          <Pressable style={styles.sheet}>
+            <Text style={styles.title}>Unlock apps</Text>
+            <Text style={styles.subtitle}>Why do you need to unlock?</Text>
 
-          <TextInput
-            style={styles.input}
-            placeholder="Checking bank app..."
-            placeholderTextColor={Colours.secondaryText}
-            value={reason}
-            onChangeText={setReason}
-            maxLength={100}
-          />
+            <TextInput
+              style={styles.input}
+              placeholder="Checking bank app..."
+              placeholderTextColor={Colours.secondaryText}
+              ref={inputRef}
+              value={reason}
+              onChangeText={setReason}
+              maxLength={100}
+            />
 
-          <Text style={styles.subtitle}>For how long?</Text>
-          <View style={styles.durationRow}>
-            {DURATIONS.map((mins) => (
-              <TouchableOpacity
-                key={mins}
-                style={[
-                  styles.durationButton,
-                  selectedMinutes === mins && styles.durationButtonActive,
-                ]}
-                onPress={() => setSelectedMinutes(mins)}
-              >
-                <Text
+            <Text style={styles.subtitle}>For how long?</Text>
+            <View style={styles.durationRow}>
+              {DURATIONS.map((mins) => (
+                <TouchableOpacity
+                  key={mins}
                   style={[
-                    styles.durationText,
-                    selectedMinutes === mins && styles.durationTextActive,
+                    styles.durationButton,
+                    selectedMinutes === mins && styles.durationButtonActive,
                   ]}
+                  onPress={() => setSelectedMinutes(mins)}
                 >
-                  {mins}m
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+                  <Text
+                    style={[
+                      styles.durationText,
+                      selectedMinutes === mins && styles.durationTextActive,
+                    ]}
+                  >
+                    {mins}m
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
 
-          <TouchableOpacity
-            style={[
-              styles.confirmButton,
-              (!selectedMinutes || loading) && styles.confirmButtonDisabled,
-            ]}
-            onPress={handleUnlock}
-            disabled={!selectedMinutes || loading}
-          >
-            <Text style={styles.confirmText}>
-              {loading ? "Unlocking..." : "Unlock"}
-            </Text>
-          </TouchableOpacity>
-        </Pressable>
+            <TouchableOpacity
+              style={[
+                styles.confirmButton,
+                (!selectedMinutes || loading) && styles.confirmButtonDisabled,
+              ]}
+              onPress={handleUnlock}
+              disabled={!selectedMinutes || loading}
+            >
+              <Text style={styles.confirmText}>
+                {loading ? "Unlocking..." : "Unlock"}
+              </Text>
+            </TouchableOpacity>
+          </Pressable>
+        </KeyboardAvoidingView>
       </Pressable>
     </Modal>
   );
