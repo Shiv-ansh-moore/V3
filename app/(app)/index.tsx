@@ -63,7 +63,7 @@ export default function MyPager() {
             <Social active={activePage === 1} />
           </View>
           <View key="2" style={styles.page}>
-            <Dashboard />
+            <Dashboard active={activePage === 2} />
           </View>
         </PagerView>
       </SafeAreaView>
