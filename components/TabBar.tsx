@@ -49,6 +49,7 @@ export default function TabBar({
                 color: scrollPosition.interpolate({
                   inputRange: [0, 1],
                   outputRange: [Colours.text, Colours.secondaryText],
+                  extrapolate: "clamp",
                 }),
               },
             ]}
@@ -64,6 +65,7 @@ export default function TabBar({
                 color: scrollPosition.interpolate({
                   inputRange: [0, 1],
                   outputRange: [Colours.secondaryText, Colours.text],
+                  extrapolate: "clamp",
                 }),
               },
             ]}
@@ -82,6 +84,7 @@ export default function TabBar({
                     tabLayouts[0]!.x - INDICATOR_PADDING,
                     tabLayouts[1]!.x - INDICATOR_PADDING,
                   ],
+                  extrapolate: "clamp",
                 }),
                 width: scrollPosition.interpolate({
                   inputRange: [0, 1],
@@ -89,6 +92,7 @@ export default function TabBar({
                     tabLayouts[0]!.width + INDICATOR_PADDING * 2,
                     tabLayouts[1]!.width + INDICATOR_PADDING * 2,
                   ],
+                  extrapolate: "clamp",
                 }),
               },
             ]}

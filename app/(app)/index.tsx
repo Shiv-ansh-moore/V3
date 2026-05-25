@@ -3,6 +3,7 @@ import PagerView from "react-native-pager-view";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Social from "../../components/Social";
 import Personal from "../../components/Personal";
+import Dashboard from "../../components/Dashboard";
 import TabBar from "../../components/TabBar";
 import { Colours } from "../../constants/Colours";
 import { useEffect, useRef, useState } from "react";
@@ -52,14 +53,17 @@ export default function MyPager() {
           onPageSelected={(e) => setActivePage(e.nativeEvent.position)}
           onPageScroll={(e) => {
             const { position, offset } = e.nativeEvent;
-            scrollPosition.setValue(position + offset);
+            scrollPosition.setValue(Math.min(position + offset, 1));
           }}
         >
-          <View key="0">
+          <View key="0" style={styles.page}>
             <Personal />
           </View>
-          <View key="1">
+          <View key="1" style={styles.page}>
             <Social active={activePage === 1} />
+          </View>
+          <View key="2" style={styles.page}>
+            <Dashboard />
           </View>
         </PagerView>
       </SafeAreaView>
@@ -71,5 +75,8 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colours.background,
+  },
+  page: {
+    flex: 1,
   },
 });
