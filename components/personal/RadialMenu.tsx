@@ -25,7 +25,12 @@ const RADIUS = 110;
 const MENU_ITEMS = [
   { key: "new", label: "New", Icon: PencilSimpleIcon, angle: 90 },
   { key: "decks", label: "Decks", Icon: PackageIcon, angle: 135 },
-  { key: "history", label: "History", Icon: ClockCounterClockwiseIcon, angle: 180 },
+  {
+    key: "history",
+    label: "History",
+    Icon: ClockCounterClockwiseIcon,
+    angle: 180,
+  },
 ].map((item) => ({
   ...item,
   translateX: RADIUS * Math.cos((item.angle * Math.PI) / 180),
@@ -34,6 +39,7 @@ const MENU_ITEMS = [
 
 interface RadialMenuProps {
   onNewPress?: () => void;
+  onDecksPress?: () => void;
 }
 
 export interface RadialMenuHandle {
@@ -41,7 +47,7 @@ export interface RadialMenuHandle {
 }
 
 function RadialMenu(
-  { onNewPress }: RadialMenuProps,
+  { onNewPress, onDecksPress }: RadialMenuProps,
   ref: React.ForwardedRef<RadialMenuHandle>,
 ) {
   const [open, setOpen] = useState(false);
@@ -148,6 +154,9 @@ function RadialMenu(
                 if (item.key === "new" && onNewPress) {
                   closeMenu();
                   onNewPress();
+                } else if (item.key === "decks" && onDecksPress) {
+                  closeMenu();
+                  onDecksPress();
                 }
               }}
             >

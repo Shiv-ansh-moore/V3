@@ -78,6 +78,76 @@ export type Database = {
           },
         ]
       }
+      goal_decks: {
+        Row: {
+          created_at: string
+          icon: string
+          id: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          icon: string
+          id?: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          icon?: string
+          id?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "goal_decks_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      goal_deck_items: {
+        Row: {
+          created_at: string
+          deck_id: string
+          icon: string
+          id: string
+          position: number
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          deck_id: string
+          icon: string
+          id?: string
+          position: number
+          title: string
+        }
+        Update: {
+          created_at?: string
+          deck_id?: string
+          icon?: string
+          id?: string
+          position?: number
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "goal_deck_items_deck_id_fkey"
+            columns: ["deck_id"]
+            isOneToOne: false
+            referencedRelation: "goal_decks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       group_members: {
         Row: {
           group_id: string
@@ -606,6 +676,28 @@ export type Database = {
         SetofOptions: {
           from: "*"
           to: "push_tokens"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      save_goal_deck: {
+        Args: {
+          p_deck_id: string | null
+          p_icon: string
+          p_items: Json
+          p_title: string
+        }
+        Returns: {
+          created_at: string
+          icon: string
+          id: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "goal_decks"
           isOneToOne: true
           isSetofReturn: false
         }

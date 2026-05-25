@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   StyleSheet,
   Text,
@@ -21,10 +21,21 @@ import { supabase } from "../../lib/supabase";
 import { useAuth } from "../../lib/AuthContext";
 import { getGoalIconForTitle } from "./goalIconCatalog";
 
+export interface GoalTemplate {
+  title: string;
+  icon: string;
+}
+
+export interface AddGoalPrefill {
+  seedKey: string;
+  goals: GoalTemplate[];
+}
+
 interface AddGoalSheetProps {
   visible: boolean;
   onClose: () => void;
   onGoalCreated?: () => void;
+  prefill?: AddGoalPrefill | null;
 }
 
 interface PendingGoal {
@@ -37,13 +48,31 @@ export default function AddGoalSheet({
   visible,
   onClose,
   onGoalCreated,
+  prefill,
 }: AddGoalSheetProps) {
   const { user } = useAuth();
   const [text, setText] = useState("");
   const inputRef = useRef<TextInput>(null);
+  const lastPrefillKeyRef = useRef<string | null>(null);
   const [goals, setGoals] = useState<PendingGoal[]>([]);
   const [editingGoalId, setEditingGoalId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!visible || !prefill) return;
+    if (prefill.seedKey === lastPrefillKeyRef.current) return;
+
+    setGoals(
+      prefill.goals.map((goal, index) => ({
+        id: `${prefill.seedKey}-${index}`,
+        title: goal.title,
+        icon: goal.icon || getGoalIconForTitle(goal.title),
+      })),
+    );
+    setText("");
+    setEditingGoalId(null);
+    lastPrefillKeyRef.current = prefill.seedKey;
+  }, [prefill, visible]);
 
   const handleAdd = () => {
     const trimmed = text.trim();
@@ -51,7 +80,7 @@ export default function AddGoalSheet({
     setGoals((prev) => [
       ...prev,
       {
-        id: Date.now().toString(),
+        id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
         title: trimmed,
         icon: getGoalIconForTitle(trimmed),
       },
@@ -81,6 +110,7 @@ export default function AddGoalSheet({
     }
     setGoals([]);
     setText("");
+    lastPrefillKeyRef.current = null;
     onGoalCreated?.();
     onClose();
   };

@@ -19,7 +19,8 @@ import { Fonts } from "../constants/Fonts";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { UserIcon, PlusIcon } from "phosphor-react-native";
 import RadialMenu, { type RadialMenuHandle } from "./personal/RadialMenu";
-import AddGoalSheet from "./personal/AddGoalSheet";
+import AddGoalSheet, { type AddGoalPrefill } from "./personal/AddGoalSheet";
+import DecksSheet, { type GoalDeck } from "./personal/DecksSheet";
 import ProofCamera from "./personal/ProofCamera";
 import ProfileSheet from "./personal/ProfileSheet";
 import UnlockAppsMVP from "./personal/UnlockAppsMVP";
@@ -98,6 +99,9 @@ export default function Personal() {
   >({});
   const [nowMs, setNowMs] = useState(() => Date.now());
   const [showAddGoal, setShowAddGoal] = useState(false);
+  const [addGoalPrefill, setAddGoalPrefill] =
+    useState<AddGoalPrefill | null>(null);
+  const [showDecks, setShowDecks] = useState(false);
   const [showProofCamera, setShowProofCamera] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [goalToDelete, setGoalToDelete] = useState<Goal | null>(null);
@@ -253,6 +257,25 @@ export default function Personal() {
   const handleConfirmDeleteGoal = () => {
     if (!goalToDelete || deletingGoalId) return;
     deleteGoal(goalToDelete);
+  };
+
+  const openNewGoalSheet = () => {
+    setAddGoalPrefill({ seedKey: `new-${Date.now()}`, goals: [] });
+    setShowAddGoal(true);
+  };
+
+  const closeAddGoalSheet = () => {
+    setShowAddGoal(false);
+    setAddGoalPrefill(null);
+  };
+
+  const handleUseDeck = (deck: GoalDeck) => {
+    setShowDecks(false);
+    setAddGoalPrefill({
+      seedKey: `deck-${deck.id}-${Date.now()}`,
+      goals: deck.items,
+    });
+    setShowAddGoal(true);
   };
 
   const refreshTodayUnlockTotal = useCallback(async () => {
@@ -848,12 +871,19 @@ export default function Personal() {
 
       <RadialMenu
         ref={radialMenuRef}
-        onNewPress={() => setShowAddGoal(true)}
+        onNewPress={openNewGoalSheet}
+        onDecksPress={() => setShowDecks(true)}
+      />
+      <DecksSheet
+        visible={showDecks}
+        onClose={() => setShowDecks(false)}
+        onUseDeck={handleUseDeck}
       />
       <AddGoalSheet
         visible={showAddGoal}
-        onClose={() => setShowAddGoal(false)}
+        onClose={closeAddGoalSheet}
         onGoalCreated={refreshGoals}
+        prefill={addGoalPrefill}
       />
       <ProofCamera
         visible={showProofCamera}
