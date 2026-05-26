@@ -17,22 +17,21 @@ import React, { useState } from "react";
 import { Image } from "expo-image";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { ArrowCounterClockwiseIcon, CheckIcon } from "phosphor-react-native";
-import { File } from "expo-file-system";
 import { Colours } from "../../constants/Colours";
 import { Fonts } from "../../constants/Fonts";
-import { supabase } from "../../lib/supabase";
 import { useAuth } from "../../lib/AuthContext";
+import { submitProof, type ProofSubmissionTarget } from "../../lib/proofs";
 
 interface ProofPreviewProps {
   photoUri: string;
-  goalId: string;
+  target: ProofSubmissionTarget;
   onRetake: () => void;
   onSubmitted: () => void;
 }
 
 export default function ProofPreview({
   photoUri,
-  goalId,
+  target,
   onRetake,
   onSubmitted,
 }: ProofPreviewProps) {
@@ -44,31 +43,12 @@ export default function ProofPreview({
     if (!user || submitting) return;
     setSubmitting(true);
     try {
-      const arrayBuffer = await new File(photoUri).arrayBuffer();
-      const path = `${user.id}/${goalId}-${Date.now()}.jpg`;
-
-      const { error: uploadError } = await supabase.storage
-        .from("proofs")
-        .upload(path, arrayBuffer, { contentType: "image/jpeg" });
-      if (uploadError) throw uploadError;
-
-      const trimmedCaption = caption.trim();
-      const { error: insertError } = await supabase.from("proofs").insert({
-        goal_id: goalId,
-        user_id: user.id,
-        image_path: path,
-        ...(trimmedCaption ? { caption: trimmedCaption } : {}),
+      await submitProof({
+        userId: user.id,
+        photoUri,
+        caption,
+        target,
       });
-      if (insertError) {
-        await supabase.storage
-          .from("proofs")
-          .remove([path])
-          .catch((e) =>
-            console.log("[proofs] cleanup after failed insert:", e),
-          );
-        throw insertError;
-      }
-
       setCaption("");
       onSubmitted();
     } catch (e) {

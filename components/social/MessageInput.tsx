@@ -18,6 +18,7 @@ interface MessageInputProps {
   onClearReply?: () => void;
   inputRef?: React.RefObject<TextInput | null>;
   onSend?: (text: string) => Promise<void> | void;
+  onQuickProofPress?: () => void;
   onReplyUserPress?: (userId: string) => void;
 }
 
@@ -26,6 +27,7 @@ export default function MessageInput({
   onClearReply,
   inputRef,
   onSend,
+  onQuickProofPress,
   onReplyUserPress,
 }: MessageInputProps) {
   const [text, setText] = React.useState("");
@@ -65,7 +67,12 @@ export default function MessageInput({
         />
       )}
       <View style={styles.container}>
-        <Pressable style={styles.plusButton}>
+        <Pressable
+          style={styles.plusButton}
+          accessibilityRole="button"
+          accessibilityLabel="Start quick proof"
+          onPress={onQuickProofPress}
+        >
           <PlusIcon size={22} color={Colours.text} weight="bold" />
         </Pressable>
 

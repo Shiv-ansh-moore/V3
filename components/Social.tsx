@@ -13,6 +13,10 @@ import ScreenTimeLog from "./social/ScreenTimeLog";
 import LongPressSheet from "./social/LongPressSheet";
 import MessageInput, { ReplyInfo } from "./social/MessageInput";
 import StoryViewer, { StoryProof } from "./social/StoryViewer";
+import QuickProofGoalSheet, {
+  type QuickProofGoalDraft,
+} from "./social/QuickProofGoalSheet";
+import ProofCamera, { type ProofCameraTarget } from "./personal/ProofCamera";
 import { FlatList } from "react-native-gesture-handler";
 import { Colours } from "../constants/Colours";
 import { ReplyQuoteProps } from "./social/ReplyQuote";
@@ -257,6 +261,9 @@ export default function Social({ active = true }: SocialProps) {
     {},
   );
   const [overviewUserId, setOverviewUserId] = useState<string | null>(null);
+  const [quickProofSheetVisible, setQuickProofSheetVisible] = useState(false);
+  const [quickProofTarget, setQuickProofTarget] =
+    useState<ProofCameraTarget | null>(null);
   const signedProofImageUrlsRef = useRef(new Map<string, SignedProofImageUrl>());
   const reversedFeed = useMemo(() => [...feed].reverse(), [feed]);
   const selectedStoryMember =
@@ -705,6 +712,33 @@ export default function Social({ active = true }: SocialProps) {
     setOverviewUserId(userId);
   }, []);
 
+  const openQuickProofSheet = useCallback(() => {
+    Keyboard.dismiss();
+    setReplyingTo(null);
+    setQuickProofSheetVisible(true);
+  }, []);
+
+  const closeQuickProofSheet = useCallback(() => {
+    setQuickProofSheetVisible(false);
+  }, []);
+
+  const startQuickProofCamera = useCallback((draft: QuickProofGoalDraft) => {
+    setQuickProofSheetVisible(false);
+    setQuickProofTarget({
+      kind: "quick",
+      goalName: draft.title,
+      goalIcon: draft.icon,
+    });
+  }, []);
+
+  const closeQuickProofCamera = useCallback(() => {
+    setQuickProofTarget(null);
+  }, []);
+
+  const handleQuickProofSubmitted = useCallback(() => {
+    void refreshFeed();
+  }, [refreshFeed]);
+
   const openStoriesForMember = useCallback(
     (member: AvatarRowMember) => {
       const stories = storiesByUser[member.id] ?? [];
@@ -1002,6 +1036,7 @@ export default function Social({ active = true }: SocialProps) {
             onClearReply={clearReply}
             inputRef={inputRef}
             onSend={handleSendMessage}
+            onQuickProofPress={openQuickProofSheet}
             onReplyUserPress={openMemberOverview}
           />
         </View>
@@ -1043,6 +1078,17 @@ export default function Social({ active = true }: SocialProps) {
         userId={overviewUserId}
         hint={overviewHint}
         onClose={() => setOverviewUserId(null)}
+      />
+      <QuickProofGoalSheet
+        visible={quickProofSheetVisible}
+        onClose={closeQuickProofSheet}
+        onSubmit={startQuickProofCamera}
+      />
+      <ProofCamera
+        visible={quickProofTarget !== null}
+        target={quickProofTarget}
+        onClose={closeQuickProofCamera}
+        onProofSubmitted={handleQuickProofSubmitted}
       />
     </>
   );

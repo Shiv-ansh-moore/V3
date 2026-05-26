@@ -8,20 +8,29 @@ import { Fonts } from "../../constants/Fonts";
 import GoalIcon from "./GoalIcon";
 import ProofPreview from "./ProofPreview";
 
+export type ProofCameraTarget =
+  | {
+      kind: "existing";
+      goalId: string;
+      goalName: string;
+      goalIcon: string;
+    }
+  | {
+      kind: "quick";
+      goalName: string;
+      goalIcon: string;
+    };
+
 interface ProofCameraProps {
   visible: boolean;
-  goalId: string | null;
-  goalName: string;
-  goalIcon: string;
+  target: ProofCameraTarget | null;
   onClose: () => void;
   onProofSubmitted: () => void;
 }
 
 export default function ProofCamera({
   visible,
-  goalId,
-  goalName,
-  goalIcon,
+  target,
   onClose,
   onProofSubmitted,
 }: ProofCameraProps) {
@@ -32,6 +41,16 @@ export default function ProofCamera({
   const [showPreview, setShowPreview] = useState(false);
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [permission, requestPermission] = useCameraPermissions();
+  const modalVisible = visible && target !== null;
+  const proofTarget = target
+    ? target.kind === "existing"
+      ? { kind: "existing" as const, goalId: target.goalId }
+      : {
+          kind: "quick" as const,
+          title: target.goalName,
+          icon: target.goalIcon,
+        }
+    : null;
 
   const handleClose = () => {
     setAnimType("none");
@@ -48,7 +67,7 @@ export default function ProofCamera({
   if (!permission) {
     return (
       <Modal
-        visible={visible}
+        visible={modalVisible}
         animationType={animType}
         presentationStyle="fullScreen"
         onRequestClose={handleClose}
@@ -62,7 +81,7 @@ export default function ProofCamera({
   if (!permission.granted) {
     return (
       <Modal
-        visible={visible}
+        visible={modalVisible}
         animationType={animType}
         presentationStyle="fullScreen"
         onRequestClose={handleClose}
@@ -85,7 +104,7 @@ export default function ProofCamera({
 
   return (
     <Modal
-      visible={visible}
+      visible={modalVisible}
       animationType={animType}
       presentationStyle="fullScreen"
       onRequestClose={handleClose}
@@ -101,12 +120,12 @@ export default function ProofCamera({
                 <View style={styles.headerSide} />
                 <View style={styles.headerPill}>
                   <GoalIcon
-                    name={goalIcon}
+                    name={target?.goalIcon ?? ""}
                     size={20}
                     color={Colours.brand}
                     weight="bold"
                   />
-                  <Text style={styles.headerTitle}>{goalName}</Text>
+                  <Text style={styles.headerTitle}>{target?.goalName ?? ""}</Text>
                 </View>
                 <View style={styles.headerSide}>
                   <TouchableOpacity
@@ -156,10 +175,10 @@ export default function ProofCamera({
             </TouchableOpacity>
           </View>
 
-          {showPreview && goalId && (
+          {showPreview && photoUri && proofTarget && (
             <ProofPreview
-              photoUri={photoUri!}
-              goalId={goalId}
+              photoUri={photoUri}
+              target={proofTarget}
               onRetake={() => {
                 setShowPreview(false);
                 setPhotoUri(null);
