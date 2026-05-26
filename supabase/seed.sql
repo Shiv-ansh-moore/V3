@@ -2,6 +2,9 @@ begin;
 
 create extension if not exists pgcrypto;
 
+do $seed$
+begin
+
 create temporary table seed_demo_users (
   id uuid primary key,
   identity_id uuid not null unique,
@@ -978,5 +981,8 @@ select
 from seed_reactions reaction
 cross join seed_target_group target
 on conflict (message_id, user_id, emoji) do nothing;
+
+end
+$seed$;
 
 commit;
