@@ -18,12 +18,19 @@ import {
 } from "react-native";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import * as Clipboard from "expo-clipboard";
+import { Image } from "expo-image";
+import * as ImagePicker from "expo-image-picker";
+import { ImageManipulator, SaveFormat } from "expo-image-manipulator";
+import { File } from "expo-file-system";
 import {
   AppWindowIcon,
   CaretRightIcon,
+  CameraIcon,
   CopyIcon,
+  ImageIcon,
   SignOutIcon,
   UserMinusIcon,
+  UserIcon,
   UsersThreeIcon,
 } from "phosphor-react-native";
 import { Colours } from "../../constants/Colours";
@@ -45,7 +52,12 @@ const handleSignOut = async () => {
 
 const PICKER_OPEN_HEIGHT = 0.7;
 const PICKER_SEARCH_HEIGHT = 0.48;
+const PROFILE_AVATAR_SIZE = 96;
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
+function getInitial(displayName: string | null | undefined) {
+  return displayName?.trim().charAt(0).toUpperCase() || "?";
+}
 
 interface ProfileSheetProps {
   visible: boolean;
@@ -53,7 +65,7 @@ interface ProfileSheetProps {
 }
 
 export default function ProfileSheet({ visible, onClose }: ProfileSheetProps) {
-  const { group, user, refreshGroup } = useAuth();
+  const { group, user, profile, refreshGroup, refreshProfile } = useAuth();
   const { height: windowHeight } = useWindowDimensions();
   const searchInputRef = useRef<TextInput>(null);
   const pickerHeightProgress = useRef(
@@ -61,6 +73,7 @@ export default function ProfileSheet({ visible, onClose }: ProfileSheetProps) {
   ).current;
   const [showAndroidPicker, setShowAndroidPicker] = useState(false);
   const [showGroupOptions, setShowGroupOptions] = useState(false);
+  const [showPersonalSettings, setShowPersonalSettings] = useState(false);
   const [androidApps, setAndroidApps] = useState<AndroidAppInfo[]>([]);
   const [selectedPackages, setSelectedPackages] = useState<Set<string>>(
     new Set(),
@@ -71,6 +84,14 @@ export default function ProfileSheet({ visible, onClose }: ProfileSheetProps) {
   const [searchFocused, setSearchFocused] = useState(false);
   const [copiedInviteCode, setCopiedInviteCode] = useState(false);
   const [leavingGroup, setLeavingGroup] = useState(false);
+  const [displayName, setDisplayName] = useState(profile?.display_name ?? "");
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(
+    profile?.avatar_url ?? null,
+  );
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const [avatarPickerOpen, setAvatarPickerOpen] = useState(false);
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileError, setProfileError] = useState<string | null>(null);
   const filteredAndroidApps = androidApps.filter((app) => {
     const query = searchQuery.trim().toLowerCase();
     if (!query) return true;
@@ -80,6 +101,24 @@ export default function ProfileSheet({ visible, onClose }: ProfileSheetProps) {
       app.packageName.toLowerCase().includes(query)
     );
   });
+  const canSaveProfile =
+    displayName.trim().length > 0 && !profileSaving && !avatarUploading;
+
+  useEffect(() => {
+    if (!visible) {
+      setShowPersonalSettings(false);
+      setAvatarPickerOpen(false);
+      setShowGroupOptions(false);
+      setShowAndroidPicker(false);
+    }
+  }, [visible]);
+
+  useEffect(() => {
+    if (!showPersonalSettings) return;
+    setDisplayName(profile?.display_name ?? "");
+    setAvatarUrl(profile?.avatar_url ?? null);
+    setProfileError(null);
+  }, [profile?.avatar_url, profile?.display_name, showPersonalSettings]);
 
   useEffect(() => {
     Animated.timing(pickerHeightProgress, {
@@ -169,6 +208,119 @@ export default function ProfileSheet({ visible, onClose }: ProfileSheetProps) {
     setCopiedInviteCode(false);
   };
 
+  const openPersonalSettings = () => {
+    setDisplayName(profile?.display_name ?? "");
+    setAvatarUrl(profile?.avatar_url ?? null);
+    setProfileError(null);
+    setShowPersonalSettings(true);
+  };
+
+  const closePersonalSettings = () => {
+    if (profileSaving || avatarUploading) return;
+    setShowPersonalSettings(false);
+    setAvatarPickerOpen(false);
+    setProfileError(null);
+  };
+
+  const uploadAvatar = async (uri: string) => {
+    if (!user) return;
+    setProfileError(null);
+    setAvatarUploading(true);
+    try {
+      const ref = await ImageManipulator.manipulate(uri)
+        .resize({ width: 512, height: 512 })
+        .renderAsync();
+      const resized = await ref.saveAsync({
+        compress: 0.85,
+        format: SaveFormat.JPEG,
+      });
+      const arrayBuffer = await new File(resized.uri).arrayBuffer();
+      const path = `${user.id}/avatar.jpg`;
+      const { error: uploadError } = await supabase.storage
+        .from("avatars")
+        .upload(path, arrayBuffer, {
+          contentType: "image/jpeg",
+          upsert: true,
+        });
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage.from("avatars").getPublicUrl(path);
+      setAvatarUrl(`${data.publicUrl}?v=${Date.now()}`);
+    } catch (e) {
+      setProfileError(e instanceof Error ? e.message : "Could not upload photo");
+    } finally {
+      setAvatarUploading(false);
+    }
+  };
+
+  const pickAvatarFromLibrary = async () => {
+    setAvatarPickerOpen(false);
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) {
+      setProfileError("Photo library access denied");
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 1,
+    });
+    if (!result.canceled) {
+      await uploadAvatar(result.assets[0].uri);
+    }
+  };
+
+  const takeAvatarPhoto = async () => {
+    setAvatarPickerOpen(false);
+    const perm = await ImagePicker.requestCameraPermissionsAsync();
+    if (!perm.granted) {
+      setProfileError("Camera access denied");
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 1,
+      cameraType: ImagePicker.CameraType.front,
+    });
+    if (!result.canceled) {
+      await uploadAvatar(result.assets[0].uri);
+    }
+  };
+
+  const savePersonalSettings = async () => {
+    if (!user || !canSaveProfile) return;
+
+    const trimmedDisplayName = displayName.trim();
+    if (!trimmedDisplayName) {
+      setProfileError("Display name cannot be empty");
+      return;
+    }
+
+    setProfileError(null);
+    setProfileSaving(true);
+    const { error } = await supabase
+      .from("profiles")
+      .update({
+        display_name: trimmedDisplayName,
+        avatar_url: avatarUrl,
+      })
+      .eq("id", user.id);
+
+    if (error) {
+      setProfileError(error.message);
+      setProfileSaving(false);
+      return;
+    }
+
+    await refreshProfile();
+    setProfileSaving(false);
+    setShowPersonalSettings(false);
+  };
+
   const copyInviteCode = async () => {
     if (!group?.invite_code) return;
     await Clipboard.setStringAsync(group.invite_code);
@@ -217,6 +369,18 @@ export default function ProfileSheet({ visible, onClose }: ProfileSheetProps) {
       <Pressable style={styles.overlay} onPress={onClose}>
         <Pressable style={styles.sheet}>
           <Text style={styles.title}>Settings</Text>
+
+          <TouchableOpacity style={styles.row} onPress={openPersonalSettings}>
+            <View style={styles.iconBox}>
+              <UserIcon size={20} weight="bold" color={Colours.text} />
+            </View>
+            <Text style={styles.rowLabel}>Personal Settings</Text>
+            <CaretRightIcon
+              size={16}
+              weight="bold"
+              color={Colours.secondaryText}
+            />
+          </TouchableOpacity>
 
           <TouchableOpacity style={styles.row} onPress={handleManageBlockedApps}>
             <View style={styles.iconBox}>
@@ -395,6 +559,149 @@ export default function ProfileSheet({ visible, onClose }: ProfileSheetProps) {
           </Pressable>
         </Pressable>
       </Modal>
+
+      <Modal
+        visible={showPersonalSettings}
+        transparent
+        animationType="slide"
+        onRequestClose={closePersonalSettings}
+      >
+        <Pressable style={styles.overlay} onPress={closePersonalSettings}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === "ios" ? "padding" : undefined}
+            style={styles.profileAvoidingView}
+          >
+            <Pressable style={styles.sheet}>
+              <Text style={styles.title}>Personal Settings</Text>
+
+              <View style={styles.profileContent}>
+                <TouchableOpacity
+                  style={styles.avatarButton}
+                  onPress={() => {
+                    if (!avatarUploading) setAvatarPickerOpen(true);
+                  }}
+                  activeOpacity={0.8}
+                >
+                  {avatarUrl ? (
+                    <Image
+                      source={{ uri: avatarUrl }}
+                      style={styles.avatarImage}
+                      contentFit="cover"
+                    />
+                  ) : (
+                    <Text style={styles.avatarInitial}>
+                      {getInitial(displayName || profile?.username)}
+                    </Text>
+                  )}
+                  {avatarUploading && (
+                    <View style={styles.avatarOverlay}>
+                      <ActivityIndicator color={Colours.text} />
+                    </View>
+                  )}
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.changePhotoButton}
+                  onPress={() => {
+                    if (!avatarUploading) setAvatarPickerOpen(true);
+                  }}
+                  disabled={avatarUploading}
+                >
+                  <CameraIcon size={17} weight="bold" color={Colours.text} />
+                  <Text style={styles.changePhotoText}>
+                    {avatarUploading ? "Uploading" : "Change photo"}
+                  </Text>
+                </TouchableOpacity>
+
+                <View style={styles.fieldGroup}>
+                  <Text style={styles.fieldLabel}>Display Name</Text>
+                  <TextInput
+                    value={displayName}
+                    onChangeText={setDisplayName}
+                    placeholder="Display name"
+                    placeholderTextColor={Colours.secondaryText}
+                    autoCapitalize="words"
+                    autoCorrect={false}
+                    maxLength={40}
+                    style={styles.profileInput}
+                  />
+                </View>
+
+                {profileError && (
+                  <Text style={styles.profileError}>{profileError}</Text>
+                )}
+
+                <View style={styles.profileActions}>
+                  <TouchableOpacity
+                    style={styles.cancelButton}
+                    onPress={closePersonalSettings}
+                    disabled={profileSaving || avatarUploading}
+                  >
+                    <Text style={styles.cancelButtonText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.primaryButton,
+                      !canSaveProfile && styles.primaryButtonDisabled,
+                    ]}
+                    onPress={savePersonalSettings}
+                    disabled={!canSaveProfile}
+                  >
+                    <Text style={styles.primaryButtonText}>
+                      {profileSaving ? "Saving" : "Save"}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </Pressable>
+          </KeyboardAvoidingView>
+        </Pressable>
+      </Modal>
+
+      <Modal
+        visible={avatarPickerOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setAvatarPickerOpen(false)}
+      >
+        <Pressable
+          style={styles.overlay}
+          onPress={() => setAvatarPickerOpen(false)}
+        >
+          <Pressable style={styles.photoSheet}>
+            <View style={styles.sheetHandle} />
+            <Text style={styles.photoSheetTitle}>Profile picture</Text>
+
+            <TouchableOpacity
+              style={styles.photoRow}
+              onPress={takeAvatarPhoto}
+              disabled={avatarUploading}
+            >
+              <View style={styles.photoIcon}>
+                <CameraIcon size={22} color={Colours.brand} weight="regular" />
+              </View>
+              <Text style={styles.photoRowText}>Take photo</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.photoRow}
+              onPress={pickAvatarFromLibrary}
+              disabled={avatarUploading}
+            >
+              <View style={styles.photoIcon}>
+                <ImageIcon size={22} color={Colours.brand} weight="regular" />
+              </View>
+              <Text style={styles.photoRowText}>Choose from library</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.photoCancel}
+              onPress={() => setAvatarPickerOpen(false)}
+            >
+              <Text style={styles.photoCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </Modal>
   );
 }
@@ -494,6 +801,181 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontFamily: Fonts.medium,
     color: "#FF5A5A",
+  },
+  profileAvoidingView: {
+    flex: 1,
+    justifyContent: "flex-end",
+  },
+  profileContent: {
+    paddingHorizontal: 19,
+    paddingBottom: 4,
+    alignItems: "center",
+  },
+  avatarButton: {
+    width: PROFILE_AVATAR_SIZE,
+    height: PROFILE_AVATAR_SIZE,
+    borderRadius: PROFILE_AVATAR_SIZE / 2,
+    backgroundColor: Colours.cardHighlight,
+    borderWidth: 1,
+    borderColor: "#333",
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+    marginTop: 4,
+  },
+  avatarImage: {
+    width: "100%",
+    height: "100%",
+  },
+  avatarInitial: {
+    fontSize: 34,
+    fontFamily: Fonts.bold,
+    color: Colours.brand,
+  },
+  avatarOverlay: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(0,0,0,0.45)",
+  },
+  changePhotoButton: {
+    minHeight: 40,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 7,
+    borderRadius: 8,
+    backgroundColor: Colours.cardHighlight,
+    paddingHorizontal: 14,
+    marginTop: 12,
+    marginBottom: 18,
+  },
+  changePhotoText: {
+    fontSize: 14,
+    fontFamily: Fonts.bold,
+    color: Colours.text,
+  },
+  fieldGroup: {
+    width: "100%",
+    gap: 8,
+  },
+  fieldLabel: {
+    fontSize: 12,
+    fontFamily: Fonts.medium,
+    color: Colours.secondaryText,
+    textTransform: "uppercase",
+  },
+  profileInput: {
+    minHeight: 48,
+    borderRadius: 10,
+    backgroundColor: Colours.cardHighlight,
+    paddingHorizontal: 14,
+    fontSize: 16,
+    fontFamily: Fonts.regular,
+    color: Colours.text,
+  },
+  profileError: {
+    alignSelf: "flex-start",
+    fontSize: 13,
+    fontFamily: Fonts.medium,
+    color: "#FF5A5A",
+    marginTop: 12,
+  },
+  profileActions: {
+    width: "100%",
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 18,
+  },
+  cancelButton: {
+    flex: 1,
+    minHeight: 46,
+    borderRadius: 10,
+    backgroundColor: Colours.cardHighlight,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  cancelButtonText: {
+    fontSize: 14,
+    fontFamily: Fonts.bold,
+    color: Colours.text,
+  },
+  primaryButton: {
+    flex: 1,
+    minHeight: 46,
+    borderRadius: 10,
+    backgroundColor: Colours.brand,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  primaryButtonDisabled: {
+    backgroundColor: Colours.fadedBrand,
+    opacity: 0.75,
+  },
+  primaryButtonText: {
+    fontSize: 14,
+    fontFamily: Fonts.bold,
+    color: Colours.text,
+  },
+  photoSheet: {
+    backgroundColor: Colours.card,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingTop: 8,
+    paddingBottom: 34,
+    paddingHorizontal: 12,
+  },
+  sheetHandle: {
+    alignSelf: "center",
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: Colours.cardHighlight,
+    marginBottom: 12,
+  },
+  photoSheetTitle: {
+    fontFamily: Fonts.semiBold,
+    fontSize: 16,
+    color: Colours.text,
+    paddingHorizontal: 7,
+    marginBottom: 6,
+  },
+  photoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 13,
+    paddingHorizontal: 7,
+  },
+  photoIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: Colours.cardHighlight,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  photoRowText: {
+    fontFamily: Fonts.medium,
+    fontSize: 15,
+    color: Colours.text,
+  },
+  photoCancel: {
+    marginTop: 4,
+    height: 44,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: Colours.cardHighlight,
+  },
+  photoCancelText: {
+    fontFamily: Fonts.semiBold,
+    fontSize: 15,
+    color: Colours.secondaryText,
   },
   pickerSheet: {
     backgroundColor: Colours.card,
