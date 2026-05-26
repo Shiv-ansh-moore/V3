@@ -7,6 +7,7 @@ import ReplyBar from "./ReplyBar";
 
 export interface ReplyInfo {
   id?: string;
+  userId?: string;
   userName: string;
   userColour: string;
   text: string;
@@ -17,6 +18,7 @@ interface MessageInputProps {
   onClearReply?: () => void;
   inputRef?: React.RefObject<TextInput | null>;
   onSend?: (text: string) => Promise<void> | void;
+  onReplyUserPress?: (userId: string) => void;
 }
 
 export default function MessageInput({
@@ -24,10 +26,12 @@ export default function MessageInput({
   onClearReply,
   inputRef,
   onSend,
+  onReplyUserPress,
 }: MessageInputProps) {
   const [text, setText] = React.useState("");
   const [sending, setSending] = React.useState(false);
   const canSend = text.trim().length > 0 && !sending;
+  const replyUserId = replyingTo?.userId;
 
   const handleSend = async () => {
     if (!canSend) return;
@@ -55,6 +59,9 @@ export default function MessageInput({
           userColour={replyingTo.userColour}
           text={replyingTo.text}
           onDismiss={onClearReply}
+          onNamePress={
+            replyUserId ? () => onReplyUserPress?.(replyUserId) : undefined
+          }
         />
       )}
       <View style={styles.container}>

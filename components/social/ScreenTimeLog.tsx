@@ -20,6 +20,7 @@ interface ScreenTimeLogProps {
   currentUserId?: string;
   onDoubleTap?: () => void;
   onLongPress?: () => void;
+  onNamePress?: () => void;
 }
 
 export default function ScreenTimeLog({
@@ -34,6 +35,7 @@ export default function ScreenTimeLog({
   currentUserId,
   onDoubleTap,
   onLongPress,
+  onNamePress,
 }: ScreenTimeLogProps) {
   const isUnlock = type === "unlock";
   const label = isUnlock
@@ -58,32 +60,41 @@ export default function ScreenTimeLog({
 
   return (
     <GestureDetector gesture={Gesture.Race(longPress, doubleTap)}>
-    <View style={styles.container}>
-      {isUnlock ? (
-        <LockSimpleOpenIcon
-          size={20}
-          color={Colours.secondaryText}
-          weight="fill"
-        />
-      ) : (
-        <LockSimpleIcon size={20} color={Colours.secondaryText} weight="fill" />
-      )}
-      <Text style={styles.text}>
-        <Text style={[styles.name, { color: nameColour }]}>{name}</Text>
-        <Text style={styles.desc}>
-          {isUnlock ? " unlocked " : " locked "}
-          {label}
+      <View style={styles.container}>
+        {isUnlock ? (
+          <LockSimpleOpenIcon
+            size={20}
+            color={Colours.secondaryText}
+            weight="fill"
+          />
+        ) : (
+          <LockSimpleIcon
+            size={20}
+            color={Colours.secondaryText}
+            weight="fill"
+          />
+        )}
+        <Text style={styles.text}>
+          <Text
+            style={[styles.name, { color: nameColour }]}
+            onPress={onNamePress}
+          >
+            {name}
+          </Text>
+          <Text style={styles.desc}>
+            {isUnlock ? " unlocked " : " locked "}
+            {label}
+          </Text>
         </Text>
-      </Text>
-      {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
-      {reactions && (
-        <ReactionRow
-          reactions={reactions}
-          currentUserId={currentUserId}
-          centred
-        />
-      )}
-    </View>
+        {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+        {reactions && (
+          <ReactionRow
+            reactions={reactions}
+            currentUserId={currentUserId}
+            centred
+          />
+        )}
+      </View>
     </GestureDetector>
   );
 }

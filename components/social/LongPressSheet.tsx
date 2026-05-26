@@ -34,6 +34,7 @@ interface LongPressSheetProps {
   onClose: () => void;
   onReact: (emoji: string) => void | Promise<void>;
   onReply: () => void;
+  onUserPress?: () => void;
 }
 
 export default function LongPressSheet({
@@ -45,6 +46,7 @@ export default function LongPressSheet({
   onClose,
   onReact,
   onReply,
+  onUserPress,
 }: LongPressSheetProps) {
   const sheetOffset = useRef(new Animated.Value(-SHEET_MAX)).current;
 
@@ -74,6 +76,12 @@ export default function LongPressSheet({
   const handleReply = () => {
     onClose();
     setTimeout(() => onReply(), 50);
+  };
+
+  const handleUserPress = () => {
+    if (!onUserPress) return;
+    onClose();
+    setTimeout(() => onUserPress(), 180);
   };
 
   if (!item) return null;
@@ -110,7 +118,10 @@ export default function LongPressSheet({
                   />
                   <View style={styles.quoteContent}>
                     <View style={styles.quoteHeader}>
-                      <Text style={[styles.quoteName, { color: userColour }]}>
+                      <Text
+                        style={[styles.quoteName, { color: userColour }]}
+                        onPress={handleUserPress}
+                      >
                         {userName}
                       </Text>
                       <Text style={styles.quoteTimestamp}>
@@ -131,7 +142,10 @@ export default function LongPressSheet({
                   />
                   <View style={styles.quoteContent}>
                     <View style={styles.quoteHeader}>
-                      <Text style={[styles.quoteName, { color: userColour }]}>
+                      <Text
+                        style={[styles.quoteName, { color: userColour }]}
+                        onPress={handleUserPress}
+                      >
                         {userName}
                       </Text>
                       <Text style={styles.quoteTimestamp}>
@@ -186,7 +200,10 @@ export default function LongPressSheet({
                       )}
                     </View>
                     <Text style={styles.quoteActivityLine} numberOfLines={1}>
-                      <Text style={[styles.quoteName, { color: userColour }]}>
+                      <Text
+                        style={[styles.quoteName, { color: userColour }]}
+                        onPress={handleUserPress}
+                      >
                         {userName}{" "}
                       </Text>
                       <Text style={styles.quoteText}>

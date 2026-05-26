@@ -19,6 +19,7 @@ interface CompletedCardProps {
   currentUserId?: string;
   onDoubleTap?: () => void;
   onLongPress?: () => void;
+  onNamePress?: () => void;
 }
 
 export default function CompletedCard({
@@ -32,6 +33,7 @@ export default function CompletedCard({
   currentUserId,
   onDoubleTap,
   onLongPress,
+  onNamePress,
 }: CompletedCardProps) {
   const longPress = Gesture.LongPress()
     .minDuration(400)
@@ -50,32 +52,37 @@ export default function CompletedCard({
 
   return (
     <GestureDetector gesture={Gesture.Race(longPress, doubleTap)}>
-    <View style={styles.outer}>
-      <View style={styles.container}>
-        <View style={styles.nameRow}>
-          <Text style={[styles.name, { color: nameColour }]}>{name}</Text>
-          <Text style={styles.timestamp}>{timestamp}</Text>
+      <View style={styles.outer}>
+        <View style={styles.container}>
+          <View style={styles.nameRow}>
+            <Text
+              style={[styles.name, { color: nameColour }]}
+              onPress={onNamePress}
+            >
+              {name}
+            </Text>
+            <Text style={styles.timestamp}>{timestamp}</Text>
+          </View>
+          <Text style={styles.completed}>Completed</Text>
+          <View style={styles.imageWrapper}>
+            {photoUri ? (
+              <Image
+                source={{ uri: photoUri }}
+                cachePolicy="memory-disk"
+                contentFit="cover"
+                style={styles.image}
+              />
+            ) : (
+              <View style={styles.placeholder} />
+            )}
+          </View>
+          <Text style={styles.goalTitle}>{goalTitle}</Text>
+          {caption ? <Text style={styles.caption}>{caption}</Text> : null}
         </View>
-        <Text style={styles.completed}>Completed</Text>
-        <View style={styles.imageWrapper}>
-          {photoUri ? (
-            <Image
-              source={{ uri: photoUri }}
-              cachePolicy="memory-disk"
-              contentFit="cover"
-              style={styles.image}
-            />
-          ) : (
-            <View style={styles.placeholder} />
-          )}
-        </View>
-        <Text style={styles.goalTitle}>{goalTitle}</Text>
-        {caption ? <Text style={styles.caption}>{caption}</Text> : null}
+        {reactions && (
+          <ReactionRow reactions={reactions} currentUserId={currentUserId} />
+        )}
       </View>
-      {reactions && (
-        <ReactionRow reactions={reactions} currentUserId={currentUserId} />
-      )}
-    </View>
     </GestureDetector>
   );
 }

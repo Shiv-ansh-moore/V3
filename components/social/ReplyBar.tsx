@@ -9,6 +9,7 @@ interface ReplyBarProps {
   userColour: string;
   text: string;
   onDismiss: () => void;
+  onNamePress?: () => void;
 }
 
 export default function ReplyBar({
@@ -16,12 +17,15 @@ export default function ReplyBar({
   userColour,
   text,
   onDismiss,
+  onNamePress,
 }: ReplyBarProps) {
   return (
     <View style={styles.container}>
       <View style={[styles.accentBar, { backgroundColor: userColour }]} />
       <View style={styles.content}>
-        <Text style={[styles.name, { color: userColour }]}>{userName}</Text>
+        <Text style={[styles.name, { color: userColour }]} onPress={onNamePress}>
+          {userName}
+        </Text>
         <Text style={styles.text} numberOfLines={1}>
           {text}
         </Text>

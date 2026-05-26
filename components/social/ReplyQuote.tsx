@@ -6,6 +6,7 @@ import { Fonts } from "../../constants/Fonts";
 import { Colours } from "../../constants/Colours";
 
 export interface ReplyQuoteProps {
+  userId?: string;
   userName: string;
   userColour: string;
   text: string;
@@ -13,13 +14,22 @@ export interface ReplyQuoteProps {
   photoUri?: string | null;
   caption?: string | null;
   activityType?: "lock" | "unlock";
+  onNamePress?: () => void;
 }
 
-function TextQuote({ userName, userColour, text, timestamp }: ReplyQuoteProps) {
+function TextQuote({
+  userName,
+  userColour,
+  text,
+  timestamp,
+  onNamePress,
+}: ReplyQuoteProps) {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={[styles.name, { color: userColour }]}>{userName}</Text>
+        <Text style={[styles.name, { color: userColour }]} onPress={onNamePress}>
+          {userName}
+        </Text>
         {timestamp && <Text style={styles.timestamp}>{timestamp}</Text>}
       </View>
       <Text style={styles.text} numberOfLines={1}>
@@ -36,12 +46,18 @@ function PhotoQuote({
   timestamp,
   photoUri,
   caption,
+  onNamePress,
 }: ReplyQuoteProps) {
   return (
     <View style={styles.photoContainer}>
       <View style={styles.photoCard}>
         <View style={styles.header}>
-          <Text style={[styles.name, { color: userColour }]}>{userName}</Text>
+          <Text
+            style={[styles.name, { color: userColour }]}
+            onPress={onNamePress}
+          >
+            {userName}
+          </Text>
           {timestamp && <Text style={styles.timestamp}>{timestamp}</Text>}
         </View>
         <Text style={styles.completedLabel}>Completed</Text>
@@ -69,6 +85,7 @@ function ActivityQuote({
   userColour,
   text,
   activityType,
+  onNamePress,
 }: ReplyQuoteProps) {
   return (
     <View style={styles.container}>
@@ -80,7 +97,12 @@ function ActivityQuote({
         )}
       </View>
       <Text style={styles.activityLine} numberOfLines={1}>
-        <Text style={[styles.name, { color: userColour }]}>{userName} </Text>
+        <Text
+          style={[styles.name, { color: userColour }]}
+          onPress={onNamePress}
+        >
+          {userName}{" "}
+        </Text>
         <Text style={styles.text}>{text}</Text>
       </Text>
     </View>

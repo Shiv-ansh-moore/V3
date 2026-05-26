@@ -49,6 +49,7 @@ interface StoryViewerProps {
   onClose: () => void;
   onComplete: () => void;
   onProofViewed: (proofId: string) => void;
+  onMemberPress?: () => void;
 }
 
 function formatStoryTime(value: string): string {
@@ -72,6 +73,7 @@ export default function StoryViewer({
   onClose,
   onComplete,
   onProofViewed,
+  onMemberPress,
 }: StoryViewerProps) {
   const { user } = useAuth();
   const [index, setIndex] = useState(initialIndex);
@@ -293,7 +295,11 @@ export default function StoryViewer({
               <View style={styles.topOverlay} pointerEvents="box-none">
                 <View style={styles.progressRow}>{progressSegments}</View>
                 <View style={styles.header}>
-                  <View style={styles.headerIdentity}>
+                  <Pressable
+                    style={styles.headerIdentity}
+                    onPress={onMemberPress}
+                    disabled={!onMemberPress}
+                  >
                     <View
                       style={[
                         styles.headerAvatar,
@@ -328,7 +334,7 @@ export default function StoryViewer({
                         {formatStoryTime(current.submittedAt)}
                       </Text>
                     </View>
-                  </View>
+                  </Pressable>
                   <TouchableOpacity style={styles.closeButton} onPress={onClose}>
                     <XIcon size={20} color={Colours.text} weight="bold" />
                   </TouchableOpacity>

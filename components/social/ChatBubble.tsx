@@ -24,6 +24,7 @@ interface ChatBubbleProps {
   currentUserId?: string;
   onDoubleTap?: () => void;
   onLongPress?: () => void;
+  onNamePress?: () => void;
 }
 
 function getBorderRadius(position: BubblePosition): ViewStyle {
@@ -66,6 +67,7 @@ export default function ChatBubble({
   currentUserId,
   onDoubleTap,
   onLongPress,
+  onNamePress,
 }: ChatBubbleProps) {
   const showName = position === "first" || position === "standalone";
   const isGrouped = position === "middle" || position === "last";
@@ -100,7 +102,12 @@ export default function ChatBubble({
         <View style={[styles.bubble, getBorderRadius(position)]}>
           {showName && (
             <View style={styles.nameRow}>
-              <Text style={[styles.name, { color: nameColour }]}>{name}</Text>
+              <Text
+                style={[styles.name, { color: nameColour }]}
+                onPress={onNamePress}
+              >
+                {name}
+              </Text>
               <Text style={styles.timestamp}>{timestamp}</Text>
             </View>
           )}

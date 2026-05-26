@@ -20,6 +20,8 @@ export interface AvatarRowMember {
 interface AvatarRowProps {
   members: AvatarRowMember[];
   onMemberPress?: (member: AvatarRowMember) => void;
+  onMemberNamePress?: (member: AvatarRowMember) => void;
+  onMemberLongPress?: (member: AvatarRowMember) => void;
 }
 
 function getInitial(displayName: string): string {
@@ -32,7 +34,12 @@ function getRingColour(member: AvatarRowMember): string {
   return "transparent";
 }
 
-export default function AvatarRow({ members, onMemberPress }: AvatarRowProps) {
+export default function AvatarRow({
+  members,
+  onMemberPress,
+  onMemberNamePress,
+  onMemberLongPress,
+}: AvatarRowProps) {
   return (
     <View>
       <ScrollView
@@ -43,8 +50,8 @@ export default function AvatarRow({ members, onMemberPress }: AvatarRowProps) {
         {members.map((member) => (
           <View key={member.id} style={styles.item}>
             <Pressable
-              disabled={!member.storyStatus}
               onPress={() => onMemberPress?.(member)}
+              onLongPress={() => onMemberLongPress?.(member)}
               style={[
                 styles.avatarRing,
                 { borderColor: getRingColour(member) },
@@ -64,9 +71,11 @@ export default function AvatarRow({ members, onMemberPress }: AvatarRowProps) {
                 )}
               </View>
             </Pressable>
-            <Text style={styles.name} numberOfLines={1}>
-              {member.displayName}
-            </Text>
+            <Pressable onPress={() => onMemberNamePress?.(member)}>
+              <Text style={styles.name} numberOfLines={1}>
+                {member.displayName}
+              </Text>
+            </Pressable>
           </View>
         ))}
       </ScrollView>

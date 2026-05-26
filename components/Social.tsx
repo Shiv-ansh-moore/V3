@@ -27,6 +27,9 @@ import { useAuth } from "../lib/AuthContext";
 import { GROUP_USER_COLOURS } from "../lib/groupColours";
 import type { Database } from "../lib/database.types";
 import type { ChatMessage, FeedItem, Reaction } from "../testData/mockSocial";
+import GroupMemberOverview, {
+  type GroupMemberOverviewHint,
+} from "./group/GroupMemberOverview";
 
 type ProfileRow = Database["public"]["Tables"]["profiles"]["Row"];
 type ProofRow = Database["public"]["Tables"]["proofs"]["Row"];
@@ -180,6 +183,7 @@ function buildReplyTo(
   feed: FeedItem[],
   resolveUserName: (userId: string) => string,
   resolveUserColour: (userId: string) => string,
+  openMemberOverview: (userId: string) => void,
 ): ReplyQuoteProps | undefined {
   if (!item.replyToId) return undefined;
 
@@ -199,6 +203,7 @@ function buildReplyTo(
   }
 
   return {
+    userId: ref.userId,
     userName: resolveUserName(ref.userId),
     userColour: resolveUserColour(ref.userId),
     text,
@@ -206,6 +211,7 @@ function buildReplyTo(
     photoUri: ref.kind === "completed" ? ref.photoUri : undefined,
     caption: ref.kind === "completed" ? ref.caption : undefined,
     activityType: ref.kind === "activity" ? ref.type : undefined,
+    onNamePress: () => openMemberOverview(ref.userId),
   };
 }
 
@@ -224,6 +230,7 @@ function buildReplyInfo(item: FeedItem): ReplyInfo {
 
   return {
     id: item.id,
+    userId: item.userId,
     userName: "Unknown",
     userColour: Colours.secondaryText,
     text,
@@ -246,6 +253,10 @@ export default function Social({ active = true }: SocialProps) {
   const [selectedStoryInitialIndex, setSelectedStoryInitialIndex] = useState(0);
   const [userNames, setUserNames] = useState<Record<string, string>>({});
   const [userColours, setUserColours] = useState<Record<string, string>>({});
+  const [userAvatars, setUserAvatars] = useState<Record<string, string | null>>(
+    {},
+  );
+  const [overviewUserId, setOverviewUserId] = useState<string | null>(null);
   const signedProofImageUrlsRef = useRef(new Map<string, SignedProofImageUrl>());
   const reversedFeed = useMemo(() => [...feed].reverse(), [feed]);
   const selectedStoryMember =
@@ -276,6 +287,13 @@ export default function Social({ active = true }: SocialProps) {
       userColours[userId] ?? Colours.secondaryText,
     [userColours],
   );
+  const overviewHint: GroupMemberOverviewHint | undefined = overviewUserId
+    ? {
+        displayName: resolveUserName(overviewUserId),
+        avatarUrl: userAvatars[overviewUserId] ?? null,
+        colour: resolveUserColour(overviewUserId),
+      }
+    : undefined;
 
   const getSignedProofImageUrl = useCallback(
     async (imagePath: string): Promise<string | null> => {
@@ -394,6 +412,7 @@ export default function Social({ active = true }: SocialProps) {
 
     const nextUserNames: Record<string, string> = {};
     const nextUserColours: Record<string, string> = {};
+    const nextUserAvatars: Record<string, string | null> = {};
     const nextGroupMembers: AvatarRowMember[] = [];
     const groupMemberOrder = new Map<string, number>();
 
@@ -423,6 +442,7 @@ export default function Social({ active = true }: SocialProps) {
 
       nextUserNames[member.user_id] = displayName;
       nextUserColours[member.user_id] = colour;
+      nextUserAvatars[member.user_id] = profile?.avatar_url ?? null;
     });
 
     nextGroupMembers.sort((a, b) => {
@@ -559,6 +579,7 @@ export default function Social({ active = true }: SocialProps) {
 
     setUserNames(nextUserNames);
     setUserColours(nextUserColours);
+    setUserAvatars(nextUserAvatars);
     setGroupMembers(nextGroupMembers);
     setStoriesByUser(nextStoriesByUser);
     setFeed(liveItems.filter((item): item is FeedItem => item !== null));
@@ -679,6 +700,11 @@ export default function Social({ active = true }: SocialProps) {
     setReplyingTo(null);
   }, []);
 
+  const openMemberOverview = useCallback((userId: string) => {
+    Keyboard.dismiss();
+    setOverviewUserId(userId);
+  }, []);
+
   const openStoriesForMember = useCallback(
     (member: AvatarRowMember) => {
       const stories = storiesByUser[member.id] ?? [];
@@ -696,6 +722,16 @@ export default function Social({ active = true }: SocialProps) {
   const closeStories = useCallback(() => {
     setSelectedStoryUserId(null);
   }, []);
+
+  const openOverviewFromStories = useCallback(() => {
+    if (!selectedStoryUserId) return;
+
+    const userId = selectedStoryUserId;
+    closeStories();
+    setTimeout(() => {
+      openMemberOverview(userId);
+    }, 260);
+  }, [closeStories, openMemberOverview, selectedStoryUserId]);
 
   const playNextMemberStories = useCallback(() => {
     if (!selectedStoryUserId) {
@@ -870,6 +906,7 @@ export default function Social({ active = true }: SocialProps) {
             currentUserId={user?.id}
             onDoubleTap={() => handleReply(item)}
             onLongPress={() => handleLongPress(item)}
+            onNamePress={() => openMemberOverview(item.userId)}
           />
         );
       }
@@ -889,11 +926,13 @@ export default function Social({ active = true }: SocialProps) {
               feed,
               resolveUserName,
               resolveUserColour,
+              openMemberOverview,
             )}
             reactions={item.reactions}
             currentUserId={user?.id}
             onDoubleTap={() => handleReply(item)}
             onLongPress={() => handleLongPress(item)}
+            onNamePress={() => openMemberOverview(item.userId)}
           />
         );
       }
@@ -911,6 +950,7 @@ export default function Social({ active = true }: SocialProps) {
             currentUserId={user?.id}
             onDoubleTap={() => handleReply(item)}
             onLongPress={() => handleLongPress(item)}
+            onNamePress={() => openMemberOverview(item.userId)}
           />
         );
       }
@@ -921,6 +961,7 @@ export default function Social({ active = true }: SocialProps) {
       feed,
       handleReply,
       handleLongPress,
+      openMemberOverview,
       resolveUserColour,
       resolveUserName,
       user?.id,
@@ -942,6 +983,8 @@ export default function Social({ active = true }: SocialProps) {
         <AvatarRow
           members={groupMembers}
           onMemberPress={openStoriesForMember}
+          onMemberNamePress={(member) => openMemberOverview(member.id)}
+          onMemberLongPress={(member) => openMemberOverview(member.id)}
         />
         <KeyboardGestureArea interpolator="ios" style={styles.messagesArea}>
           <FlatList
@@ -959,6 +1002,7 @@ export default function Social({ active = true }: SocialProps) {
             onClearReply={clearReply}
             inputRef={inputRef}
             onSend={handleSendMessage}
+            onReplyUserPress={openMemberOverview}
           />
         </View>
       </KeyboardAvoidingView>
@@ -973,6 +1017,11 @@ export default function Social({ active = true }: SocialProps) {
         onClose={closeSheet}
         onReact={handleSheetReact}
         onReply={handleSheetReply}
+        onUserPress={
+          currentSheetItem
+            ? () => openMemberOverview(currentSheetItem.userId)
+            : undefined
+        }
       />
       {selectedStoryMember && (
         <StoryViewer
@@ -986,8 +1035,15 @@ export default function Social({ active = true }: SocialProps) {
           onClose={closeStories}
           onComplete={playNextMemberStories}
           onProofViewed={handleProofViewed}
+          onMemberPress={openOverviewFromStories}
         />
       )}
+      <GroupMemberOverview
+        visible={overviewUserId !== null}
+        userId={overviewUserId}
+        hint={overviewHint}
+        onClose={() => setOverviewUserId(null)}
+      />
     </>
   );
 }

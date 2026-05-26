@@ -1,25 +1,23 @@
 import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from "react-native";
 import { Image } from "expo-image";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { XIcon } from "phosphor-react-native";
 import { Colours } from "../constants/Colours";
 import { Fonts } from "../constants/Fonts";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../lib/AuthContext";
 import { GROUP_USER_COLOURS } from "../lib/groupColours";
 import type { Database } from "../lib/database.types";
-import GoalIcon from "./personal/GoalIcon";
-import StoryViewer, { type StoryProof } from "./social/StoryViewer";
+import GroupMemberOverview, {
+  type GroupMemberOverviewHint,
+} from "./group/GroupMemberOverview";
 
 type ProfileRow = Database["public"]["Tables"]["profiles"]["Row"];
 type GroupMemberRow = Database["public"]["Tables"]["group_members"]["Row"] & {
@@ -30,60 +28,17 @@ type ProofRow = Database["public"]["Tables"]["proofs"]["Row"];
 type ScreenSessionRow =
   Database["public"]["Tables"]["screen_sessions"]["Row"];
 
-type DashboardProofRow = Pick<
-  ProofRow,
-  "id" | "user_id" | "submitted_at" | "image_path" | "caption"
-> & {
+type DashboardProofRow = Pick<ProofRow, "id" | "user_id"> & {
   goal:
     | Pick<
         GoalRow,
-        | "id"
-        | "user_id"
-        | "title"
-        | "icon"
-        | "status"
-        | "archived_at"
-        | "deleted_at"
+        "id" | "user_id" | "status" | "archived_at" | "deleted_at"
       >
     | Pick<
         GoalRow,
-        | "id"
-        | "user_id"
-        | "title"
-        | "icon"
-        | "status"
-        | "archived_at"
-        | "deleted_at"
+        "id" | "user_id" | "status" | "archived_at" | "deleted_at"
       >[]
     | null;
-};
-
-type DashboardGoal = Pick<GoalRow, "id" | "title" | "icon" | "duration">;
-type DashboardGoalRow = DashboardGoal & {
-  user_id: string;
-};
-
-type DashboardDoneProof = Pick<ProofRow, "id" | "submitted_at"> & {
-  goalId: string;
-  goalTitle: string;
-  goalIcon: string;
-  imagePath: string;
-  caption: string | null;
-};
-
-type DashboardDoneProofItem = DashboardDoneProof & {
-  user_id: string;
-};
-
-type DashboardSession = Pick<
-  ScreenSessionRow,
-  "id" | "reason" | "started_at"
-> & {
-  seconds: number;
-};
-
-type DashboardSessionItem = DashboardSession & {
-  user_id: string;
 };
 
 type DashboardMember = {
@@ -94,10 +49,6 @@ type DashboardMember = {
   todaySeconds: number;
   doneCount: number;
   leftCount: number;
-  activeGoals: DashboardGoal[];
-  doneProofs: DashboardDoneProof[];
-  sessions: DashboardSession[];
-  stories: StoryProof[];
 };
 
 interface DashboardProps {
@@ -141,13 +92,6 @@ function formatDuration(totalSeconds: number): string {
   return `${minutes}m`;
 }
 
-function formatShortTime(value: string): string {
-  return new Intl.DateTimeFormat(undefined, {
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(value));
-}
-
 function getScreenSessionSeconds(
   session: Pick<
     ScreenSessionRow,
@@ -169,13 +113,6 @@ function getScreenSessionSeconds(
 function countByUser(rows: { user_id: string }[]) {
   return rows.reduce<Record<string, number>>((result, row) => {
     result[row.user_id] = (result[row.user_id] ?? 0) + 1;
-    return result;
-  }, {});
-}
-
-function groupByUser<T extends { user_id: string }>(rows: T[]) {
-  return rows.reduce<Record<string, T[]>>((result, row) => {
-    result[row.user_id] = [...(result[row.user_id] ?? []), row];
     return result;
   }, {});
 }
@@ -365,241 +302,12 @@ function MemberCard({
   );
 }
 
-function ProfileAvatar({
-  member,
-  size,
-}: {
-  member: DashboardMember;
-  size: "large" | "small";
-}) {
-  const ringStyle = size === "large" ? styles.profileRing : styles.avatarRing;
-  const avatarStyle = size === "large" ? styles.profileAvatar : styles.avatar;
-  const imageStyle =
-    size === "large" ? styles.profileAvatarImage : styles.avatarImage;
-  const initialStyle =
-    size === "large" ? styles.profileAvatarInitial : styles.avatarInitial;
-
-  return (
-    <View style={[ringStyle, { borderColor: member.colour }]}>
-      <View style={avatarStyle}>
-        {member.avatarUrl ? (
-          <Image
-            source={{ uri: member.avatarUrl }}
-            style={imageStyle}
-            contentFit="cover"
-          />
-        ) : (
-          <Text style={[initialStyle, { color: member.colour }]}>
-            {getInitial(member.displayName)}
-          </Text>
-        )}
-      </View>
-    </View>
-  );
-}
-
-function EmptyRow({ text }: { text: string }) {
-  return (
-    <View style={styles.emptyRow}>
-      <Text style={styles.emptyRowText}>{text}</Text>
-    </View>
-  );
-}
-
-function GoalOverviewRow({
-  icon,
-  title,
-  meta,
-  done,
-}: {
-  icon: string;
-  title: string;
-  meta?: string | null;
-  done?: boolean;
-}) {
-  return (
-    <View style={styles.goalRow}>
-      <View style={styles.goalRowIcon}>
-        <GoalIcon
-          name={icon}
-          size={22}
-          color={done ? "#22C55E" : Colours.fadedBrand}
-          weight={done ? "fill" : "light"}
-        />
-      </View>
-      <View style={styles.goalRowText}>
-        <Text
-          style={[styles.goalRowTitle, done && styles.goalRowTitleDone]}
-          numberOfLines={1}
-        >
-          {title}
-        </Text>
-        {meta ? (
-          <Text style={styles.goalRowMeta} numberOfLines={1}>
-            {meta}
-          </Text>
-        ) : null}
-      </View>
-    </View>
-  );
-}
-
-function ReasonRow({ session }: { session: DashboardSession }) {
-  return (
-    <View style={styles.reasonRow}>
-      <View style={styles.reasonMarker} />
-      <View style={styles.reasonBody}>
-        <Text style={styles.reasonText} numberOfLines={2}>
-          {session.reason?.trim() || "Unlocked apps"}
-        </Text>
-        <Text style={styles.reasonMeta}>
-          {formatDuration(session.seconds)} -{" "}
-          {formatShortTime(session.started_at)}
-        </Text>
-      </View>
-    </View>
-  );
-}
-
-function MemberOverview({
-  member,
-  visible,
-  onClose,
-  onOpenStories,
-}: {
-  member: DashboardMember | null;
-  visible: boolean;
-  onClose: () => void;
-  onOpenStories: (member: DashboardMember) => void;
-}) {
-  if (!member) return null;
-
-  const hasStories = member.stories.length > 0;
-
-  return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      presentationStyle="fullScreen"
-      onRequestClose={onClose}
-    >
-      <SafeAreaView style={styles.overviewModal} edges={["top", "bottom"]}>
-        <View style={styles.overviewTopBar}>
-          <Text style={styles.overviewTitle}>Profile</Text>
-          <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-            <XIcon size={20} color={Colours.text} weight="bold" />
-          </TouchableOpacity>
-        </View>
-
-        <ScrollView
-          contentContainerStyle={styles.overviewContent}
-          showsVerticalScrollIndicator={false}
-        >
-          <View style={styles.profileHero}>
-            <TouchableOpacity
-              activeOpacity={hasStories ? 0.72 : 1}
-              disabled={!hasStories}
-              onPress={() => onOpenStories(member)}
-            >
-              <ProfileAvatar member={member} size="large" />
-            </TouchableOpacity>
-            <Text style={styles.profileName} numberOfLines={1}>
-              {member.displayName}
-            </Text>
-            <Text style={styles.profileMeta}>
-              {hasStories ? "Tap photo for proofs" : "No proofs today"}
-            </Text>
-          </View>
-
-          <View style={styles.profileHeroStats}>
-            <View style={styles.profileMainStat}>
-              <Text
-                style={styles.profileTime}
-                numberOfLines={1}
-                adjustsFontSizeToFit
-                minimumFontScale={0.7}
-              >
-                {formatDuration(member.todaySeconds)}
-              </Text>
-              <Text style={styles.profileTimeLabel}>Distracting app time</Text>
-            </View>
-            <View style={styles.profileSideStats}>
-              <Stat value={member.doneCount} label="Done" />
-              <Stat value={member.leftCount} label="Left" />
-            </View>
-          </View>
-
-          <View style={styles.overviewSection}>
-            <View style={styles.sectionTitleRow}>
-              <Text style={styles.overviewSectionTitle}>Done today</Text>
-              <Text style={styles.overviewSectionMeta}>
-                {member.doneProofs.length}
-              </Text>
-            </View>
-            {member.doneProofs.length > 0 ? (
-              member.doneProofs.map((proof) => (
-                <GoalOverviewRow
-                  key={proof.id}
-                  icon={proof.goalIcon}
-                  title={proof.goalTitle}
-                  meta={formatShortTime(proof.submitted_at)}
-                  done
-                />
-              ))
-            ) : (
-              <EmptyRow text="No completed tasks today." />
-            )}
-          </View>
-
-          <View style={styles.overviewSection}>
-            <View style={styles.sectionTitleRow}>
-              <Text style={styles.overviewSectionTitle}>Left to do</Text>
-              <Text style={styles.overviewSectionMeta}>
-                {member.activeGoals.length}
-              </Text>
-            </View>
-            {member.activeGoals.length > 0 ? (
-              member.activeGoals.map((goal) => (
-                <GoalOverviewRow
-                  key={goal.id}
-                  icon={goal.icon}
-                  title={goal.title}
-                  meta={goal.duration}
-                />
-              ))
-            ) : (
-              <EmptyRow text="No active tasks left." />
-            )}
-          </View>
-
-          <View style={styles.overviewSection}>
-            <View style={styles.sectionTitleRow}>
-              <Text style={styles.overviewSectionTitle}>Unlock reasons</Text>
-              <Text style={styles.overviewSectionMeta}>
-                {member.sessions.length}
-              </Text>
-            </View>
-            {member.sessions.length > 0 ? (
-              member.sessions.map((session) => (
-                <ReasonRow key={session.id} session={session} />
-              ))
-            ) : (
-              <EmptyRow text="No app unlocks today." />
-            )}
-          </View>
-        </ScrollView>
-      </SafeAreaView>
-    </Modal>
-  );
-}
-
 export default function Dashboard({ active = true }: DashboardProps) {
   const { group } = useAuth();
   const [members, setMembers] = useState<DashboardMember[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
-  const [storyMemberId, setStoryMemberId] = useState<string | null>(null);
 
   const groupTodaySeconds = members.reduce(
     (sum, member) => sum + member.todaySeconds,
@@ -615,34 +323,16 @@ export default function Dashboard({ active = true }: DashboardProps) {
   );
   const selectedMember =
     members.find((member) => member.id === selectedMemberId) ?? null;
-  const storyMember =
-    members.find((member) => member.id === storyMemberId) ?? null;
+  const selectedMemberHint: GroupMemberOverviewHint | undefined = selectedMember
+    ? {
+        displayName: selectedMember.displayName,
+        avatarUrl: selectedMember.avatarUrl,
+        colour: selectedMember.colour,
+      }
+    : undefined;
 
   const closeMemberOverview = useCallback(() => {
     setSelectedMemberId(null);
-  }, []);
-
-  const openMemberStories = useCallback((member: DashboardMember) => {
-    if (member.stories.length === 0) return;
-    setSelectedMemberId(null);
-    setTimeout(() => {
-      setStoryMemberId(member.id);
-    }, 260);
-  }, []);
-
-  const closeMemberStories = useCallback(() => {
-    setStoryMemberId(null);
-  }, []);
-
-  const handleProofViewed = useCallback((proofId: string) => {
-    setMembers((currentMembers) =>
-      currentMembers.map((member) => ({
-        ...member,
-        stories: member.stories.map((story) =>
-          story.proofId === proofId ? { ...story, viewedByMe: true } : story,
-        ),
-      })),
-    );
   }, []);
 
   const refreshDashboard = useCallback(async () => {
@@ -683,7 +373,7 @@ export default function Dashboard({ active = true }: DashboardProps) {
         await Promise.all([
           supabase
             .from("goals")
-            .select("id, user_id, title, icon, duration")
+            .select("id, user_id")
             .in("user_id", memberIds)
             .eq("status", "active")
             .is("archived_at", null)
@@ -694,14 +384,9 @@ export default function Dashboard({ active = true }: DashboardProps) {
               `
             id,
             user_id,
-            submitted_at,
-            image_path,
-            caption,
             goal:goals!inner(
               id,
               user_id,
-              title,
-              icon,
               status,
               archived_at,
               deleted_at
@@ -716,9 +401,7 @@ export default function Dashboard({ active = true }: DashboardProps) {
             .is("goal.deleted_at", null),
           supabase
             .from("screen_sessions")
-            .select(
-              "id, user_id, started_at, actual_seconds, granted_seconds, reason",
-            )
+            .select("id, user_id, started_at, actual_seconds, granted_seconds")
             .in("user_id", memberIds)
             .gte("started_at", start.toISOString())
             .lt("started_at", end.toISOString()),
@@ -728,98 +411,30 @@ export default function Dashboard({ active = true }: DashboardProps) {
       if (proofsResult.error) throw proofsResult.error;
       if (sessionsResult.error) throw sessionsResult.error;
 
-      const activeGoalRows = (goalsResult.data ?? []) as DashboardGoalRow[];
-      const activeGoalsByUser = groupByUser(activeGoalRows);
-      const leftByUser = countByUser(activeGoalRows);
-
-      const doneProofItems = ((proofsResult.data ?? []) as DashboardProofRow[])
-        .map((proof): DashboardDoneProofItem | null => {
+      const leftByUser = countByUser(goalsResult.data ?? []);
+      const doneByUser = countByUser(
+        ((proofsResult.data ?? []) as DashboardProofRow[]).filter((proof) => {
           const goal = firstRelation(proof.goal);
-          if (
+          return (
             goal?.status === "done" &&
             goal.archived_at === null &&
             goal.deleted_at === null
-          ) {
-            return {
-              id: proof.id,
-              user_id: proof.user_id,
-              submitted_at: proof.submitted_at,
-              goalId: goal.id,
-              goalTitle: goal.title,
-              goalIcon: goal.icon,
-              imagePath: proof.image_path,
-              caption: proof.caption,
-            };
-          }
-
-          return null;
-        })
-        .filter((proof): proof is DashboardDoneProofItem => proof !== null);
-      const doneProofsByUser = groupByUser(doneProofItems);
-      const doneByUser = countByUser(doneProofItems);
-
-      const nowMs = Date.now();
-      const sessionItems = (
-        (sessionsResult.data ?? []) as (Pick<
-          ScreenSessionRow,
-          | "id"
-          | "user_id"
-          | "started_at"
-          | "actual_seconds"
-          | "granted_seconds"
-          | "reason"
-        >)[]
-      ).map((session): DashboardSessionItem => ({
-        id: session.id,
-        user_id: session.user_id,
-        reason: session.reason,
-        started_at: session.started_at,
-        seconds: getScreenSessionSeconds(session, nowMs),
-      }));
-      const sessionsByUser = groupByUser(sessionItems);
-      const secondsByUser = sessionItems.reduce<Record<string, number>>(
-        (result, session) => {
-          result[session.user_id] =
-            (result[session.user_id] ?? 0) + session.seconds;
-          return result;
-        },
-        {},
-      );
-
-      const signedStories = await Promise.all(
-        doneProofItems.map(async (proof): Promise<StoryProof> => {
-          const { data: signedImage, error: signedImageError } =
-            await supabase.storage
-              .from("proofs")
-              .createSignedUrl(proof.imagePath, 60 * 60);
-
-          if (signedImageError) {
-            console.log(
-              "[dashboard] story proof image error:",
-              signedImageError.message,
-            );
-          }
-
-          return {
-            proofId: proof.id,
-            userId: proof.user_id,
-            messageId: null,
-            goalId: proof.goalId,
-            goalTitle: proof.goalTitle,
-            caption: proof.caption,
-            imageUrl: signedImage?.signedUrl ?? null,
-            submittedAt: proof.submitted_at,
-            viewedByMe: false,
-          };
+          );
         }),
       );
-      const storiesByUser = signedStories.reduce<Record<string, StoryProof[]>>(
-        (result, story) => {
-          result[story.userId] = [...(result[story.userId] ?? []), story];
-          return result;
-        },
-        {},
-      );
+
+      const nowMs = Date.now();
+      const secondsByUser = (
+        (sessionsResult.data ?? []) as Pick<
+          ScreenSessionRow,
+          "user_id" | "started_at" | "actual_seconds" | "granted_seconds"
+        >[]
+      ).reduce<Record<string, number>>((result, session) => {
+        result[session.user_id] =
+          (result[session.user_id] ?? 0) +
+          getScreenSessionSeconds(session, nowMs);
+        return result;
+      }, {});
 
       setMembers(
         groupMembers.map((member, index) => {
@@ -834,10 +449,6 @@ export default function Dashboard({ active = true }: DashboardProps) {
             todaySeconds: secondsByUser[member.user_id] ?? 0,
             doneCount: doneByUser[member.user_id] ?? 0,
             leftCount: leftByUser[member.user_id] ?? 0,
-            activeGoals: activeGoalsByUser[member.user_id] ?? [],
-            doneProofs: doneProofsByUser[member.user_id] ?? [],
-            sessions: sessionsByUser[member.user_id] ?? [],
-            stories: storiesByUser[member.user_id] ?? [],
           };
         }),
       );
@@ -855,7 +466,6 @@ export default function Dashboard({ active = true }: DashboardProps) {
       setError(null);
       setLoading(false);
       setSelectedMemberId(null);
-      setStoryMemberId(null);
     }
   }, [group]);
 
@@ -930,26 +540,12 @@ export default function Dashboard({ active = true }: DashboardProps) {
         </View>
       </ScrollView>
 
-      <MemberOverview
+      <GroupMemberOverview
         visible={selectedMember !== null}
-        member={selectedMember}
+        userId={selectedMemberId}
+        hint={selectedMemberHint}
         onClose={closeMemberOverview}
-        onOpenStories={openMemberStories}
       />
-
-      {storyMember ? (
-        <StoryViewer
-          visible={storyMember.stories.length > 0}
-          memberName={storyMember.displayName}
-          memberAvatarUrl={storyMember.avatarUrl}
-          memberColour={storyMember.colour}
-          stories={storyMember.stories}
-          initialIndex={0}
-          onClose={closeMemberStories}
-          onComplete={closeMemberStories}
-          onProofViewed={handleProofViewed}
-        />
-      ) : null}
     </SafeAreaView>
   );
 }
@@ -1186,202 +782,6 @@ const styles = StyleSheet.create({
     color: Colours.secondaryText,
     fontFamily: Fonts.regular,
     fontSize: 10,
-    marginTop: 2,
-  },
-  overviewModal: {
-    flex: 1,
-    backgroundColor: Colours.background,
-  },
-  overviewTopBar: {
-    minHeight: 52,
-    paddingHorizontal: 19,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  overviewTitle: {
-    color: Colours.text,
-    fontFamily: Fonts.semiBold,
-    fontSize: 16,
-  },
-  closeButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: Colours.cardHighlight,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  overviewContent: {
-    paddingHorizontal: 19,
-    paddingBottom: 36,
-    gap: 14,
-  },
-  profileHero: {
-    alignItems: "center",
-    paddingTop: 6,
-  },
-  profileRing: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    borderWidth: 3,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  profileAvatar: {
-    width: 84,
-    height: 84,
-    borderRadius: 42,
-    backgroundColor: Colours.cardHighlight,
-    alignItems: "center",
-    justifyContent: "center",
-    overflow: "hidden",
-  },
-  profileAvatarImage: {
-    width: "100%",
-    height: "100%",
-  },
-  profileAvatarInitial: {
-    fontFamily: Fonts.bold,
-    fontSize: 30,
-  },
-  profileName: {
-    color: Colours.text,
-    fontFamily: Fonts.bold,
-    fontSize: 24,
-    marginTop: 10,
-  },
-  profileMeta: {
-    color: Colours.secondaryText,
-    fontFamily: Fonts.medium,
-    fontSize: 12,
-    marginTop: 2,
-  },
-  profileHeroStats: {
-    backgroundColor: Colours.card,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "#222222",
-    paddingHorizontal: 16,
-    paddingVertical: 15,
-  },
-  profileMainStat: {
-    marginBottom: 14,
-  },
-  profileTime: {
-    color: Colours.text,
-    fontFamily: Fonts.extraBold,
-    fontSize: 40,
-  },
-  profileTimeLabel: {
-    color: Colours.secondaryText,
-    fontFamily: Fonts.medium,
-    fontSize: 12,
-  },
-  profileSideStats: {
-    flexDirection: "row",
-    gap: 14,
-  },
-  overviewSection: {
-    backgroundColor: Colours.card,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: "#222222",
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-    gap: 10,
-  },
-  sectionTitleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12,
-  },
-  overviewSectionTitle: {
-    color: Colours.text,
-    fontFamily: Fonts.semiBold,
-    fontSize: 15,
-  },
-  overviewSectionMeta: {
-    color: Colours.secondaryText,
-    fontFamily: Fonts.medium,
-    fontSize: 12,
-  },
-  goalRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    minHeight: 42,
-  },
-  goalRowIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
-    backgroundColor: Colours.cardHighlight,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  goalRowText: {
-    flex: 1,
-    minWidth: 0,
-  },
-  goalRowTitle: {
-    color: Colours.text,
-    fontFamily: Fonts.medium,
-    fontSize: 13,
-  },
-  goalRowTitleDone: {
-    color: Colours.secondaryText,
-    textDecorationLine: "line-through",
-  },
-  goalRowMeta: {
-    color: Colours.secondaryText,
-    fontFamily: Fonts.regular,
-    fontSize: 11,
-    marginTop: 1,
-  },
-  emptyRow: {
-    minHeight: 38,
-    borderRadius: 12,
-    backgroundColor: Colours.cardHighlight,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 12,
-  },
-  emptyRowText: {
-    color: Colours.secondaryText,
-    fontFamily: Fonts.regular,
-    fontSize: 12,
-  },
-  reasonRow: {
-    flexDirection: "row",
-    gap: 10,
-  },
-  reasonMarker: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: Colours.brand,
-    marginTop: 6,
-  },
-  reasonBody: {
-    flex: 1,
-    minWidth: 0,
-    paddingBottom: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: Colours.cardHighlight,
-  },
-  reasonText: {
-    color: Colours.text,
-    fontFamily: Fonts.medium,
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  reasonMeta: {
-    color: Colours.secondaryText,
-    fontFamily: Fonts.regular,
-    fontSize: 11,
     marginTop: 2,
   },
 });
