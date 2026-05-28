@@ -8,6 +8,101 @@ public class ScreenTimeLocksModule: Module {
   private var currentSelection: FamilyActivitySelection?
   private let store = ManagedSettingsStore()
   private let sharedDefaults = UserDefaults(suiteName: "group.com.anonymous.V3App.shared")
+  private let unlockActivityName = DeviceActivityName("V3Unlock")
+  private let relockMonitorMinimumMinutes = 15
+
+  private enum DefaultsKey {
+    static let blockedSelection = "blockedSelection"
+    static let unlockEndTime = "unlockEndTime"
+    static let unlockStartTime = "unlockStartTime"
+    static let unlockTotalDuration = "unlockTotalDuration"
+    static let unlockReason = "unlockReason"
+  }
+
+  private func savedSelection() -> FamilyActivitySelection? {
+    if let selection = self.currentSelection {
+      return selection
+    }
+
+    guard let data = self.sharedDefaults?.data(forKey: DefaultsKey.blockedSelection),
+          let saved = try? JSONDecoder().decode(FamilyActivitySelection.self, from: data)
+    else {
+      return nil
+    }
+
+    return saved
+  }
+
+  private func saveSelection(_ selection: FamilyActivitySelection) {
+    if let data = try? JSONEncoder().encode(selection) {
+      self.sharedDefaults?.set(data, forKey: DefaultsKey.blockedSelection)
+    }
+  }
+
+  private func saveUnlockMetadata(
+    startDate: Date,
+    endDate: Date,
+    minutes: Int,
+    reason: String
+  ) {
+    self.sharedDefaults?.set(endDate.timeIntervalSince1970, forKey: DefaultsKey.unlockEndTime)
+    self.sharedDefaults?.set(startDate.timeIntervalSince1970, forKey: DefaultsKey.unlockStartTime)
+    self.sharedDefaults?.set(minutes * 60, forKey: DefaultsKey.unlockTotalDuration)
+    self.sharedDefaults?.set(reason, forKey: DefaultsKey.unlockReason)
+  }
+
+  private func clearUnlockMetadata() {
+    self.sharedDefaults?.removeObject(forKey: DefaultsKey.unlockEndTime)
+    self.sharedDefaults?.removeObject(forKey: DefaultsKey.unlockStartTime)
+    self.sharedDefaults?.removeObject(forKey: DefaultsKey.unlockTotalDuration)
+    self.sharedDefaults?.removeObject(forKey: DefaultsKey.unlockReason)
+  }
+
+  @available(iOS 16.0, *)
+  private func applyShields(for selection: FamilyActivitySelection) {
+    let appTokens = selection.applicationTokens
+    let categoryTokens = selection.categoryTokens
+    self.store.shield.applications = appTokens.isEmpty ? nil : appTokens
+    self.store.shield.applicationCategories = categoryTokens.isEmpty ? nil : .specific(categoryTokens)
+  }
+
+  @available(iOS 16.0, *)
+  private func clearShields() {
+    self.store.shield.applications = nil
+    self.store.shield.applicationCategories = nil
+  }
+
+  private func deviceActivityComponents(for date: Date, calendar: Calendar) -> DateComponents {
+    var components = calendar.dateComponents(
+      [.era, .year, .month, .day, .hour, .minute, .second],
+      from: date
+    )
+    components.calendar = calendar
+    components.timeZone = calendar.timeZone
+    return components
+  }
+
+  @available(iOS 16.0, *)
+  private func startRelockMonitor(relockAt: Date) throws {
+    let calendar = Calendar.current
+    let monitorEnd = relockAt.addingTimeInterval(
+      TimeInterval(self.relockMonitorMinimumMinutes * 60)
+    )
+
+    // DeviceActivity intervals shorter than about 15 minutes are unreliable.
+    // Unlock immediately, then run a 15-minute monitor window that starts at
+    // the desired relock time; the extension re-applies shields in intervalDidStart.
+    let schedule = DeviceActivitySchedule(
+      intervalStart: self.deviceActivityComponents(for: relockAt, calendar: calendar),
+      intervalEnd: self.deviceActivityComponents(for: monitorEnd, calendar: calendar),
+      repeats: false
+    )
+
+    try DeviceActivityCenter().startMonitoring(
+      self.unlockActivityName,
+      during: schedule
+    )
+  }
 
 
   public func definition() -> ModuleDefinition {
@@ -86,8 +181,7 @@ public class ScreenTimeLocksModule: Module {
 
         let appTokens = selection.applicationTokens
         let categoryTokens = selection.categoryTokens
-        self.store.shield.applications = appTokens
-        self.store.shield.applicationCategories = .specific(categoryTokens)
+        self.applyShields(for: selection)
 
         return ["blocked": appTokens.count + categoryTokens.count]
       } else {
@@ -114,14 +208,15 @@ public class ScreenTimeLocksModule: Module {
     }
      AsyncFunction("unlockForDuration") { (minutes: Int, reason: String) -> String in
       if #available(iOS 16.0, *) {
-        guard let selection = self.currentSelection ?? {
-    if let data = self.sharedDefaults?.data(forKey: "blockedSelection"),
-       let saved = try? JSONDecoder().decode(FamilyActivitySelection.self, from: data) {
-        return saved
-    }
-    return nil
-}() else {
+        guard minutes > 0 else {
+          throw NSError(
+            domain: "ScreenTimeLocks",
+            code: 3,
+            userInfo: [NSLocalizedDescriptionKey: "Unlock duration must be positive."]
+          )
+        }
 
+        guard let selection = self.savedSelection() else {
           throw NSError(
             domain: "ScreenTimeLocks",
             code: 2,
@@ -130,45 +225,28 @@ public class ScreenTimeLocksModule: Module {
         }
 
         // 1. Save selection so DeviceMonitor can re-lock later
-        if let data = try? JSONEncoder().encode(selection) {
-          self.sharedDefaults?.set(data, forKey: "blockedSelection")
-        }
+        self.saveSelection(selection)
 
         // 2. Save unlock timing + reason for UI countdown persistence
         let now = Date()
         let endDate = now.addingTimeInterval(TimeInterval(minutes * 60))
-        self.sharedDefaults?.set(endDate.timeIntervalSince1970, forKey: "unlockEndTime")
-        self.sharedDefaults?.set(now.timeIntervalSince1970, forKey: "unlockStartTime")
-        self.sharedDefaults?.set(minutes * 60, forKey: "unlockTotalDuration")
-        self.sharedDefaults?.set(reason, forKey: "unlockReason")
-        
-        // 3. Remove shields (unlock)
-        self.store.shield.applications = nil
-        self.store.shield.applicationCategories = nil
-        
-        // 4. Schedule DeviceActivity — fires intervalDidEnd when time's up
-        let calendar = Calendar.current
-        
-        let start = calendar.dateComponents(
-          [.hour, .minute, .second],
-          from: now
+        self.saveUnlockMetadata(
+          startDate: now,
+          endDate: endDate,
+          minutes: minutes,
+          reason: reason
         )
-        let end = calendar.dateComponents(
-          [.hour, .minute, .second],
-          from: endDate
-        )
-        
-        let schedule = DeviceActivitySchedule(
-          intervalStart: start,
-          intervalEnd: end,
-          repeats: false
-        )
-        
-        let center = DeviceActivityCenter()
-        try center.startMonitoring(
-          DeviceActivityName("V3Unlock"),
-          during: schedule
-        )
+
+        do {
+          try self.startRelockMonitor(relockAt: endDate)
+        } catch {
+          self.applyShields(for: selection)
+          self.clearUnlockMetadata()
+          throw error
+        }
+
+        // 3. Remove shields (unlock) after the future relock monitor is in place.
+        self.clearShields()
         
         return "unlocked for \(minutes) minutes"
       } else {throw NSError(
@@ -178,25 +256,15 @@ public class ScreenTimeLocksModule: Module {
         )
       }
     }
-        AsyncFunction("relockNow") {
+    AsyncFunction("relockNow") {
       if #available(iOS 16.0, *) {
-        if let data = self.sharedDefaults?.data(forKey: "blockedSelection"),
-           let selection = try? JSONDecoder().decode(FamilyActivitySelection.self, from: data) {
-          let appTokens = selection.applicationTokens
-          let categoryTokens = selection.categoryTokens
-          self.store.shield.applications = appTokens.isEmpty ? nil : appTokens
-          self.store.shield.applicationCategories = categoryTokens.isEmpty ? nil : .specific(categoryTokens)
-        } else if let selection = self.currentSelection {
-          self.store.shield.applications = selection.applicationTokens
-          self.store.shield.applicationCategories = .specific(selection.categoryTokens)
+        if let selection = self.savedSelection() {
+          self.applyShields(for: selection)
         }
         
         let center = DeviceActivityCenter()
-        center.stopMonitoring([DeviceActivityName("V3Unlock")])
-        self.sharedDefaults?.removeObject(forKey: "unlockEndTime")
-        self.sharedDefaults?.removeObject(forKey: "unlockStartTime")
-        self.sharedDefaults?.removeObject(forKey: "unlockTotalDuration")
-        self.sharedDefaults?.removeObject(forKey: "unlockReason")
+        center.stopMonitoring([self.unlockActivityName])
+        self.clearUnlockMetadata()
 
         return "relocked"
       } else {
@@ -221,7 +289,7 @@ public class ScreenTimeLocksModule: Module {
         if #available(iOS 16.0, *) {
           // Load saved selection (if any) from UserDefaults
           var initialSelection = FamilyActivitySelection()
-          if let data = self.sharedDefaults?.data(forKey: "blockedSelection"),
+          if let data = self.sharedDefaults?.data(forKey: DefaultsKey.blockedSelection),
              let saved = try? JSONDecoder().decode(FamilyActivitySelection.self, from: data) {
             initialSelection = saved
           }
@@ -241,15 +309,12 @@ public class ScreenTimeLocksModule: Module {
               self.currentSelection = selection
 
               // Save to UserDefaults
-              if let data = try? JSONEncoder().encode(selection) {
-                self.sharedDefaults?.set(data, forKey: "blockedSelection")
-              }
+              self.saveSelection(selection)
 
               // Apply shields immediately
               let appTokens = selection.applicationTokens
               let categoryTokens = selection.categoryTokens
-              self.store.shield.applications = appTokens.isEmpty ? nil : appTokens
-              self.store.shield.applicationCategories = categoryTokens.isEmpty ? nil : .specific(categoryTokens)
+              self.applyShields(for: selection)
 
               let count = appTokens.count + categoryTokens.count
               promise.resolve(["blocked": count])
@@ -278,13 +343,13 @@ public class ScreenTimeLocksModule: Module {
     }
 
     Function("getActiveUnlock") { () -> [String: Any]? in
-      let endTime = self.sharedDefaults?.double(forKey: "unlockEndTime") ?? 0
+      let endTime = self.sharedDefaults?.double(forKey: DefaultsKey.unlockEndTime) ?? 0
       guard endTime > 0, endTime > Date().timeIntervalSince1970 else {
         return nil
       }
-      let startTime = self.sharedDefaults?.double(forKey: "unlockStartTime") ?? 0
-      let totalDuration = self.sharedDefaults?.integer(forKey: "unlockTotalDuration") ?? 0
-      let reason = self.sharedDefaults?.string(forKey: "unlockReason") ?? ""
+      let startTime = self.sharedDefaults?.double(forKey: DefaultsKey.unlockStartTime) ?? 0
+      let totalDuration = self.sharedDefaults?.integer(forKey: DefaultsKey.unlockTotalDuration) ?? 0
+      let reason = self.sharedDefaults?.string(forKey: DefaultsKey.unlockReason) ?? ""
       return [
         "endTime": endTime,
         "startTime": startTime,

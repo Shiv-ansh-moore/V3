@@ -13,7 +13,7 @@ import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { Colours } from "../../constants/Colours";
 import { Fonts } from "../../constants/Fonts";
 
-const DURATIONS = [15, 30];
+const DURATIONS = [2, 5, 15, 30];
 
 interface UnlockSheetProps {
   visible: boolean;
@@ -95,7 +95,7 @@ export default function UnlockSheet({
                       selectedMinutes === mins && styles.durationTextActive,
                     ]}
                   >
-                    {mins}m
+                    {mins} min
                   </Text>
                 </TouchableOpacity>
               ))}
