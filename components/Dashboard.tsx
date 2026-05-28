@@ -121,13 +121,13 @@ function getProgressWidths(doneCount: number, leftCount: number) {
   const total = doneCount + leftCount;
 
   if (total === 0) {
-    return { doneWidth: 50, leftWidth: 50 };
+    return { doneWidth: 0, leftWidth: 100 };
   }
 
   if (doneCount === 0) {
     return {
-      doneWidth: MIN_PROGRESS_SEGMENT,
-      leftWidth: 100 - MIN_PROGRESS_SEGMENT,
+      doneWidth: 0,
+      leftWidth: 100,
     };
   }
 
@@ -212,16 +212,18 @@ function OverviewPanel({
         <Text style={styles.taskMeta}>{doneCount + leftCount} total</Text>
       </View>
       <View style={styles.progressTrack}>
-        <View style={[styles.progressDone, { width: `${doneWidth}%` }]}>
-          <Text
-            style={styles.progressText}
-            numberOfLines={1}
-            adjustsFontSizeToFit
-            minimumFontScale={0.65}
-          >
-            {doneCount}
-          </Text>
-        </View>
+        {doneWidth > 0 && (
+          <View style={[styles.progressDone, { width: `${doneWidth}%` }]}>
+            <Text
+              style={styles.progressText}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.65}
+            >
+              {doneCount}
+            </Text>
+          </View>
+        )}
         <View style={[styles.progressLeft, { width: `${leftWidth}%` }]}>
           <Text
             style={styles.progressText}
