@@ -9,7 +9,10 @@ import {
   View,
 } from "react-native";
 import { Image } from "expo-image";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  SafeAreaProvider,
+  SafeAreaView,
+} from "react-native-safe-area-context";
 import { XIcon } from "phosphor-react-native";
 import { Colours } from "../../constants/Colours";
 import { Fonts } from "../../constants/Fonts";
@@ -514,128 +517,130 @@ export default function GroupMemberOverview({
         presentationStyle="fullScreen"
         onRequestClose={onClose}
       >
-        <SafeAreaView style={styles.overviewModal} edges={["top", "bottom"]}>
-          <View style={styles.overviewTopBar}>
-            <Text style={styles.overviewTitle}>Profile</Text>
-            <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-              <XIcon size={20} color={Colours.text} weight="bold" />
-            </TouchableOpacity>
-          </View>
-
-          {loading && !member ? (
-            <View style={styles.loadingState}>
-              <ActivityIndicator color={Colours.brand} />
+        <SafeAreaProvider style={styles.overviewProvider}>
+          <SafeAreaView style={styles.overviewModal} edges={["top", "bottom"]}>
+            <View style={styles.overviewTopBar}>
+              <Text style={styles.overviewTitle}>Profile</Text>
+              <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+                <XIcon size={20} color={Colours.text} weight="bold" />
+              </TouchableOpacity>
             </View>
-          ) : activeMember ? (
-            <ScrollView
-              contentContainerStyle={styles.overviewContent}
-              showsVerticalScrollIndicator={false}
-            >
-              {error ? (
-                <View style={styles.errorBanner}>
-                  <Text style={styles.errorText}>{error}</Text>
-                </View>
-              ) : null}
 
-              <View style={styles.profileHero}>
-                <TouchableOpacity
-                  activeOpacity={hasStories ? 0.72 : 1}
-                  disabled={!hasStories}
-                  onPress={openStories}
-                >
-                  <ProfileAvatar member={activeMember} />
-                </TouchableOpacity>
-                <Text style={styles.profileName} numberOfLines={1}>
-                  {activeMember.displayName}
-                </Text>
-                <Text style={styles.profileMeta}>
-                  {hasStories ? "Tap photo for proofs" : "No proofs today"}
-                </Text>
+            {loading && !member ? (
+              <View style={styles.loadingState}>
+                <ActivityIndicator color={Colours.brand} />
               </View>
+            ) : activeMember ? (
+              <ScrollView
+                contentContainerStyle={styles.overviewContent}
+                showsVerticalScrollIndicator={false}
+              >
+                {error ? (
+                  <View style={styles.errorBanner}>
+                    <Text style={styles.errorText}>{error}</Text>
+                  </View>
+                ) : null}
 
-              <View style={styles.profileHeroStats}>
-                <View style={styles.profileMainStat}>
-                  <Text
-                    style={styles.profileTime}
-                    numberOfLines={1}
-                    adjustsFontSizeToFit
-                    minimumFontScale={0.7}
+                <View style={styles.profileHero}>
+                  <TouchableOpacity
+                    activeOpacity={hasStories ? 0.72 : 1}
+                    disabled={!hasStories}
+                    onPress={openStories}
                   >
-                    {formatDuration(activeMember.todaySeconds)}
+                    <ProfileAvatar member={activeMember} />
+                  </TouchableOpacity>
+                  <Text style={styles.profileName} numberOfLines={1}>
+                    {activeMember.displayName}
                   </Text>
-                  <Text style={styles.profileTimeLabel}>
-                    Distracting app time
+                  <Text style={styles.profileMeta}>
+                    {hasStories ? "Tap photo for proofs" : "No proofs today"}
                   </Text>
                 </View>
-                <View style={styles.profileSideStats}>
-                  <Stat value={activeMember.doneProofs.length} label="Done" />
-                  <Stat value={activeMember.activeGoals.length} label="Left" />
-                </View>
-              </View>
 
-              <View style={styles.overviewSection}>
-                <View style={styles.sectionTitleRow}>
-                  <Text style={styles.overviewSectionTitle}>Done today</Text>
-                  <Text style={styles.overviewSectionMeta}>
-                    {activeMember.doneProofs.length}
-                  </Text>
+                <View style={styles.profileHeroStats}>
+                  <View style={styles.profileMainStat}>
+                    <Text
+                      style={styles.profileTime}
+                      numberOfLines={1}
+                      adjustsFontSizeToFit
+                      minimumFontScale={0.7}
+                    >
+                      {formatDuration(activeMember.todaySeconds)}
+                    </Text>
+                    <Text style={styles.profileTimeLabel}>
+                      Distracting app time
+                    </Text>
+                  </View>
+                  <View style={styles.profileSideStats}>
+                    <Stat value={activeMember.doneProofs.length} label="Done" />
+                    <Stat value={activeMember.activeGoals.length} label="Left" />
+                  </View>
                 </View>
-                {activeMember.doneProofs.length > 0 ? (
-                  activeMember.doneProofs.map((proof) => (
-                    <GoalOverviewRow
-                      key={proof.id}
-                      icon={proof.goalIcon}
-                      title={proof.goalTitle}
-                      meta={formatShortTime(proof.submitted_at)}
-                      done
-                    />
-                  ))
-                ) : (
-                  <EmptyRow text="No completed tasks today." />
-                )}
-              </View>
 
-              <View style={styles.overviewSection}>
-                <View style={styles.sectionTitleRow}>
-                  <Text style={styles.overviewSectionTitle}>Left to do</Text>
-                  <Text style={styles.overviewSectionMeta}>
-                    {activeMember.activeGoals.length}
-                  </Text>
+                <View style={styles.overviewSection}>
+                  <View style={styles.sectionTitleRow}>
+                    <Text style={styles.overviewSectionTitle}>Done today</Text>
+                    <Text style={styles.overviewSectionMeta}>
+                      {activeMember.doneProofs.length}
+                    </Text>
+                  </View>
+                  {activeMember.doneProofs.length > 0 ? (
+                    activeMember.doneProofs.map((proof) => (
+                      <GoalOverviewRow
+                        key={proof.id}
+                        icon={proof.goalIcon}
+                        title={proof.goalTitle}
+                        meta={formatShortTime(proof.submitted_at)}
+                        done
+                      />
+                    ))
+                  ) : (
+                    <EmptyRow text="No completed tasks today." />
+                  )}
                 </View>
-                {activeMember.activeGoals.length > 0 ? (
-                  activeMember.activeGoals.map((goal) => (
-                    <GoalOverviewRow
-                      key={goal.id}
-                      icon={goal.icon}
-                      title={goal.title}
-                      meta={goal.duration}
-                    />
-                  ))
-                ) : (
-                  <EmptyRow text="No active tasks left." />
-                )}
-              </View>
 
-              <View style={styles.overviewSection}>
-                <View style={styles.sectionTitleRow}>
-                  <Text style={styles.overviewSectionTitle}>
-                    Unlock reasons
-                  </Text>
-                  <Text style={styles.overviewSectionMeta}>
-                    {activeMember.sessions.length}
-                  </Text>
+                <View style={styles.overviewSection}>
+                  <View style={styles.sectionTitleRow}>
+                    <Text style={styles.overviewSectionTitle}>Left to do</Text>
+                    <Text style={styles.overviewSectionMeta}>
+                      {activeMember.activeGoals.length}
+                    </Text>
+                  </View>
+                  {activeMember.activeGoals.length > 0 ? (
+                    activeMember.activeGoals.map((goal) => (
+                      <GoalOverviewRow
+                        key={goal.id}
+                        icon={goal.icon}
+                        title={goal.title}
+                        meta={goal.duration}
+                      />
+                    ))
+                  ) : (
+                    <EmptyRow text="No active tasks left." />
+                  )}
                 </View>
-                {activeMember.sessions.length > 0 ? (
-                  activeMember.sessions.map((session) => (
-                    <ReasonRow key={session.id} session={session} />
-                  ))
-                ) : (
-                  <EmptyRow text="No app unlocks today." />
-                )}
-              </View>
-            </ScrollView>
-          ) : null}
-        </SafeAreaView>
+
+                <View style={styles.overviewSection}>
+                  <View style={styles.sectionTitleRow}>
+                    <Text style={styles.overviewSectionTitle}>
+                      Unlock reasons
+                    </Text>
+                    <Text style={styles.overviewSectionMeta}>
+                      {activeMember.sessions.length}
+                    </Text>
+                  </View>
+                  {activeMember.sessions.length > 0 ? (
+                    activeMember.sessions.map((session) => (
+                      <ReasonRow key={session.id} session={session} />
+                    ))
+                  ) : (
+                    <EmptyRow text="No app unlocks today." />
+                  )}
+                </View>
+              </ScrollView>
+            ) : null}
+          </SafeAreaView>
+        </SafeAreaProvider>
       </Modal>
 
       {storyData ? (
@@ -656,6 +661,9 @@ export default function GroupMemberOverview({
 }
 
 const styles = StyleSheet.create({
+  overviewProvider: {
+    flex: 1,
+  },
   overviewModal: {
     flex: 1,
     backgroundColor: Colours.background,
