@@ -15,17 +15,19 @@ import { Fonts } from "../../constants/Fonts";
 import GoalIcon from "./GoalIcon";
 import { goalIconCatalog, goalIconMatchesSearch } from "./goalIconCatalog";
 
-interface IconPickerSheetProps {
-  visible: boolean;
+interface IconPickerPanelProps {
   onClose: () => void;
   onSelect: (iconName: string) => void;
 }
 
-export default function IconPickerSheet({
-  visible,
+interface IconPickerSheetProps extends IconPickerPanelProps {
+  visible: boolean;
+}
+
+export function IconPickerPanel({
   onClose,
   onSelect,
-}: IconPickerSheetProps) {
+}: IconPickerPanelProps) {
   const [search, setSearch] = useState("");
   const inputRef = useRef<TextInput>(null);
 
@@ -44,59 +46,69 @@ export default function IconPickerSheet({
   };
 
   return (
-    <Modal visible={visible} transparent animationType="none">
-      <Pressable
-        style={styles.overlay}
-        onPress={() => {
-          if (inputRef.current?.isFocused()) {
-            Keyboard.dismiss();
-          } else {
-            handleClose();
-          }
-        }}
+    <Pressable
+      style={styles.overlay}
+      onPress={() => {
+        if (inputRef.current?.isFocused()) {
+          Keyboard.dismiss();
+        } else {
+          handleClose();
+        }
+      }}
+    >
+      <KeyboardAvoidingView
+        behavior="position"
+        style={styles.avoidingView}
+        contentContainerStyle={styles.avoidingContent}
       >
-        <KeyboardAvoidingView
-          behavior="position"
-          style={styles.avoidingView}
-          contentContainerStyle={styles.avoidingContent}
-        >
-          <Pressable style={styles.sheet}>
-            <Text style={styles.title}>Choose Icon</Text>
-            <View style={styles.inputRow}>
-              <TextInput
-                ref={inputRef}
-                style={styles.input}
-                placeholder="Search icons..."
-                placeholderTextColor={Colours.secondaryText}
-                value={search}
-                onChangeText={setSearch}
-                returnKeyType="search"
-              />
-            </View>
-            <FlatList
-              data={filtered}
-              numColumns={4}
-              keyExtractor={(item) => item.name}
-              contentContainerStyle={styles.grid}
-              columnWrapperStyle={styles.gridRow}
-              keyboardShouldPersistTaps="handled"
-              renderItem={({ item }) => (
-                <Pressable
-                  style={styles.iconCell}
-                  onPress={() => handleSelect(item.name)}
-                >
-                  <View style={styles.iconBox}>
-                    <GoalIcon name={item.name} size={28} />
-                  </View>
-                  <Text style={styles.iconLabel} numberOfLines={1}>
-                    {item.label}
-                  </Text>
-                </Pressable>
-              )}
+        <Pressable style={styles.sheet}>
+          <Text style={styles.title}>Choose Icon</Text>
+          <View style={styles.inputRow}>
+            <TextInput
+              ref={inputRef}
+              style={styles.input}
+              placeholder="Search icons..."
+              placeholderTextColor={Colours.secondaryText}
+              value={search}
+              onChangeText={setSearch}
+              returnKeyType="search"
             />
-          </Pressable>
-        </KeyboardAvoidingView>
-      </Pressable>
+          </View>
+          <FlatList
+            data={filtered}
+            numColumns={4}
+            keyExtractor={(item) => item.name}
+            contentContainerStyle={styles.grid}
+            columnWrapperStyle={styles.gridRow}
+            keyboardShouldPersistTaps="handled"
+            renderItem={({ item }) => (
+              <Pressable
+                style={styles.iconCell}
+                onPress={() => handleSelect(item.name)}
+              >
+                <View style={styles.iconBox}>
+                  <GoalIcon name={item.name} size={28} />
+                </View>
+                <Text style={styles.iconLabel} numberOfLines={1}>
+                  {item.label}
+                </Text>
+              </Pressable>
+            )}
+          />
+        </Pressable>
+      </KeyboardAvoidingView>
+    </Pressable>
+  );
+}
+
+export default function IconPickerSheet({
+  visible,
+  onClose,
+  onSelect,
+}: IconPickerSheetProps) {
+  return (
+    <Modal visible={visible} transparent animationType="none">
+      <IconPickerPanel onClose={onClose} onSelect={onSelect} />
     </Modal>
   );
 }

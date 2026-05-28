@@ -364,61 +364,214 @@ export default function ProfileSheet({ visible, onClose }: ProfileSheetProps) {
     );
   };
 
+  const handleModalRequestClose = () => {
+    if (avatarPickerOpen) {
+      setAvatarPickerOpen(false);
+      return;
+    }
+
+    if (showPersonalSettings) {
+      closePersonalSettings();
+      return;
+    }
+
+    onClose();
+  };
+
   return (
-    <Modal visible={visible} transparent animationType="slide">
-      <Pressable style={styles.overlay} onPress={onClose}>
-        <Pressable style={styles.sheet}>
-          <Text style={styles.title}>Settings</Text>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      onRequestClose={handleModalRequestClose}
+    >
+      {avatarPickerOpen ? (
+        <Pressable
+          style={styles.overlay}
+          onPress={() => setAvatarPickerOpen(false)}
+        >
+          <Pressable style={styles.photoSheet}>
+            <View style={styles.sheetHandle} />
+            <Text style={styles.photoSheetTitle}>Profile picture</Text>
 
-          <TouchableOpacity style={styles.row} onPress={openPersonalSettings}>
-            <View style={styles.iconBox}>
-              <UserIcon size={20} weight="bold" color={Colours.text} />
-            </View>
-            <Text style={styles.rowLabel}>Personal Settings</Text>
-            <CaretRightIcon
-              size={16}
-              weight="bold"
-              color={Colours.secondaryText}
-            />
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.photoRow}
+              onPress={takeAvatarPhoto}
+              disabled={avatarUploading}
+            >
+              <View style={styles.photoIcon}>
+                <CameraIcon size={22} color={Colours.brand} weight="regular" />
+              </View>
+              <Text style={styles.photoRowText}>Take photo</Text>
+            </TouchableOpacity>
 
-          <TouchableOpacity style={styles.row} onPress={handleManageBlockedApps}>
-            <View style={styles.iconBox}>
-              <AppWindowIcon size={20} weight="bold" color={Colours.text} />
-            </View>
-            <Text style={styles.rowLabel}>Manage Blocked Apps</Text>
-            <CaretRightIcon
-              size={16}
-              weight="bold"
-              color={Colours.secondaryText}
-            />
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.photoRow}
+              onPress={pickAvatarFromLibrary}
+              disabled={avatarUploading}
+            >
+              <View style={styles.photoIcon}>
+                <ImageIcon size={22} color={Colours.brand} weight="regular" />
+              </View>
+              <Text style={styles.photoRowText}>Choose from library</Text>
+            </TouchableOpacity>
 
-          <TouchableOpacity style={styles.row} onPress={openGroupOptions}>
-            <View style={styles.iconBox}>
-              <UsersThreeIcon size={20} weight="bold" color={Colours.text} />
-            </View>
-            <Text style={styles.rowLabel}>Group Options</Text>
-            <CaretRightIcon
-              size={16}
-              weight="bold"
-              color={Colours.secondaryText}
-            />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.row} onPress={handleSignOut}>
-            <View style={styles.iconBox}>
-              <SignOutIcon size={20} weight="bold" color={Colours.text} />
-            </View>
-            <Text style={styles.rowLabel}>Sign out</Text>
-            <CaretRightIcon
-              size={16}
-              weight="bold"
-              color={Colours.secondaryText}
-            />
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.photoCancel}
+              onPress={() => setAvatarPickerOpen(false)}
+            >
+              <Text style={styles.photoCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </Pressable>
         </Pressable>
-      </Pressable>
+      ) : showPersonalSettings ? (
+        <Pressable style={styles.overlay} onPress={closePersonalSettings}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === "ios" ? "padding" : undefined}
+            style={styles.profileAvoidingView}
+          >
+            <Pressable style={styles.sheet}>
+              <Text style={styles.title}>Personal Settings</Text>
+
+              <View style={styles.profileContent}>
+                <TouchableOpacity
+                  style={styles.avatarButton}
+                  onPress={() => {
+                    if (!avatarUploading) setAvatarPickerOpen(true);
+                  }}
+                  activeOpacity={0.8}
+                >
+                  {avatarUrl ? (
+                    <Image
+                      source={{ uri: avatarUrl }}
+                      style={styles.avatarImage}
+                      contentFit="cover"
+                    />
+                  ) : (
+                    <Text style={styles.avatarInitial}>
+                      {getInitial(displayName || profile?.username)}
+                    </Text>
+                  )}
+                  {avatarUploading && (
+                    <View style={styles.avatarOverlay}>
+                      <ActivityIndicator color={Colours.text} />
+                    </View>
+                  )}
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.changePhotoButton}
+                  onPress={() => {
+                    if (!avatarUploading) setAvatarPickerOpen(true);
+                  }}
+                  disabled={avatarUploading}
+                >
+                  <CameraIcon size={17} weight="bold" color={Colours.text} />
+                  <Text style={styles.changePhotoText}>
+                    {avatarUploading ? "Uploading" : "Change photo"}
+                  </Text>
+                </TouchableOpacity>
+
+                <View style={styles.fieldGroup}>
+                  <Text style={styles.fieldLabel}>Display Name</Text>
+                  <TextInput
+                    value={displayName}
+                    onChangeText={setDisplayName}
+                    placeholder="Display name"
+                    placeholderTextColor={Colours.secondaryText}
+                    autoCapitalize="words"
+                    autoCorrect={false}
+                    maxLength={40}
+                    style={styles.profileInput}
+                  />
+                </View>
+
+                {profileError && (
+                  <Text style={styles.profileError}>{profileError}</Text>
+                )}
+
+                <View style={styles.profileActions}>
+                  <TouchableOpacity
+                    style={styles.cancelButton}
+                    onPress={closePersonalSettings}
+                    disabled={profileSaving || avatarUploading}
+                  >
+                    <Text style={styles.cancelButtonText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.primaryButton,
+                      !canSaveProfile && styles.primaryButtonDisabled,
+                    ]}
+                    onPress={savePersonalSettings}
+                    disabled={!canSaveProfile}
+                  >
+                    <Text style={styles.primaryButtonText}>
+                      {profileSaving ? "Saving" : "Save"}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </Pressable>
+          </KeyboardAvoidingView>
+        </Pressable>
+      ) : (
+        <Pressable style={styles.overlay} onPress={onClose}>
+          <Pressable style={styles.sheet}>
+            <Text style={styles.title}>Settings</Text>
+
+            <TouchableOpacity style={styles.row} onPress={openPersonalSettings}>
+              <View style={styles.iconBox}>
+                <UserIcon size={20} weight="bold" color={Colours.text} />
+              </View>
+              <Text style={styles.rowLabel}>Personal Settings</Text>
+              <CaretRightIcon
+                size={16}
+                weight="bold"
+                color={Colours.secondaryText}
+              />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.row}
+              onPress={handleManageBlockedApps}
+            >
+              <View style={styles.iconBox}>
+                <AppWindowIcon size={20} weight="bold" color={Colours.text} />
+              </View>
+              <Text style={styles.rowLabel}>Manage Blocked Apps</Text>
+              <CaretRightIcon
+                size={16}
+                weight="bold"
+                color={Colours.secondaryText}
+              />
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.row} onPress={openGroupOptions}>
+              <View style={styles.iconBox}>
+                <UsersThreeIcon size={20} weight="bold" color={Colours.text} />
+              </View>
+              <Text style={styles.rowLabel}>Group Options</Text>
+              <CaretRightIcon
+                size={16}
+                weight="bold"
+                color={Colours.secondaryText}
+              />
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.row} onPress={handleSignOut}>
+              <View style={styles.iconBox}>
+                <SignOutIcon size={20} weight="bold" color={Colours.text} />
+              </View>
+              <Text style={styles.rowLabel}>Sign out</Text>
+              <CaretRightIcon
+                size={16}
+                weight="bold"
+                color={Colours.secondaryText}
+              />
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      )}
 
       <Modal visible={showAndroidPicker} transparent animationType="slide">
         <Pressable
@@ -560,148 +713,6 @@ export default function ProfileSheet({ visible, onClose }: ProfileSheetProps) {
         </Pressable>
       </Modal>
 
-      <Modal
-        visible={showPersonalSettings}
-        transparent
-        animationType="slide"
-        onRequestClose={closePersonalSettings}
-      >
-        <Pressable style={styles.overlay} onPress={closePersonalSettings}>
-          <KeyboardAvoidingView
-            behavior={Platform.OS === "ios" ? "padding" : undefined}
-            style={styles.profileAvoidingView}
-          >
-            <Pressable style={styles.sheet}>
-              <Text style={styles.title}>Personal Settings</Text>
-
-              <View style={styles.profileContent}>
-                <TouchableOpacity
-                  style={styles.avatarButton}
-                  onPress={() => {
-                    if (!avatarUploading) setAvatarPickerOpen(true);
-                  }}
-                  activeOpacity={0.8}
-                >
-                  {avatarUrl ? (
-                    <Image
-                      source={{ uri: avatarUrl }}
-                      style={styles.avatarImage}
-                      contentFit="cover"
-                    />
-                  ) : (
-                    <Text style={styles.avatarInitial}>
-                      {getInitial(displayName || profile?.username)}
-                    </Text>
-                  )}
-                  {avatarUploading && (
-                    <View style={styles.avatarOverlay}>
-                      <ActivityIndicator color={Colours.text} />
-                    </View>
-                  )}
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.changePhotoButton}
-                  onPress={() => {
-                    if (!avatarUploading) setAvatarPickerOpen(true);
-                  }}
-                  disabled={avatarUploading}
-                >
-                  <CameraIcon size={17} weight="bold" color={Colours.text} />
-                  <Text style={styles.changePhotoText}>
-                    {avatarUploading ? "Uploading" : "Change photo"}
-                  </Text>
-                </TouchableOpacity>
-
-                <View style={styles.fieldGroup}>
-                  <Text style={styles.fieldLabel}>Display Name</Text>
-                  <TextInput
-                    value={displayName}
-                    onChangeText={setDisplayName}
-                    placeholder="Display name"
-                    placeholderTextColor={Colours.secondaryText}
-                    autoCapitalize="words"
-                    autoCorrect={false}
-                    maxLength={40}
-                    style={styles.profileInput}
-                  />
-                </View>
-
-                {profileError && (
-                  <Text style={styles.profileError}>{profileError}</Text>
-                )}
-
-                <View style={styles.profileActions}>
-                  <TouchableOpacity
-                    style={styles.cancelButton}
-                    onPress={closePersonalSettings}
-                    disabled={profileSaving || avatarUploading}
-                  >
-                    <Text style={styles.cancelButtonText}>Cancel</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[
-                      styles.primaryButton,
-                      !canSaveProfile && styles.primaryButtonDisabled,
-                    ]}
-                    onPress={savePersonalSettings}
-                    disabled={!canSaveProfile}
-                  >
-                    <Text style={styles.primaryButtonText}>
-                      {profileSaving ? "Saving" : "Save"}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </Pressable>
-          </KeyboardAvoidingView>
-        </Pressable>
-      </Modal>
-
-      <Modal
-        visible={avatarPickerOpen}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setAvatarPickerOpen(false)}
-      >
-        <Pressable
-          style={styles.overlay}
-          onPress={() => setAvatarPickerOpen(false)}
-        >
-          <Pressable style={styles.photoSheet}>
-            <View style={styles.sheetHandle} />
-            <Text style={styles.photoSheetTitle}>Profile picture</Text>
-
-            <TouchableOpacity
-              style={styles.photoRow}
-              onPress={takeAvatarPhoto}
-              disabled={avatarUploading}
-            >
-              <View style={styles.photoIcon}>
-                <CameraIcon size={22} color={Colours.brand} weight="regular" />
-              </View>
-              <Text style={styles.photoRowText}>Take photo</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.photoRow}
-              onPress={pickAvatarFromLibrary}
-              disabled={avatarUploading}
-            >
-              <View style={styles.photoIcon}>
-                <ImageIcon size={22} color={Colours.brand} weight="regular" />
-              </View>
-              <Text style={styles.photoRowText}>Choose from library</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.photoCancel}
-              onPress={() => setAvatarPickerOpen(false)}
-            >
-              <Text style={styles.photoCancelText}>Cancel</Text>
-            </TouchableOpacity>
-          </Pressable>
-        </Pressable>
-      </Modal>
     </Modal>
   );
 }

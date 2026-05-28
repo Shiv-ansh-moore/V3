@@ -15,7 +15,7 @@ import { PlusIcon, XIcon } from "phosphor-react-native";
 import { Colours } from "../../constants/Colours";
 import { Fonts } from "../../constants/Fonts";
 import GoalIcon from "./GoalIcon";
-import IconPickerSheet from "./IconPickerSheet";
+import { IconPickerPanel } from "./IconPickerSheet";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { supabase } from "../../lib/supabase";
 import { useAuth } from "../../lib/AuthContext";
@@ -74,6 +74,12 @@ export default function AddGoalSheet({
     lastPrefillKeyRef.current = prefill.seedKey;
   }, [prefill, visible]);
 
+  useEffect(() => {
+    if (!visible) {
+      setEditingGoalId(null);
+    }
+  }, [visible]);
+
   const handleAdd = () => {
     const trimmed = text.trim();
     if (!trimmed) return;
@@ -131,8 +137,31 @@ export default function AddGoalSheet({
   );
 
   return (
-    <>
-      <Modal visible={visible} transparent animationType="none">
+    <Modal
+      visible={visible}
+      transparent
+      animationType="none"
+      onRequestClose={() => {
+        if (editingGoalId) {
+          setEditingGoalId(null);
+        } else {
+          onClose();
+        }
+      }}
+    >
+      {editingGoalId ? (
+        <IconPickerPanel
+          onClose={() => setEditingGoalId(null)}
+          onSelect={(iconName) => {
+            setGoals((prev) =>
+              prev.map((g) =>
+                g.id === editingGoalId ? { ...g, icon: iconName } : g,
+              ),
+            );
+            setEditingGoalId(null);
+          }}
+        />
+      ) : (
         <Pressable
           style={styles.overlay}
           onPress={() => {
@@ -208,20 +237,8 @@ export default function AddGoalSheet({
             </Pressable>
           </KeyboardAvoidingView>
         </Pressable>
-      </Modal>
-      <IconPickerSheet
-        visible={editingGoalId !== null}
-        onClose={() => setEditingGoalId(null)}
-        onSelect={(iconName) => {
-          setGoals((prev) =>
-            prev.map((g) =>
-              g.id === editingGoalId ? { ...g, icon: iconName } : g,
-            ),
-          );
-          setEditingGoalId(null);
-        }}
-      />
-    </>
+      )}
+    </Modal>
   );
 }
 

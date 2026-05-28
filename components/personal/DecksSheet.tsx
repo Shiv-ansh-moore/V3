@@ -34,7 +34,7 @@ import { useAuth } from "../../lib/AuthContext";
 import { supabase } from "../../lib/supabase";
 import type { Database, Json } from "../../lib/database.types";
 import GoalIcon from "./GoalIcon";
-import IconPickerSheet from "./IconPickerSheet";
+import { IconPickerPanel } from "./IconPickerSheet";
 import { fallbackGoalIconName, getGoalIconForTitle } from "./goalIconCatalog";
 import type { GoalTemplate } from "./AddGoalSheet";
 
@@ -238,75 +238,86 @@ export default function DecksSheet({
 
   return (
     <>
-      <Modal visible={visible} transparent animationType="slide">
-        <Pressable style={styles.overlay} onPress={onClose}>
-          <Pressable style={styles.sheet}>
-            <View style={styles.header}>
-              <View>
-                <Text style={styles.title}>Goal Decks</Text>
-                <Text style={styles.subtitle}>Create reusable goal packs</Text>
+      <Modal
+        visible={visible}
+        transparent
+        animationType="slide"
+        onRequestClose={showEditor ? () => setShowEditor(false) : onClose}
+      >
+        {showEditor ? (
+          <DeckEditorPanel
+            visible={showEditor}
+            deck={editingDeck}
+            onClose={() => setShowEditor(false)}
+            onChanged={handleChanged}
+          />
+        ) : (
+          <Pressable style={styles.overlay} onPress={onClose}>
+            <Pressable style={styles.sheet}>
+              <View style={styles.header}>
+                <View>
+                  <Text style={styles.title}>Goal Decks</Text>
+                  <Text style={styles.subtitle}>Create reusable goal packs</Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.closeButton}
+                  activeOpacity={0.75}
+                  onPress={onClose}
+                >
+                  <XIcon
+                    size={18}
+                    weight="bold"
+                    color={Colours.secondaryText}
+                  />
+                </TouchableOpacity>
               </View>
+
               <TouchableOpacity
-                style={styles.closeButton}
-                activeOpacity={0.75}
-                onPress={onClose}
+                style={styles.createCard}
+                activeOpacity={0.8}
+                onPress={openCreateEditor}
               >
-                <XIcon size={18} weight="bold" color={Colours.secondaryText} />
+                <View style={styles.createIconBox}>
+                  <PackageIcon size={22} weight="bold" color={Colours.brand} />
+                </View>
+                <View style={styles.createCopy}>
+                  <Text style={styles.createTitle}>Create your own deck</Text>
+                  <Text style={styles.createSubtitle}>
+                    Build a reusable set of goals
+                  </Text>
+                </View>
               </TouchableOpacity>
-            </View>
 
-            <TouchableOpacity
-              style={styles.createCard}
-              activeOpacity={0.8}
-              onPress={openCreateEditor}
-            >
-              <View style={styles.createIconBox}>
-                <PackageIcon size={22} weight="bold" color={Colours.brand} />
-              </View>
-              <View style={styles.createCopy}>
-                <Text style={styles.createTitle}>Create your own deck</Text>
-                <Text style={styles.createSubtitle}>
-                  Build a reusable set of goals
-                </Text>
-              </View>
-            </TouchableOpacity>
+              <Text style={styles.sectionLabel}>YOUR DECKS</Text>
 
-            <Text style={styles.sectionLabel}>YOUR DECKS</Text>
-
-            {loading ? (
-              <View style={styles.loadingState}>
-                <ActivityIndicator color={Colours.brand} />
-              </View>
-            ) : (
-              <FlatList
-                data={decks}
-                renderItem={renderDeck}
-                keyExtractor={(item) => item.id}
-                contentContainerStyle={[
-                  styles.deckList,
-                  decks.length === 0 && styles.emptyList,
-                ]}
-                ListEmptyComponent={
-                  <Text style={styles.emptyText}>No decks yet</Text>
-                }
-                showsVerticalScrollIndicator={false}
-              />
-            )}
+              {loading ? (
+                <View style={styles.loadingState}>
+                  <ActivityIndicator color={Colours.brand} />
+                </View>
+              ) : (
+                <FlatList
+                  data={decks}
+                  renderItem={renderDeck}
+                  keyExtractor={(item) => item.id}
+                  contentContainerStyle={[
+                    styles.deckList,
+                    decks.length === 0 && styles.emptyList,
+                  ]}
+                  ListEmptyComponent={
+                    <Text style={styles.emptyText}>No decks yet</Text>
+                  }
+                  showsVerticalScrollIndicator={false}
+                />
+              )}
+            </Pressable>
           </Pressable>
-        </Pressable>
+        )}
       </Modal>
-
-      <DeckEditorSheet
-        visible={showEditor}
-        deck={editingDeck}
-        onClose={() => setShowEditor(false)}
-        onChanged={handleChanged}
-      />
     </>
   );
 }
 
-function DeckEditorSheet({
+function DeckEditorPanel({
   visible,
   deck,
   onClose,
@@ -477,171 +488,170 @@ function DeckEditorSheet({
     </View>
   );
 
-  return (
-    <>
-      <Modal visible={visible} transparent animationType="none">
-        <Pressable
-          style={styles.overlay}
-          onPress={() => {
-            if (
-              goalInputRef.current?.isFocused() ||
-              nameInputRef.current?.isFocused()
-            ) {
-              Keyboard.dismiss();
-            } else {
-              closeEditor();
-            }
-          }}
-        >
-          <KeyboardAvoidingView behavior="padding">
-            <Pressable style={styles.editorSheet}>
-              <View style={styles.editorTitleRow}>
-                <View style={styles.editorTitleGroup}>
-                  {step === "goals" && (
-                    <TouchableOpacity
-                      style={styles.backButton}
-                      activeOpacity={0.75}
-                      onPress={() => setStep("details")}
-                    >
-                      <CaretLeftIcon
-                        size={18}
-                        weight="bold"
-                        color={Colours.secondaryText}
-                      />
-                    </TouchableOpacity>
-                  )}
-                  <Text style={styles.editorTitle} numberOfLines={1}>
-                    {step === "details" ? "Deck Name" : "Deck Goals"}
-                  </Text>
-                </View>
-                {deck && (
-                  <TouchableOpacity
-                    style={styles.deleteDeckButton}
-                    activeOpacity={0.75}
-                    onPress={confirmDelete}
-                    disabled={deleting}
-                  >
-                    <TrashIcon
-                      size={18}
-                      weight="bold"
-                      color="rgba(255,90,90,0.92)"
-                    />
-                  </TouchableOpacity>
-                )}
-              </View>
-
-              {step === "details" ? (
-                <>
-                  <View style={styles.deckNameOnlyRow}>
-                    <Pressable
-                      style={styles.deckIconPicker}
-                      onPress={() => setEditingIconTarget("deck")}
-                    >
-                      <GoalIcon name={icon} size={28} />
-                    </Pressable>
-                    <TextInput
-                      ref={nameInputRef}
-                      style={styles.deckNameInput}
-                      placeholder="Deck name"
-                      placeholderTextColor={Colours.secondaryText}
-                      value={title}
-                      onChangeText={updateTitle}
-                      returnKeyType="next"
-                      onSubmitEditing={continueToGoals}
-                    />
-                  </View>
-
-                  <TouchableOpacity
-                    style={[
-                      styles.saveDeckButton,
-                      !canContinue && styles.disabledButton,
-                    ]}
-                    activeOpacity={0.82}
-                    onPress={continueToGoals}
-                    disabled={!canContinue}
-                  >
-                    <Text
-                      style={[
-                        styles.saveDeckText,
-                        !canContinue && styles.disabledButtonText,
-                      ]}
-                    >
-                      Next
-                    </Text>
-                  </TouchableOpacity>
-                </>
-              ) : (
-                <>
-                  <View style={styles.inputRow}>
-                    <TextInput
-                      ref={goalInputRef}
-                      style={styles.input}
-                      placeholder="e.g. Gym"
-                      placeholderTextColor={Colours.secondaryText}
-                      value={goalText}
-                      onChangeText={setGoalText}
-                      onSubmitEditing={addGoalTemplate}
-                      blurOnSubmit={false}
-                      returnKeyType="done"
-                    />
-                  </View>
-
-                  <FlatList
-                    data={items}
-                    renderItem={renderTemplateItem}
-                    keyExtractor={(item) => item.localId}
-                    keyboardShouldPersistTaps="handled"
-                  />
-
-                  {items.length === 0 && (
-                    <Pressable
-                      style={styles.addGoalBtn}
-                      onPress={() => goalInputRef.current?.focus()}
-                    >
-                      <View style={styles.addGoalCircle}>
-                        <PlusIcon
-                          size={20}
-                          weight="bold"
-                          color={Colours.fadedBrand}
-                        />
-                      </View>
-                      <Text style={styles.editorEmptyText}>
-                        Add goals to this deck
-                      </Text>
-                    </Pressable>
-                  )}
-
-                  <TouchableOpacity
-                    style={[
-                      styles.saveDeckButton,
-                      !canSave && styles.disabledButton,
-                    ]}
-                    activeOpacity={0.82}
-                    onPress={saveDeck}
-                    disabled={!canSave}
-                  >
-                    <Text
-                      style={[
-                        styles.saveDeckText,
-                        !canSave && styles.disabledButtonText,
-                      ]}
-                    >
-                      {saveLabel}
-                    </Text>
-                  </TouchableOpacity>
-                </>
-              )}
-            </Pressable>
-          </KeyboardAvoidingView>
-        </Pressable>
-      </Modal>
-
-      <IconPickerSheet
-        visible={editingIconTarget !== null}
+  if (editingIconTarget !== null) {
+    return (
+      <IconPickerPanel
         onClose={() => setEditingIconTarget(null)}
         onSelect={handleIconSelect}
       />
-    </>
+    );
+  }
+
+  return (
+    <Pressable
+      style={styles.overlay}
+      onPress={() => {
+        if (
+          goalInputRef.current?.isFocused() ||
+          nameInputRef.current?.isFocused()
+        ) {
+          Keyboard.dismiss();
+        } else {
+          closeEditor();
+        }
+      }}
+    >
+      <KeyboardAvoidingView behavior="padding">
+        <Pressable style={styles.editorSheet}>
+          <View style={styles.editorTitleRow}>
+            <View style={styles.editorTitleGroup}>
+              {step === "goals" && (
+                <TouchableOpacity
+                  style={styles.backButton}
+                  activeOpacity={0.75}
+                  onPress={() => setStep("details")}
+                >
+                  <CaretLeftIcon
+                    size={18}
+                    weight="bold"
+                    color={Colours.secondaryText}
+                  />
+                </TouchableOpacity>
+              )}
+              <Text style={styles.editorTitle} numberOfLines={1}>
+                {step === "details" ? "Deck Name" : "Deck Goals"}
+              </Text>
+            </View>
+            {deck && (
+              <TouchableOpacity
+                style={styles.deleteDeckButton}
+                activeOpacity={0.75}
+                onPress={confirmDelete}
+                disabled={deleting}
+              >
+                <TrashIcon
+                  size={18}
+                  weight="bold"
+                  color="rgba(255,90,90,0.92)"
+                />
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {step === "details" ? (
+            <>
+              <View style={styles.deckNameOnlyRow}>
+                <Pressable
+                  style={styles.deckIconPicker}
+                  onPress={() => setEditingIconTarget("deck")}
+                >
+                  <GoalIcon name={icon} size={28} />
+                </Pressable>
+                <TextInput
+                  ref={nameInputRef}
+                  style={styles.deckNameInput}
+                  placeholder="Deck name"
+                  placeholderTextColor={Colours.secondaryText}
+                  value={title}
+                  onChangeText={updateTitle}
+                  returnKeyType="next"
+                  onSubmitEditing={continueToGoals}
+                />
+              </View>
+
+              <TouchableOpacity
+                style={[
+                  styles.saveDeckButton,
+                  !canContinue && styles.disabledButton,
+                ]}
+                activeOpacity={0.82}
+                onPress={continueToGoals}
+                disabled={!canContinue}
+              >
+                <Text
+                  style={[
+                    styles.saveDeckText,
+                    !canContinue && styles.disabledButtonText,
+                  ]}
+                >
+                  Next
+                </Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <>
+              <View style={styles.inputRow}>
+                <TextInput
+                  ref={goalInputRef}
+                  style={styles.input}
+                  placeholder="e.g. Gym"
+                  placeholderTextColor={Colours.secondaryText}
+                  value={goalText}
+                  onChangeText={setGoalText}
+                  onSubmitEditing={addGoalTemplate}
+                  blurOnSubmit={false}
+                  returnKeyType="done"
+                />
+              </View>
+
+              <FlatList
+                data={items}
+                renderItem={renderTemplateItem}
+                keyExtractor={(item) => item.localId}
+                keyboardShouldPersistTaps="handled"
+              />
+
+              {items.length === 0 && (
+                <Pressable
+                  style={styles.addGoalBtn}
+                  onPress={() => goalInputRef.current?.focus()}
+                >
+                  <View style={styles.addGoalCircle}>
+                    <PlusIcon
+                      size={20}
+                      weight="bold"
+                      color={Colours.fadedBrand}
+                    />
+                  </View>
+                  <Text style={styles.editorEmptyText}>
+                    Add goals to this deck
+                  </Text>
+                </Pressable>
+              )}
+
+              <TouchableOpacity
+                style={[
+                  styles.saveDeckButton,
+                  !canSave && styles.disabledButton,
+                ]}
+                activeOpacity={0.82}
+                onPress={saveDeck}
+                disabled={!canSave}
+              >
+                <Text
+                  style={[
+                    styles.saveDeckText,
+                    !canSave && styles.disabledButtonText,
+                  ]}
+                >
+                  {saveLabel}
+                </Text>
+              </TouchableOpacity>
+            </>
+          )}
+        </Pressable>
+      </KeyboardAvoidingView>
+    </Pressable>
   );
 }
 
