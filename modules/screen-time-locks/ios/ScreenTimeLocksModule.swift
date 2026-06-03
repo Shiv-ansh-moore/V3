@@ -19,6 +19,69 @@ public class ScreenTimeLocksModule: Module {
     static let unlockReason = "unlockReason"
   }
 
+  @available(iOS 16.0, *)
+  private func authorizationStatusDescription() -> String {
+    String(describing: AuthorizationCenter.shared.authorizationStatus)
+  }
+
+  @available(iOS 16.0, *)
+  private func authorizationIsApproved() -> Bool {
+    self.authorizationStatusDescription().lowercased().contains("approved")
+  }
+
+  @available(iOS 16.0, *)
+  private func ensureAuthorized() async throws {
+    let center = AuthorizationCenter.shared
+
+    if self.authorizationStatusDescription() == "notDetermined" {
+      try await center.requestAuthorization(for: .individual)
+    }
+
+    guard self.authorizationIsApproved() else {
+      throw NSError(
+        domain: "ScreenTimeLocks",
+        code: 4,
+        userInfo: [
+          NSLocalizedDescriptionKey:
+            "Screen Time authorization is \(self.authorizationStatusDescription()). Allow V3App in Settings > Screen Time, then try again."
+        ]
+      )
+    }
+  }
+
+  private func topViewController(from viewController: UIViewController?) -> UIViewController? {
+    if let navigationController = viewController as? UINavigationController {
+      return self.topViewController(from: navigationController.visibleViewController)
+    }
+
+    if let tabBarController = viewController as? UITabBarController {
+      return self.topViewController(from: tabBarController.selectedViewController)
+    }
+
+    if let presentedViewController = viewController?.presentedViewController {
+      return self.topViewController(from: presentedViewController)
+    }
+
+    return viewController
+  }
+
+  private func activePresenter() -> UIViewController? {
+    let windowScenes = UIApplication.shared.connectedScenes
+      .compactMap { $0 as? UIWindowScene }
+
+    let keyWindow = windowScenes
+      .flatMap { $0.windows }
+      .first { $0.isKeyWindow }
+
+    let fallbackWindow = windowScenes
+      .flatMap { $0.windows }
+      .first
+
+    return self.topViewController(
+      from: (keyWindow ?? fallbackWindow)?.rootViewController
+    )
+  }
+
   private func savedSelection() -> FamilyActivitySelection? {
     if let selection = self.currentSelection {
       return selection
@@ -111,7 +174,7 @@ public class ScreenTimeLocksModule: Module {
     AsyncFunction("requestAuthorization") {
       if #available(iOS 16.0, *) {
         try await AuthorizationCenter.shared.requestAuthorization(for: .individual)
-        return "authorized"
+        return self.authorizationStatusDescription()
       } else {
         throw NSError(
           domain: "ScreenTimeLocks",
@@ -123,11 +186,8 @@ public class ScreenTimeLocksModule: Module {
 
     AsyncFunction("showAppPicker") { (promise: Promise) in
       DispatchQueue.main.async {
-        guard let rootVC = UIApplication.shared.connectedScenes
-          .compactMap({ $0 as? UIWindowScene })
-          .first?.windows.first?.rootViewController
-        else {
-          promise.reject("ERR", "No root view controller")
+        guard let presenter = self.activePresenter() else {
+          promise.reject("ERR", "No active view controller")
           return
         }
 
@@ -147,7 +207,7 @@ public class ScreenTimeLocksModule: Module {
               promise.resolve(["selectedApps": count])
             }
             observers.forEach { NotificationCenter.default.removeObserver($0) }
-            rootVC.dismiss(animated: true)
+            picker.dismiss(animated: true)
           }
           observers.append(doneObserver)
 
@@ -158,11 +218,11 @@ public class ScreenTimeLocksModule: Module {
           ) { _ in
             promise.reject("CANCELLED", "User cancelled")
             observers.forEach { NotificationCenter.default.removeObserver($0) }
-            rootVC.dismiss(animated: true)
+            picker.dismiss(animated: true)
           }
           observers.append(cancelObserver)
 
-          rootVC.present(picker, animated: true)
+          presenter.present(picker, animated: true)
         } else {
           promise.reject("ERR", "Requires iOS 16+")
         }
@@ -208,6 +268,17 @@ public class ScreenTimeLocksModule: Module {
     }
      AsyncFunction("unlockForDuration") { (minutes: Int, reason: String) -> String in
       if #available(iOS 16.0, *) {
+        guard self.authorizationIsApproved() else {
+          throw NSError(
+            domain: "ScreenTimeLocks",
+            code: 4,
+            userInfo: [
+              NSLocalizedDescriptionKey:
+                "Screen Time authorization is \(self.authorizationStatusDescription()). Allow V3App in Settings > Screen Time, then try again."
+            ]
+          )
+        }
+
         guard minutes > 0 else {
           throw NSError(
             domain: "ScreenTimeLocks",
@@ -277,69 +348,102 @@ public class ScreenTimeLocksModule: Module {
     }
 
     AsyncFunction("manageBlockedApps") { (promise: Promise) in
-      DispatchQueue.main.async {
-        guard let rootVC = UIApplication.shared.connectedScenes
-          .compactMap({ $0 as? UIWindowScene })
-          .first?.windows.first?.rootViewController
-        else {
-          promise.reject("ERR", "No root view controller")
-          return
-        }
-
-        if #available(iOS 16.0, *) {
-          // Load saved selection (if any) from UserDefaults
-          var initialSelection = FamilyActivitySelection()
-          if let data = self.sharedDefaults?.data(forKey: DefaultsKey.blockedSelection),
-             let saved = try? JSONDecoder().decode(FamilyActivitySelection.self, from: data) {
-            initialSelection = saved
+      if #available(iOS 16.0, *) {
+        Task {
+          do {
+            try await self.ensureAuthorized()
+          } catch {
+            promise.reject("AUTHORIZATION_FAILED", error.localizedDescription)
+            return
           }
 
-          // Create picker pre-populated with saved selection
-          let picker = AppPickerViewController(initialSelection: initialSelection)
-          picker.modalPresentationStyle = .pageSheet
-          var observers: [Any] = []
-
-          let doneObserver = NotificationCenter.default.addObserver(
-            forName: .appSelectionComplete,
-            object: nil,
-            queue: .main
-          ) { notification in
-            if let selection = notification.object as? FamilyActivitySelection {
-              // Update in-memory selection
-              self.currentSelection = selection
-
-              // Save to UserDefaults
-              self.saveSelection(selection)
-
-              // Apply shields immediately
-              let appTokens = selection.applicationTokens
-              let categoryTokens = selection.categoryTokens
-              self.applyShields(for: selection)
-
-              let count = appTokens.count + categoryTokens.count
-              promise.resolve(["blocked": count])
+          DispatchQueue.main.async {
+            guard let presenter = self.activePresenter() else {
+              promise.reject("ERR", "No active view controller")
+              return
             }
-            observers.forEach { NotificationCenter.default.removeObserver($0) }
-            rootVC.dismiss(animated: true)
-          }
-          observers.append(doneObserver)
 
-          let cancelObserver = NotificationCenter.default.addObserver(
-            forName: .appSelectionCancelled,
-            object: nil,
-            queue: .main
-          ) { _ in
-            promise.resolve(["cancelled": true])
-            observers.forEach { NotificationCenter.default.removeObserver($0) }
-            rootVC.dismiss(animated: true)
-          }
-          observers.append(cancelObserver)
+            // Load saved selection (if any) from UserDefaults
+            var initialSelection = FamilyActivitySelection()
+            if let data = self.sharedDefaults?.data(forKey: DefaultsKey.blockedSelection),
+               let saved = try? JSONDecoder().decode(FamilyActivitySelection.self, from: data) {
+              initialSelection = saved
+            }
 
-          rootVC.present(picker, animated: true)
-        } else {
-          promise.reject("ERR", "Requires iOS 16+")
+            // Create picker pre-populated with saved selection
+            let picker = AppPickerViewController(initialSelection: initialSelection)
+            picker.modalPresentationStyle = .pageSheet
+            var observers: [Any] = []
+
+            let doneObserver = NotificationCenter.default.addObserver(
+              forName: .appSelectionComplete,
+              object: nil,
+              queue: .main
+            ) { notification in
+              if let selection = notification.object as? FamilyActivitySelection {
+                // Update in-memory selection
+                self.currentSelection = selection
+
+                // Save to UserDefaults
+                self.saveSelection(selection)
+
+                // Apply shields immediately
+                let appTokens = selection.applicationTokens
+                let categoryTokens = selection.categoryTokens
+                self.applyShields(for: selection)
+
+                let count = appTokens.count + categoryTokens.count
+                promise.resolve(["blocked": count])
+              }
+              observers.forEach { NotificationCenter.default.removeObserver($0) }
+              picker.dismiss(animated: true)
+            }
+            observers.append(doneObserver)
+
+            let cancelObserver = NotificationCenter.default.addObserver(
+              forName: .appSelectionCancelled,
+              object: nil,
+              queue: .main
+            ) { _ in
+              promise.resolve(["cancelled": true])
+              observers.forEach { NotificationCenter.default.removeObserver($0) }
+              picker.dismiss(animated: true)
+            }
+            observers.append(cancelObserver)
+
+            presenter.present(picker, animated: true)
+          }
         }
+      } else {
+        promise.reject("ERR", "Requires iOS 16+")
       }
+    }
+
+    Function("getDiagnostics") { () -> [String: Any] in
+      if #available(iOS 16.0, *) {
+        let selection = self.savedSelection()
+        let endTime = self.sharedDefaults?.double(forKey: DefaultsKey.unlockEndTime) ?? 0
+        let startTime = self.sharedDefaults?.double(forKey: DefaultsKey.unlockStartTime) ?? 0
+        let totalDuration = self.sharedDefaults?.integer(forKey: DefaultsKey.unlockTotalDuration) ?? 0
+
+        return [
+          "available": true,
+          "authorizationStatus": self.authorizationStatusDescription(),
+          "hasAppGroupDefaults": self.sharedDefaults != nil,
+          "savedApplicationTokens": selection?.applicationTokens.count ?? 0,
+          "savedCategoryTokens": selection?.categoryTokens.count ?? 0,
+          "savedWebDomainTokens": selection?.webDomainTokens.count ?? 0,
+          "unlockEndTime": endTime,
+          "unlockStartTime": startTime,
+          "unlockTotalDuration": totalDuration,
+          "now": Date().timeIntervalSince1970
+        ]
+      }
+
+      return [
+        "available": false,
+        "authorizationStatus": "requires_iOS_16"
+      ]
     }
 
     Function("getActiveUnlock") { () -> [String: Any]? in

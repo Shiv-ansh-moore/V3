@@ -3,6 +3,7 @@ import {
   StyleSheet,
   Text,
   View,
+  Alert,
   Modal,
   Pressable,
   TouchableOpacity,
@@ -44,6 +45,10 @@ export default function UnlockSheet({
       onClose();
     } catch (e) {
       console.log("Unlock failed:", e);
+      Alert.alert(
+        "Unlock failed",
+        e instanceof Error ? e.message : "Could not unlock apps.",
+      );
     } finally {
       setLoading(false);
     }

@@ -29,6 +29,7 @@ import { supabase } from "../lib/supabase";
 import { useAuth } from "../lib/AuthContext";
 import type { Database } from "../lib/database.types";
 import {
+  requestAuthorization,
   unlockForDuration,
   relockNow,
   getActiveUnlock,
@@ -481,6 +482,13 @@ export default function Personal() {
     let sessionCreated = false;
 
     try {
+      const authorizationStatus = await requestAuthorization();
+      if (!authorizationStatus.toLowerCase().includes("approved")) {
+        throw new Error(
+          `Screen Time authorization is ${authorizationStatus}. Allow V3App in Settings > Screen Time, then try again.`,
+        );
+      }
+
       await unlockForDuration(minutes, reason);
       nativeUnlocked = true;
 

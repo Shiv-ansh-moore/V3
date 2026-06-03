@@ -58,6 +58,30 @@ export async function relockNow(): Promise<string> {
   return await ScreenTimeLocks.relockNow();
 }
 
+export interface ScreenTimeDiagnostics {
+  available: boolean;
+  authorizationStatus: string;
+  hasAppGroupDefaults?: boolean;
+  savedApplicationTokens?: number;
+  savedCategoryTokens?: number;
+  savedWebDomainTokens?: number;
+  unlockEndTime?: number;
+  unlockStartTime?: number;
+  unlockTotalDuration?: number;
+  now?: number;
+}
+
+export function getScreenTimeDiagnostics(): ScreenTimeDiagnostics {
+  if (Platform.OS !== 'ios') {
+    return {
+      available: false,
+      authorizationStatus: 'not_supported',
+    };
+  }
+
+  return ScreenTimeLocks.getDiagnostics();
+}
+
 export interface ActiveUnlock {
   endTime: number;
   startTime: number;

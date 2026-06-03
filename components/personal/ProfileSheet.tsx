@@ -40,8 +40,10 @@ import {
   type AndroidAppInfo,
   blockApps,
   getBlockedApps,
+  getScreenTimeDiagnostics,
   getInstalledApps,
   manageBlockedApps,
+  requestAuthorization,
 } from "../../modules/screen-time-locks";
 import { supabase } from "../../lib/supabase";
 
@@ -57,6 +59,26 @@ const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 function getInitial(displayName: string | null | undefined) {
   return displayName?.trim().charAt(0).toUpperCase() || "?";
+}
+
+function getErrorMessage(error: unknown) {
+  if (error instanceof Error) return error.message;
+  if (typeof error === "string") return error;
+  return "Unknown error";
+}
+
+function formatScreenTimeDiagnostics() {
+  const diagnostics = getScreenTimeDiagnostics();
+  const savedTokens =
+    (diagnostics.savedApplicationTokens ?? 0) +
+    (diagnostics.savedCategoryTokens ?? 0) +
+    (diagnostics.savedWebDomainTokens ?? 0);
+
+  return [
+    `Authorization: ${diagnostics.authorizationStatus}`,
+    `App group: ${diagnostics.hasAppGroupDefaults ? "available" : "missing"}`,
+    `Saved selections: ${savedTokens}`,
+  ].join("\n");
 }
 
 interface ProfileSheetProps {
@@ -142,14 +164,31 @@ export default function ProfileSheet({ visible, onClose }: ProfileSheetProps) {
   const handleManageBlockedApps = async () => {
     if (Platform.OS === "ios") {
       try {
+        const authorizationStatus = await requestAuthorization();
+        if (!authorizationStatus.toLowerCase().includes("approved")) {
+          Alert.alert(
+            "Screen Time not authorized",
+            `${formatScreenTimeDiagnostics()}\n\nAllow V3App in Settings > Screen Time, then try again.`,
+          );
+          return;
+        }
+
         const result = await manageBlockedApps();
         if (result.cancelled) {
           console.log("User cancelled app picker");
           return;
         }
         console.log("Blocked", result.blocked, "apps");
+        Alert.alert(
+          "Blocked apps saved",
+          `Selected: ${result.blocked ?? 0}\n${formatScreenTimeDiagnostics()}`,
+        );
       } catch (e) {
         console.log("Manage blocked apps failed:", e);
+        Alert.alert(
+          "Manage blocked apps failed",
+          `${getErrorMessage(e)}\n\n${formatScreenTimeDiagnostics()}`,
+        );
       }
       return;
     }
