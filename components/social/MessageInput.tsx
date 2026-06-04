@@ -11,6 +11,7 @@ export interface ReplyInfo {
   userName: string;
   userColour: string;
   text: string;
+  reason?: string;
 }
 
 interface MessageInputProps {
@@ -60,6 +61,7 @@ export default function MessageInput({
           userName={replyingTo.userName}
           userColour={replyingTo.userColour}
           text={replyingTo.text}
+          reason={replyingTo.reason}
           onDismiss={onClearReply}
           onNamePress={
             replyUserId ? () => onReplyUserPress?.(replyUserId) : undefined

@@ -8,6 +8,7 @@ interface ReplyBarProps {
   userName: string;
   userColour: string;
   text: string;
+  reason?: string;
   onDismiss: () => void;
   onNamePress?: () => void;
 }
@@ -16,6 +17,7 @@ export default function ReplyBar({
   userName,
   userColour,
   text,
+  reason,
   onDismiss,
   onNamePress,
 }: ReplyBarProps) {
@@ -29,6 +31,11 @@ export default function ReplyBar({
         <Text style={styles.text} numberOfLines={1}>
           {text}
         </Text>
+        {reason ? (
+          <Text style={styles.reason} numberOfLines={2}>
+            &quot;{reason}&quot;
+          </Text>
+        ) : null}
       </View>
       <Pressable onPress={onDismiss} hitSlop={8} style={styles.dismissButton}>
         <XIcon size={18} color={Colours.secondaryText} weight="bold" />
@@ -65,6 +72,12 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: Colours.secondaryText,
     marginTop: 1,
+  },
+  reason: {
+    fontFamily: Fonts.medium,
+    fontSize: 12,
+    color: Colours.secondaryText,
+    marginTop: 2,
   },
   dismissButton: {
     paddingHorizontal: 12,

@@ -215,6 +215,10 @@ function buildReplyTo(
     photoUri: ref.kind === "completed" ? ref.photoUri : undefined,
     caption: ref.kind === "completed" ? ref.caption : undefined,
     activityType: ref.kind === "activity" ? ref.type : undefined,
+    reason:
+      ref.kind === "activity" && ref.type === "unlock"
+        ? ref.reason?.trim() || undefined
+        : undefined,
     onNamePress: () => openMemberOverview(ref.userId),
   };
 }
@@ -238,6 +242,10 @@ function buildReplyInfo(item: FeedItem): ReplyInfo {
     userName: "Unknown",
     userColour: Colours.secondaryText,
     text,
+    reason:
+      item.kind === "activity" && item.type === "unlock"
+        ? item.reason?.trim() || undefined
+        : undefined,
   };
 }
 

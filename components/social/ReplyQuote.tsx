@@ -14,6 +14,7 @@ export interface ReplyQuoteProps {
   photoUri?: string | null;
   caption?: string | null;
   activityType?: "lock" | "unlock";
+  reason?: string;
   onNamePress?: () => void;
 }
 
@@ -85,6 +86,7 @@ function ActivityQuote({
   userColour,
   text,
   activityType,
+  reason,
   onNamePress,
 }: ReplyQuoteProps) {
   return (
@@ -105,6 +107,11 @@ function ActivityQuote({
         </Text>
         <Text style={styles.text}>{text}</Text>
       </Text>
+      {activityType === "unlock" && reason ? (
+        <Text style={styles.reason} numberOfLines={2}>
+          &quot;{reason}&quot;
+        </Text>
+      ) : null}
     </View>
   );
 }
@@ -163,6 +170,13 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.regular,
     fontSize: 12,
     color: Colours.secondaryText,
+  },
+  reason: {
+    fontFamily: Fonts.medium,
+    fontSize: 11,
+    color: Colours.secondaryText,
+    marginTop: 2,
+    textAlign: "center",
   },
   completedLabel: {
     fontFamily: Fonts.regular,
