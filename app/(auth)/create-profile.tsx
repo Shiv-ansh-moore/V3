@@ -76,37 +76,49 @@ export default function CreateProfile() {
 
   const pickFromLibrary = async () => {
     setPickerOpen(false);
-    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!perm.granted) {
-      setError("Photo library access denied");
-      return;
-    }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ["images"],
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 1,
-    });
-    if (!result.canceled) {
-      await uploadAvatar(result.assets[0].uri);
+    setError(null);
+    try {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) {
+        setError("Photo library access denied");
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["images"],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 1,
+      });
+      const uri = result.canceled ? null : result.assets[0]?.uri;
+      if (uri) {
+        await uploadAvatar(uri);
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not open photo library");
     }
   };
 
   const takePhoto = async () => {
     setPickerOpen(false);
-    const perm = await ImagePicker.requestCameraPermissionsAsync();
-    if (!perm.granted) {
-      setError("Camera access denied");
-      return;
-    }
-    const result = await ImagePicker.launchCameraAsync({
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 1,
-      cameraType: ImagePicker.CameraType.front,
-    });
-    if (!result.canceled) {
-      await uploadAvatar(result.assets[0].uri);
+    setError(null);
+    try {
+      const perm = await ImagePicker.requestCameraPermissionsAsync();
+      if (!perm.granted) {
+        setError("Camera access denied");
+        return;
+      }
+      const result = await ImagePicker.launchCameraAsync({
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 1,
+        cameraType: ImagePicker.CameraType.front,
+      });
+      const uri = result.canceled ? null : result.assets[0]?.uri;
+      if (uri) {
+        await uploadAvatar(uri);
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not open camera");
     }
   };
 

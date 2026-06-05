@@ -294,39 +294,53 @@ export default function ProfileSheet({ visible, onClose }: ProfileSheetProps) {
 
   const pickAvatarFromLibrary = async () => {
     setAvatarPickerOpen(false);
-    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!perm.granted) {
-      setProfileError("Photo library access denied");
-      return;
-    }
+    setProfileError(null);
+    try {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) {
+        setProfileError("Photo library access denied");
+        return;
+      }
 
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ["images"],
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 1,
-    });
-    if (!result.canceled) {
-      await uploadAvatar(result.assets[0].uri);
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["images"],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 1,
+      });
+      const uri = result.canceled ? null : result.assets[0]?.uri;
+      if (uri) {
+        await uploadAvatar(uri);
+      }
+    } catch (e) {
+      setProfileError(
+        e instanceof Error ? e.message : "Could not open photo library",
+      );
     }
   };
 
   const takeAvatarPhoto = async () => {
     setAvatarPickerOpen(false);
-    const perm = await ImagePicker.requestCameraPermissionsAsync();
-    if (!perm.granted) {
-      setProfileError("Camera access denied");
-      return;
-    }
+    setProfileError(null);
+    try {
+      const perm = await ImagePicker.requestCameraPermissionsAsync();
+      if (!perm.granted) {
+        setProfileError("Camera access denied");
+        return;
+      }
 
-    const result = await ImagePicker.launchCameraAsync({
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 1,
-      cameraType: ImagePicker.CameraType.front,
-    });
-    if (!result.canceled) {
-      await uploadAvatar(result.assets[0].uri);
+      const result = await ImagePicker.launchCameraAsync({
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 1,
+        cameraType: ImagePicker.CameraType.front,
+      });
+      const uri = result.canceled ? null : result.assets[0]?.uri;
+      if (uri) {
+        await uploadAvatar(uri);
+      }
+    } catch (e) {
+      setProfileError(e instanceof Error ? e.message : "Could not open camera");
     }
   };
 
