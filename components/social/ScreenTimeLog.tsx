@@ -38,9 +38,14 @@ export default function ScreenTimeLog({
   onNamePress,
 }: ScreenTimeLogProps) {
   const isUnlock = type === "unlock";
+  const normalizedApp = app.trim();
+  const appLabel =
+    normalizedApp && normalizedApp.toLowerCase() !== "apps"
+      ? `${normalizedApp} `
+      : "";
   const label = isUnlock
-    ? `${app} for ${duration}`
-    : `${app} after ${duration}`;
+    ? `${appLabel}for ${duration}`
+    : `${appLabel}after ${duration}`;
   const subtitle = isUnlock && reason ? `"${reason}"` : totalTime;
 
   const longPress = Gesture.LongPress()

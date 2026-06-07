@@ -25,6 +25,18 @@ const MESSAGE_EMOJIS = ["😂", "❤️", "🔥", "💀", "👍", "😝"];
 const COMPLETED_EMOJIS = ["🔥", "💪", "👏", "🫡", "❤️", "😝"];
 const ACTIVITY_EMOJIS = ["😂", "💀", "🫡", "👏", "🔥", "😝"];
 
+function formatActivityText(item: Extract<FeedItem, { kind: "activity" }>) {
+  const normalizedApp = item.app.trim();
+  const appText =
+    normalizedApp && normalizedApp.toLowerCase() !== "apps"
+      ? `${normalizedApp} `
+      : "";
+
+  return item.type === "unlock"
+    ? `unlocked ${appText}for ${item.duration}`
+    : `locked ${appText}after ${item.duration}`;
+}
+
 interface LongPressSheetProps {
   visible: boolean;
   item: FeedItem | null;
@@ -207,9 +219,7 @@ export default function LongPressSheet({
                         {userName}{" "}
                       </Text>
                       <Text style={styles.quoteText}>
-                        {item.type === "unlock"
-                          ? `unlocked ${item.app} for ${item.duration}`
-                          : `locked ${item.app} after ${item.duration}`}
+                        {formatActivityText(item)}
                       </Text>
                     </Text>
                   </View>

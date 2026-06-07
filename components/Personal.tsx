@@ -7,6 +7,7 @@ import {
   View,
   ScrollView,
   TouchableOpacity,
+  Platform,
 } from "react-native";
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -482,11 +483,13 @@ export default function Personal() {
     let sessionCreated = false;
 
     try {
-      const authorizationStatus = await requestAuthorization();
-      if (!authorizationStatus.toLowerCase().includes("approved")) {
-        throw new Error(
-          `Screen Time authorization is ${authorizationStatus}. Allow V3App in Settings > Screen Time, then try again.`,
-        );
+      if (Platform.OS === "ios") {
+        const authorizationStatus = await requestAuthorization();
+        if (!authorizationStatus.toLowerCase().includes("approved")) {
+          throw new Error(
+            `Screen Time authorization is ${authorizationStatus}. Allow V3App in Settings > Screen Time, then try again.`,
+          );
+        }
       }
 
       await unlockForDuration(minutes, reason);

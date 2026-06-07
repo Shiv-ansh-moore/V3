@@ -75,13 +75,6 @@ const PROOF_IMAGE_URL_TTL_SECONDS = 60 * 60;
 const PROOF_IMAGE_URL_REFRESH_BUFFER_MS = 5 * 60 * 1000;
 const REACTION_REFRESH_DEBOUNCE_MS = 150;
 
-type ScreenSessionSummary = {
-  id: string;
-  userId: string;
-  startedAt: string;
-  seconds: number;
-};
-
 function firstRelation<T>(relation: T | T[] | null): T | null {
   return Array.isArray(relation) ? (relation[0] ?? null) : relation;
 }
@@ -108,54 +101,11 @@ function formatDuration(totalSeconds: number): string {
   return `${minuteText} ${secs} sec${secs === 1 ? "" : "s"}`;
 }
 
-function getLocalDayKey(value: string): string {
-  const date = new Date(value);
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
-function getUsedSeconds(session: ScreenSessionRow): number {
-  return session.actual_seconds ?? session.granted_seconds;
-}
-
 function mapReactions(reactions?: ReactionRow[] | null): Reaction[] {
   return (reactions ?? []).map((reaction) => ({
     userId: reaction.user_id,
     emoji: reaction.emoji,
   }));
-}
-
-function buildDailyTotalLookup(
-  sessionsById: Map<string, ScreenSessionSummary>,
-): Map<string, number> {
-  const sessionsByUserDay = new Map<string, ScreenSessionSummary[]>();
-  const dailyTotals = new Map<string, number>();
-
-  sessionsById.forEach((session, sessionId) => {
-    const key = `${session.userId}:${getLocalDayKey(session.startedAt)}`;
-    sessionsByUserDay.set(key, [
-      ...(sessionsByUserDay.get(key) ?? []),
-      session,
-    ]);
-    dailyTotals.set(sessionId, 0);
-  });
-
-  sessionsByUserDay.forEach((sessions) => {
-    sessions.sort(
-      (a, b) =>
-        new Date(a.startedAt).getTime() - new Date(b.startedAt).getTime(),
-    );
-
-    let runningTotal = 0;
-    sessions.forEach((session) => {
-      runningTotal += session.seconds;
-      dailyTotals.set(session.id, runningTotal);
-    });
-  });
-
-  return dailyTotals;
 }
 
 function getMessagePosition(feed: FeedItem[], index: number): BubblePosition {
@@ -182,6 +132,22 @@ function getMessagePosition(feed: FeedItem[], index: number): BubblePosition {
   return "standalone";
 }
 
+function formatActivityText(
+  type: "unlock" | "lock",
+  app: string,
+  duration: string,
+): string {
+  const normalizedApp = app.trim();
+  const appText =
+    normalizedApp && normalizedApp.toLowerCase() !== "apps"
+      ? `${normalizedApp} `
+      : "";
+
+  return type === "unlock"
+    ? `unlocked ${appText}for ${duration}`
+    : `locked ${appText}after ${duration}`;
+}
+
 function buildReplyTo(
   item: ChatMessage,
   feed: FeedItem[],
@@ -200,10 +166,7 @@ function buildReplyTo(
   } else if (ref.kind === "completed") {
     text = ref.goalTitle;
   } else {
-    text =
-      ref.type === "unlock"
-        ? `unlocked ${ref.app} for ${ref.duration}`
-        : `locked ${ref.app} after ${ref.duration}`;
+    text = formatActivityText(ref.type, ref.app, ref.duration);
   }
 
   return {
@@ -230,10 +193,7 @@ function buildReplyInfo(item: FeedItem): ReplyInfo {
   } else if (item.kind === "completed") {
     text = `Completed ${item.goalTitle}`;
   } else {
-    text =
-      item.type === "unlock"
-        ? `unlocked ${item.app} for ${item.duration}`
-        : `locked ${item.app} after ${item.duration}`;
+    text = formatActivityText(item.type, item.app, item.duration);
   }
 
   return {
@@ -273,6 +233,7 @@ export default function Social({ active = true }: SocialProps) {
   const [quickProofTarget, setQuickProofTarget] =
     useState<ProofCameraTarget | null>(null);
   const signedProofImageUrlsRef = useRef(new Map<string, SignedProofImageUrl>());
+  const visibleSessionIdsRef = useRef<Set<string>>(new Set());
   const reversedFeed = useMemo(() => [...feed].reverse(), [feed]);
   const selectedStoryMember =
     groupMembers.find((member) => member.id === selectedStoryUserId) ?? null;
@@ -502,21 +463,6 @@ export default function Social({ active = true }: SocialProps) {
     }
 
     const rows = [...((data ?? []) as SocialMessageRow[])].reverse();
-    const screenSessionsById = new Map<string, ScreenSessionSummary>();
-
-    rows.forEach((message) => {
-      const session = firstRelation(message.session);
-      if (!session) return;
-
-      screenSessionsById.set(session.id, {
-        id: session.id,
-        userId: message.sender_id ?? session.user_id,
-        startedAt: session.started_at,
-        seconds: getUsedSeconds(session),
-      });
-    });
-
-    const dailySessionTotals = buildDailyTotalLookup(screenSessionsById);
 
     const liveItems = await Promise.all(
       rows.map(async (message): Promise<FeedItem | null> => {
@@ -540,39 +486,24 @@ export default function Social({ active = true }: SocialProps) {
           };
         }
 
-        if (
-          (message.kind === "unlock" || message.kind === "lock") &&
-          session
-        ) {
+        if (message.kind === "unlock" && session) {
           const actualSeconds =
             session.actual_seconds ?? session.granted_seconds;
-          const duration =
-            message.kind === "unlock"
-              ? formatDuration(session.granted_seconds)
-              : formatDuration(actualSeconds);
-          const reason =
-            message.kind === "unlock"
-              ? (session.reason ?? undefined)
-              : undefined;
-          const dailyTotalSeconds =
-            dailySessionTotals.get(session.id) ?? actualSeconds;
-          const totalTime =
-            message.kind === "lock"
-              ? `${formatDuration(dailyTotalSeconds)} total time today`
-              : undefined;
 
           return {
             kind: "activity",
             id: message.id,
             userId,
-            type: message.kind,
+            type: "unlock",
+            sessionId: session.id,
             app: session.app_name ?? "Apps",
-            duration,
-            reason,
-            totalTime,
+            duration: formatDuration(actualSeconds),
+            reason: session.reason ?? undefined,
             reactions,
           };
         }
+
+        if (message.kind === "lock") return null;
 
         if (message.kind !== "proof" || !proof) return null;
 
@@ -661,6 +592,17 @@ export default function Social({ active = true }: SocialProps) {
   }, [active, refreshFeed]);
 
   useEffect(() => {
+    visibleSessionIdsRef.current = new Set(
+      feed
+        .filter(
+          (item): item is FeedItem & { kind: "activity"; sessionId: string } =>
+            item.kind === "activity" && Boolean(item.sessionId),
+        )
+        .map((item) => item.sessionId),
+    );
+  }, [feed]);
+
+  useEffect(() => {
     if (!active || !group) return;
 
     const channel = supabase
@@ -687,6 +629,20 @@ export default function Social({ active = true }: SocialProps) {
         },
         () => {
           scheduleReactionRefresh();
+        },
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "screen_sessions",
+        },
+        (payload) => {
+          const sessionId = (payload.new as Partial<ScreenSessionRow>).id;
+          if (!sessionId || visibleSessionIdsRef.current.has(sessionId)) {
+            void refreshFeed();
+          }
         },
       )
       .subscribe((status) => {

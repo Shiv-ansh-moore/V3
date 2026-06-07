@@ -26,6 +26,7 @@ export interface ChatMessage {
 export interface ActivityEvent {
   kind: "activity";
   id: string;
+  sessionId: string;
   userId: string;
   type: "unlock" | "lock";
   app: string;
@@ -99,13 +100,15 @@ export const socialFeed: FeedItem[] = [
   {
     kind: "activity",
     id: "a1",
+    sessionId: "s1",
     userId: "u1",
     type: "unlock",
     app: "Instagram",
-    duration: "15 mins",
+    duration: "6 mins",
     reason: "Checking DM's",
     reactions: [
       { userId: "u2", emoji: "👀" },
+      { userId: "u3", emoji: "😬" },
     ],
   },
 
@@ -127,20 +130,6 @@ export const socialFeed: FeedItem[] = [
     reactions: [
       { userId: "u3", emoji: "🤥" },
       { userId: "u2", emoji: "💀" },
-    ],
-  },
-
-  // Kevin locks Instagram
-  {
-    kind: "activity",
-    id: "a2",
-    userId: "u1",
-    type: "lock",
-    app: "Instagram",
-    duration: "22 mins",
-    totalTime: "22 mins total time",
-    reactions: [
-      { userId: "u3", emoji: "😬" },
     ],
   },
 
@@ -204,21 +193,12 @@ export const socialFeed: FeedItem[] = [
   {
     kind: "activity",
     id: "a3",
+    sessionId: "s2",
     userId: "u1",
     type: "unlock",
     app: "TikTok",
-    duration: "10 mins",
+    duration: "8 mins",
     reason: "Need a recipe",
-  },
-
-  {
-    kind: "activity",
-    id: "a4",
-    userId: "u1",
-    type: "lock",
-    app: "TikTok",
-    duration: "45 mins",
-    totalTime: "45 mins total time",
     reactions: [
       { userId: "u2", emoji: "💀" },
       { userId: "u3", emoji: "💀" },
@@ -231,7 +211,7 @@ export const socialFeed: FeedItem[] = [
     userId: "u3",
     text: "A recipe 😭",
     timestamp: "11:50",
-    replyToId: "a4",
+    replyToId: "a3",
   },
   {
     kind: "message",

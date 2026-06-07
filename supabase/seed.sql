@@ -715,15 +715,6 @@ from seed_screen_sessions
 where id = '00000000-0000-4000-8000-000000004101'
 union all
 select
-  '00000000-0000-4000-8000-000000005102'::uuid,
-  id,
-  user_id,
-  'lock',
-  started_at + make_interval(secs => actual_seconds)
-from seed_screen_sessions
-where id = '00000000-0000-4000-8000-000000004101'
-union all
-select
   '00000000-0000-4000-8000-000000005103'::uuid,
   id,
   user_id,
@@ -733,29 +724,11 @@ from seed_screen_sessions
 where id = '00000000-0000-4000-8000-000000004102'
 union all
 select
-  '00000000-0000-4000-8000-000000005104'::uuid,
-  id,
-  user_id,
-  'lock',
-  started_at + make_interval(secs => granted_seconds)
-from seed_screen_sessions
-where id = '00000000-0000-4000-8000-000000004102'
-union all
-select
   '00000000-0000-4000-8000-000000005105'::uuid,
   id,
   user_id,
   'unlock',
   started_at
-from seed_screen_sessions
-where id = '00000000-0000-4000-8000-000000004103'
-union all
-select
-  '00000000-0000-4000-8000-000000005106'::uuid,
-  id,
-  user_id,
-  'lock',
-  started_at + make_interval(secs => actual_seconds)
 from seed_screen_sessions
 where id = '00000000-0000-4000-8000-000000004103';
 
@@ -937,12 +910,12 @@ values
     '🫡'
   ),
   (
-    '00000000-0000-4000-8000-000000005102',
+    '00000000-0000-4000-8000-000000005101',
     '00000000-0000-4000-8000-000000000103',
     '👏'
   ),
   (
-    '00000000-0000-4000-8000-000000005104',
+    '00000000-0000-4000-8000-000000005103',
     '00000000-0000-4000-8000-000000000101',
     '🔥'
   );
