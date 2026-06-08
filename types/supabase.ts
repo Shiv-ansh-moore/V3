@@ -217,6 +217,7 @@ export type Database = {
           group_id: string
           id: string
           kind: string
+          mention_entities: Json
           proof_id: string | null
           reply_to_id: string | null
           sender_id: string | null
@@ -228,6 +229,7 @@ export type Database = {
           group_id: string
           id?: string
           kind: string
+          mention_entities?: Json
           proof_id?: string | null
           reply_to_id?: string | null
           sender_id?: string | null
@@ -239,6 +241,7 @@ export type Database = {
           group_id?: string
           id?: string
           kind?: string
+          mention_entities?: Json
           proof_id?: string | null
           reply_to_id?: string | null
           sender_id?: string | null

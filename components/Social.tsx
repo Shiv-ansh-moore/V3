@@ -11,7 +11,10 @@ import ChatBubble, { BubblePosition } from "./social/ChatBubble";
 import CompletedCard from "./social/CompletedCard";
 import ScreenTimeLog from "./social/ScreenTimeLog";
 import LongPressSheet from "./social/LongPressSheet";
-import MessageInput, { ReplyInfo } from "./social/MessageInput";
+import MessageInput, {
+  ReplyInfo,
+  type MessageSendPayload,
+} from "./social/MessageInput";
 import StoryViewer, { StoryProof } from "./social/StoryViewer";
 import QuickProofGoalSheet, {
   type QuickProofGoalDraft,
@@ -29,11 +32,15 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../lib/AuthContext";
 import { GROUP_USER_COLOURS } from "../lib/groupColours";
-import type { Database } from "../lib/database.types";
+import type { Database, Json } from "../lib/database.types";
 import type { ChatMessage, FeedItem, Reaction } from "../testData/mockSocial";
 import GroupMemberOverview, {
   type GroupMemberOverviewHint,
 } from "./group/GroupMemberOverview";
+import {
+  coerceMessageMentions,
+  type MentionMember,
+} from "../lib/mentions";
 
 type ProfileRow = Database["public"]["Tables"]["profiles"]["Row"];
 type ProofRow = Database["public"]["Tables"]["proofs"]["Row"];
@@ -228,6 +235,7 @@ export default function Social({ active = true }: SocialProps) {
   const [userAvatars, setUserAvatars] = useState<Record<string, string | null>>(
     {},
   );
+  const [mentionMembers, setMentionMembers] = useState<MentionMember[]>([]);
   const [overviewUserId, setOverviewUserId] = useState<string | null>(null);
   const [quickProofSheetVisible, setQuickProofSheetVisible] = useState(false);
   const [quickProofTarget, setQuickProofTarget] =
@@ -309,6 +317,7 @@ export default function Social({ active = true }: SocialProps) {
     if (!group) {
       setFeed([]);
       setGroupMembers([]);
+      setMentionMembers([]);
       setStoriesByUser({});
       setSelectedStoryUserId(null);
       return;
@@ -390,12 +399,14 @@ export default function Social({ active = true }: SocialProps) {
     const nextUserColours: Record<string, string> = {};
     const nextUserAvatars: Record<string, string | null> = {};
     const nextGroupMembers: AvatarRowMember[] = [];
+    const nextMentionMembers: MentionMember[] = [];
     const groupMemberOrder = new Map<string, number>();
 
     ((membersData ?? []) as GroupMemberRow[]).forEach((member, index) => {
       const profile = firstRelation(member.profile);
       const displayName =
         profile?.display_name ?? profile?.username ?? "Unknown";
+      const username = profile?.username?.trim() ?? null;
       const colour = GROUP_USER_COLOURS[index % GROUP_USER_COLOURS.length];
       groupMemberOrder.set(member.user_id, index);
 
@@ -414,6 +425,16 @@ export default function Social({ active = true }: SocialProps) {
                 ? "unseen"
                 : "seen",
         });
+
+        if (username) {
+          nextMentionMembers.push({
+            id: member.user_id,
+            username,
+            displayName,
+            avatarUrl: profile?.avatar_url ?? null,
+            colour,
+          });
+        }
       }
 
       nextUserNames[member.user_id] = displayName;
@@ -482,6 +503,10 @@ export default function Social({ active = true }: SocialProps) {
             text: message.body,
             timestamp: formatTimestamp(message.created_at),
             replyToId: message.reply_to_id ?? undefined,
+            mentions: coerceMessageMentions(
+              message.mention_entities,
+              message.body,
+            ),
             reactions,
           };
         }
@@ -527,6 +552,7 @@ export default function Social({ active = true }: SocialProps) {
     setUserColours(nextUserColours);
     setUserAvatars(nextUserAvatars);
     setGroupMembers(nextGroupMembers);
+    setMentionMembers(nextMentionMembers);
     setStoriesByUser(nextStoriesByUser);
     setFeed(liveItems.filter((item): item is FeedItem => item !== null));
   }, [getSignedProofImageUrl, group, user?.id]);
@@ -856,7 +882,7 @@ export default function Social({ active = true }: SocialProps) {
   }, [currentSheetItem, resolveUserColour, resolveUserName]);
 
   const handleSendMessage = useCallback(
-    async (text: string) => {
+    async ({ text, mentions }: MessageSendPayload) => {
       if (!group || !user) {
         throw new Error("Cannot send without an active group and user.");
       }
@@ -866,6 +892,7 @@ export default function Social({ active = true }: SocialProps) {
         sender_id: user.id,
         kind: "text",
         body: text,
+        mention_entities: mentions as unknown as Json,
         reply_to_id: replyingTo?.id ?? null,
       });
 
@@ -927,10 +954,13 @@ export default function Social({ active = true }: SocialProps) {
               openMemberOverview,
             )}
             reactions={item.reactions}
+            mentions={item.mentions}
             currentUserId={user?.id}
             onDoubleTap={() => handleReply(item)}
             onLongPress={() => handleLongPress(item)}
             onNamePress={() => openMemberOverview(item.userId)}
+            onMentionPress={openMemberOverview}
+            resolveMentionColour={resolveUserColour}
           />
         );
       }
@@ -1002,6 +1032,7 @@ export default function Social({ active = true }: SocialProps) {
             onSend={handleSendMessage}
             onQuickProofPress={openQuickProofSheet}
             onReplyUserPress={openMemberOverview}
+            mentionMembers={mentionMembers}
           />
         </View>
       </KeyboardAvoidingView>

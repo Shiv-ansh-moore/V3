@@ -1,3 +1,5 @@
+import type { MessageMention } from "../lib/mentions";
+
 // ─── Types ────────────────────────────────────────────────
 
 export interface SocialUser {
@@ -21,6 +23,7 @@ export interface ChatMessage {
   timestamp: string;
   reactions?: Reaction[];
   replyToId?: string;
+  mentions?: MessageMention[];
 }
 
 export interface ActivityEvent {

@@ -7,6 +7,7 @@ import { Colours } from "../../constants/Colours";
 import ReplyQuote, { ReplyQuoteProps } from "./ReplyQuote";
 import ReactionRow from "./ReactionRow";
 import { Reaction } from "../../testData/mockSocial";
+import type { MessageMention } from "../../lib/mentions";
 
 const RADIUS = 10;
 
@@ -21,11 +22,25 @@ interface ChatBubbleProps {
   afterActivity?: boolean;
   replyTo?: ReplyQuoteProps;
   reactions?: Reaction[];
+  mentions?: MessageMention[];
   currentUserId?: string;
   onDoubleTap?: () => void;
   onLongPress?: () => void;
   onNamePress?: () => void;
+  onMentionPress?: (userId: string) => void;
+  resolveMentionColour?: (userId: string) => string;
 }
+
+type MessageSegment =
+  | {
+      kind: "text";
+      text: string;
+    }
+  | {
+      kind: "mention";
+      text: string;
+      mention: MessageMention;
+    };
 
 function getBorderRadius(position: BubblePosition): ViewStyle {
   switch (position) {
@@ -55,6 +70,49 @@ function getBorderRadius(position: BubblePosition): ViewStyle {
   }
 }
 
+function buildMessageSegments(
+  text: string,
+  mentions?: MessageMention[],
+): MessageSegment[] {
+  if (!mentions?.length) return [{ kind: "text", text }];
+
+  const segments: MessageSegment[] = [];
+  let cursor = 0;
+
+  for (const mention of [...mentions].sort((a, b) => a.start - b.start)) {
+    if (
+      mention.start < cursor ||
+      mention.end <= mention.start ||
+      mention.end > text.length
+    ) {
+      continue;
+    }
+
+    if (mention.start > cursor) {
+      segments.push({
+        kind: "text",
+        text: text.slice(cursor, mention.start),
+      });
+    }
+
+    segments.push({
+      kind: "mention",
+      text: text.slice(mention.start, mention.end),
+      mention,
+    });
+    cursor = mention.end;
+  }
+
+  if (cursor < text.length) {
+    segments.push({
+      kind: "text",
+      text: text.slice(cursor),
+    });
+  }
+
+  return segments.length > 0 ? segments : [{ kind: "text", text }];
+}
+
 export default function ChatBubble({
   name,
   nameColour,
@@ -64,13 +122,20 @@ export default function ChatBubble({
   afterActivity,
   replyTo,
   reactions,
+  mentions,
   currentUserId,
   onDoubleTap,
   onLongPress,
   onNamePress,
+  onMentionPress,
+  resolveMentionColour,
 }: ChatBubbleProps) {
   const showName = position === "first" || position === "standalone";
   const isGrouped = position === "middle" || position === "last";
+  const messageSegments = React.useMemo(
+    () => buildMessageSegments(text, mentions),
+    [mentions, text],
+  );
 
   const longPress = Gesture.LongPress()
     .minDuration(400)
@@ -112,7 +177,30 @@ export default function ChatBubble({
             </View>
           )}
           {replyTo && <ReplyQuote {...replyTo} />}
-          <Text style={styles.message}>{text}</Text>
+          <Text style={styles.message}>
+            {messageSegments.map((segment, index) => {
+              if (segment.kind === "text") {
+                return segment.text;
+              }
+
+              return (
+                <Text
+                  key={`${segment.mention.user_id}-${segment.mention.start}-${index}`}
+                  style={[
+                    styles.mention,
+                    {
+                      color:
+                        resolveMentionColour?.(segment.mention.user_id) ??
+                        Colours.brand,
+                    },
+                  ]}
+                  onPress={() => onMentionPress?.(segment.mention.user_id)}
+                >
+                  {segment.text}
+                </Text>
+              );
+            })}
+          </Text>
         </View>
         {reactions && (
           <ReactionRow reactions={reactions} currentUserId={currentUserId} />
@@ -155,5 +243,9 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.regular,
     fontSize: 14,
     color: Colours.text,
+  },
+  mention: {
+    fontFamily: Fonts.medium,
+    color: Colours.brand,
   },
 });

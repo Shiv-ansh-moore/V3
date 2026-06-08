@@ -35,6 +35,7 @@ type MessageRow = {
   sender_id: string | null;
   kind: string;
   body: string | null;
+  mention_entities: unknown;
   proof_id: string | null;
 };
 
@@ -63,7 +64,7 @@ Deno.serve(async (req) => {
     const supabase = createServiceClient();
     const { data: message, error: messageError } = await supabase
       .from("messages")
-      .select("id, group_id, sender_id, kind, body, proof_id")
+      .select("id, group_id, sender_id, kind, body, mention_entities, proof_id")
       .eq("id", messageId)
       .single();
 
@@ -98,6 +99,11 @@ Deno.serve(async (req) => {
     const recipientIds =
       details.recipientIds ??
       (await loadGroupRecipientIds(supabase, typedMessage.group_id, details.actorId));
+    const recipientIdSet = new Set(recipientIds);
+    const mentionedRecipientIds = details.mentionedRecipientIds?.filter((id) =>
+      recipientIdSet.has(id)
+    ) ?? [];
+    const mentionedRecipientSet = new Set(mentionedRecipientIds);
     const enabledRecipientIds = await getEnabledRecipientIds(
       supabase,
       recipientIds,
@@ -113,7 +119,10 @@ Deno.serve(async (req) => {
     const messages = tokens.map((token) => ({
       to: token.expo_push_token,
       title: actorName,
-      body: details.body,
+      body:
+        details.mentionBody && mentionedRecipientSet.has(token.user_id)
+          ? details.mentionBody
+          : details.body,
       sound: "default" as const,
       channelId: "social",
       priority: "high" as const,
@@ -125,6 +134,7 @@ Deno.serve(async (req) => {
         messageId: typedMessage.id,
         proofId: typedMessage.proof_id,
         emoji: details.emoji,
+        isMention: mentionedRecipientSet.has(token.user_id),
       },
     }));
 
@@ -163,6 +173,8 @@ function buildNotificationDetails(args: {
   body: string;
   emoji: string | null;
   preferenceColumn: PreferenceColumn;
+  mentionBody?: string;
+  mentionedRecipientIds?: string[];
   recipientIds?: string[];
 } | null {
   const { actorId, eventType, message } = args;
@@ -170,10 +182,16 @@ function buildNotificationDetails(args: {
 
   if (eventType === "message") {
     if (message.kind !== "text" || message.sender_id !== actorId) return null;
+    const preview = notificationPreview(message.body);
     return {
       actorId,
-      body: notificationPreview(message.body),
+      body: preview,
       emoji: null,
+      mentionBody: `mentioned you: ${preview}`,
+      mentionedRecipientIds: extractMentionRecipientIds(
+        message.mention_entities,
+        actorId,
+      ),
       preferenceColumn: "messages_enabled",
     };
   }
@@ -221,6 +239,25 @@ async function loadGroupRecipientIds(
   if (error) throw error;
 
   return (members ?? []).map((member) => member.user_id as string);
+}
+
+function extractMentionRecipientIds(
+  value: unknown,
+  actorId: string,
+): string[] {
+  if (!Array.isArray(value)) return [];
+
+  const ids = new Set<string>();
+  for (const item of value) {
+    if (!item || typeof item !== "object") continue;
+
+    const userId = (item as Record<string, unknown>).user_id;
+    if (typeof userId === "string" && userId !== actorId) {
+      ids.add(userId);
+    }
+  }
+
+  return Array.from(ids);
 }
 
 function notificationPreview(body: string | null): string {
