@@ -29,6 +29,7 @@ import UnlockTimerCard from "./personal/UnlockTimerCard";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../lib/AuthContext";
 import type { Database } from "../lib/database.types";
+import { getGoalOpenAgeLabel } from "./personal/goalOpenAge";
 import {
   requestAuthorization,
   unlockForDuration,
@@ -193,6 +194,16 @@ export default function Personal() {
     setGoals([]);
     setProofSubmittedAtByGoalId({});
   }, [user]);
+
+  useEffect(() => {
+    if (activeGoals.length === 0) return;
+
+    const intervalId = setInterval(() => {
+      setNowMs(Date.now());
+    }, 60 * 1000);
+
+    return () => clearInterval(intervalId);
+  }, [activeGoals.length]);
 
   useEffect(() => {
     let nextExpirationMs = Number.POSITIVE_INFINITY;
@@ -727,6 +738,10 @@ export default function Personal() {
               icon={item.goal.icon}
               title={item.goal.title}
               duration={item.goal.duration ?? undefined}
+              openAgeLabel={getGoalOpenAgeLabel(
+                item.goal.created_at,
+                nowMs,
+              )}
               status={item.goal.status}
               onPress={() => {
                 setProofGoal(item.goal);
@@ -745,6 +760,10 @@ export default function Personal() {
               icon={item.goal.icon}
               title={item.goal.title}
               duration={item.goal.duration ?? undefined}
+              openAgeLabel={getGoalOpenAgeLabel(
+                item.goal.created_at,
+                nowMs,
+              )}
               status={item.goal.status}
               onPress={() => {
                 setProofGoal(item.goal);
@@ -757,6 +776,10 @@ export default function Personal() {
                 icon={next.goal.icon}
                 title={next.goal.title}
                 duration={next.goal.duration ?? undefined}
+                openAgeLabel={getGoalOpenAgeLabel(
+                  next.goal.created_at,
+                  nowMs,
+                )}
                 status={next.goal.status}
                 onPress={() => {
                   setProofGoal(next.goal);

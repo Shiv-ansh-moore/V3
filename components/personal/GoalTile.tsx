@@ -10,6 +10,7 @@ interface GoalTileProps {
   icon: string;
   title: string;
   duration?: string;
+  openAgeLabel?: string | null;
   status: "active" | "done" | "deleted";
   onPress?: () => void;
   onLongPress?: () => void;
@@ -19,6 +20,7 @@ export default function GoalTile({
   icon,
   title,
   duration,
+  openAgeLabel,
   status,
   onPress,
   onLongPress,
@@ -80,7 +82,21 @@ export default function GoalTile({
       <View style={styles.iconContainer}>
         <GoalIcon name={icon} size={40} />
       </View>
-      <View style={styles.cameraCircle} />
+      <View style={styles.cameraStack}>
+        <View style={styles.cameraCircle} />
+        {openAgeLabel ? (
+          <View style={styles.openAgePill}>
+            <Text
+              style={styles.openAgeLabel}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.75}
+            >
+              {openAgeLabel}
+            </Text>
+          </View>
+        ) : null}
+      </View>
       <Text style={styles.title}>{title}</Text>
       {duration && <Text style={styles.duration}>{duration}</Text>}
     </Pressable>
@@ -108,15 +124,37 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  cameraCircle: {
+  cameraStack: {
     position: "absolute",
     top: 16,
-    right: 16,
+    right: 7,
+    width: 42,
+    alignItems: "center",
+  },
+  cameraCircle: {
     width: 24,
     height: 24,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: Colours.secondaryText,
+  },
+  openAgePill: {
+    marginTop: 4,
+    minHeight: 17,
+    minWidth: 32,
+    paddingHorizontal: 5,
+    borderRadius: 9,
+    borderWidth: 1,
+    borderColor: "rgba(255, 106, 0, 0.32)",
+    backgroundColor: "rgba(255, 106, 0, 0.14)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  openAgeLabel: {
+    color: Colours.brand,
+    fontFamily: Fonts.medium,
+    fontSize: 9,
+    textAlign: "center",
   },
   title: {
     position: "absolute",

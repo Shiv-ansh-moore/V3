@@ -21,6 +21,7 @@ import { useAuth } from "../../lib/AuthContext";
 import { GROUP_USER_COLOURS } from "../../lib/groupColours";
 import type { Database } from "../../lib/database.types";
 import GoalIcon from "../personal/GoalIcon";
+import { getGoalOpenAgeLabel } from "../personal/goalOpenAge";
 import StoryViewer, { type StoryProof } from "../social/StoryViewer";
 
 type ProfileRow = Database["public"]["Tables"]["profiles"]["Row"];
@@ -48,7 +49,10 @@ type ProofWithGoal = Pick<
     | null;
 };
 
-type OverviewGoal = Pick<GoalRow, "id" | "title" | "icon" | "duration">;
+type OverviewGoal = Pick<
+  GoalRow,
+  "id" | "title" | "icon" | "duration" | "created_at"
+>;
 type DoneProof = Pick<ProofRow, "id" | "submitted_at" | "caption"> & {
   goalId: string;
   goalTitle: string;
@@ -196,11 +200,13 @@ function GoalOverviewRow({
   icon,
   title,
   meta,
+  openAgeLabel,
   done,
 }: {
   icon: string;
   title: string;
   meta?: string | null;
+  openAgeLabel?: string | null;
   done?: boolean;
 }) {
   return (
@@ -220,10 +226,21 @@ function GoalOverviewRow({
         >
           {title}
         </Text>
-        {meta ? (
-          <Text style={styles.goalRowMeta} numberOfLines={1}>
-            {meta}
-          </Text>
+        {meta || openAgeLabel ? (
+          <View style={styles.goalRowMetaLine}>
+            {meta ? (
+              <Text style={styles.goalRowMeta} numberOfLines={1}>
+                {meta}
+              </Text>
+            ) : null}
+            {openAgeLabel ? (
+              <View style={styles.goalRowOpenAgePill}>
+                <Text style={styles.goalRowOpenAge} numberOfLines={1}>
+                  {openAgeLabel}
+                </Text>
+              </View>
+            ) : null}
+          </View>
         ) : null}
       </View>
     </View>
@@ -259,6 +276,7 @@ export default function GroupMemberOverview({
   const [error, setError] = useState<string | null>(null);
   const [storyData, setStoryData] = useState<MemberOverviewData | null>(null);
   const [storiesVisible, setStoriesVisible] = useState(false);
+  const [nowMs, setNowMs] = useState(() => Date.now());
 
   const loadMemberOverview = useCallback(async () => {
     if (!visible || !group || !userId) return;
@@ -302,7 +320,7 @@ export default function GroupMemberOverview({
       const [goalsResult, proofsResult, sessionsResult] = await Promise.all([
         supabase
           .from("goals")
-          .select("id, title, icon, duration")
+          .select("id, title, icon, duration, created_at")
           .eq("user_id", userId)
           .eq("status", "active")
           .is("archived_at", null)
@@ -372,7 +390,7 @@ export default function GroupMemberOverview({
         })
         .filter((proof): proof is DoneProof => proof !== null);
 
-      const nowMs = Date.now();
+      const refreshedAtMs = Date.now();
       const sessions = (
         (sessionsResult.data ?? []) as Pick<
           ScreenSessionRow,
@@ -386,7 +404,7 @@ export default function GroupMemberOverview({
         id: session.id,
         reason: session.reason,
         started_at: session.started_at,
-        seconds: getScreenSessionSeconds(session, nowMs),
+        seconds: getScreenSessionSeconds(session, refreshedAtMs),
       }));
       const todaySeconds = sessions.reduce(
         (sum, session) => sum + session.seconds,
@@ -432,6 +450,7 @@ export default function GroupMemberOverview({
         sessions,
         stories,
       });
+      setNowMs(refreshedAtMs);
     } catch (e) {
       console.log("[member overview] load error:", e);
       setError(e instanceof Error ? e.message : "Could not load profile.");
@@ -450,6 +469,16 @@ export default function GroupMemberOverview({
     setMember(null);
     setError(null);
   }, [userId, visible]);
+
+  useEffect(() => {
+    if (!visible || !member?.activeGoals.length) return;
+
+    const intervalId = setInterval(() => {
+      setNowMs(Date.now());
+    }, 60 * 1000);
+
+    return () => clearInterval(intervalId);
+  }, [member?.activeGoals.length, visible]);
 
   const closeStories = useCallback(() => {
     setStoriesVisible(false);
@@ -613,6 +642,10 @@ export default function GroupMemberOverview({
                         icon={goal.icon}
                         title={goal.title}
                         meta={goal.duration}
+                        openAgeLabel={getGoalOpenAgeLabel(
+                          goal.created_at,
+                          nowMs,
+                        )}
                       />
                     ))
                   ) : (
@@ -844,10 +877,33 @@ const styles = StyleSheet.create({
     textDecorationLine: "line-through",
   },
   goalRowMeta: {
+    flexShrink: 1,
+    minWidth: 0,
     color: Colours.secondaryText,
     fontFamily: Fonts.regular,
     fontSize: 11,
+  },
+  goalRowMetaLine: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
     marginTop: 1,
+  },
+  goalRowOpenAgePill: {
+    flexShrink: 0,
+    minHeight: 18,
+    paddingHorizontal: 6,
+    borderRadius: 9,
+    borderWidth: 1,
+    borderColor: "rgba(255, 106, 0, 0.32)",
+    backgroundColor: "rgba(255, 106, 0, 0.14)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  goalRowOpenAge: {
+    color: Colours.brand,
+    fontFamily: Fonts.medium,
+    fontSize: 10,
   },
   emptyRow: {
     minHeight: 38,
