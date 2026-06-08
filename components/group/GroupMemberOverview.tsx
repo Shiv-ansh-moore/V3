@@ -53,6 +53,13 @@ type OverviewGoal = Pick<
   GoalRow,
   "id" | "title" | "icon" | "duration" | "created_at"
 >;
+type DeletedGoalRow = Pick<
+  GoalRow,
+  "id" | "title" | "icon" | "duration" | "deleted_at"
+>;
+type DeletedGoal = Omit<DeletedGoalRow, "deleted_at"> & {
+  deleted_at: string;
+};
 type DoneProof = Pick<ProofRow, "id" | "submitted_at" | "caption"> & {
   goalId: string;
   goalTitle: string;
@@ -79,6 +86,7 @@ type MemberOverviewData = {
   colour: string;
   todaySeconds: number;
   activeGoals: OverviewGoal[];
+  deletedGoals: DeletedGoal[];
   doneProofs: DoneProof[];
   sessions: OverviewSession[];
   stories: StoryProof[];
@@ -90,6 +98,8 @@ interface GroupMemberOverviewProps {
   hint?: GroupMemberOverviewHint;
   onClose: () => void;
 }
+
+const DELETED_GOAL_VISIBLE_MS = 24 * 60 * 60 * 1000;
 
 function firstRelation<T>(relation: T | T[] | null): T | null {
   return Array.isArray(relation) ? (relation[0] ?? null) : relation;
@@ -168,9 +178,22 @@ function Stat({ value, label }: { value: string | number; label: string }) {
   );
 }
 
-function ProfileAvatar({ member }: { member: MemberOverviewData }) {
+function ProfileAvatar({
+  member,
+  highlighted,
+}: {
+  member: MemberOverviewData;
+  highlighted: boolean;
+}) {
   return (
-    <View style={[styles.profileRing, { borderColor: member.colour }]}>
+    <View
+      style={[
+        styles.profileRing,
+        highlighted
+          ? { borderColor: member.colour }
+          : styles.profileRingMuted,
+      ]}
+    >
       <View style={styles.profileAvatar}>
         {member.avatarUrl ? (
           <Image
@@ -202,26 +225,36 @@ function GoalOverviewRow({
   meta,
   openAgeLabel,
   done,
+  deleted,
 }: {
   icon: string;
   title: string;
   meta?: string | null;
   openAgeLabel?: string | null;
   done?: boolean;
+  deleted?: boolean;
 }) {
+  let iconColor = Colours.fadedBrand;
+  if (done) iconColor = "#22C55E";
+  if (deleted) iconColor = "#FF7777";
+
   return (
     <View style={styles.goalRow}>
       <View style={styles.goalRowIcon}>
         <GoalIcon
           name={icon}
           size={22}
-          color={done ? "#22C55E" : Colours.fadedBrand}
+          color={iconColor}
           weight={done ? "fill" : "light"}
         />
       </View>
       <View style={styles.goalRowText}>
         <Text
-          style={[styles.goalRowTitle, done && styles.goalRowTitleDone]}
+          style={[
+            styles.goalRowTitle,
+            done && styles.goalRowTitleDone,
+            deleted && styles.goalRowTitleDeleted,
+          ]}
           numberOfLines={1}
         >
           {title}
@@ -286,6 +319,9 @@ export default function GroupMemberOverview({
 
     try {
       const { start, end } = getLocalTodayBounds();
+      const deletedCutoff = new Date(
+        Date.now() - DELETED_GOAL_VISIBLE_MS,
+      ).toISOString();
       const { data: memberRows, error: membersError } = await supabase
         .from("group_members")
         .select(
@@ -317,19 +353,20 @@ export default function GroupMemberOverview({
         hint?.colour ??
         GROUP_USER_COLOURS[Math.max(0, memberIndex) % GROUP_USER_COLOURS.length];
 
-      const [goalsResult, proofsResult, sessionsResult] = await Promise.all([
-        supabase
-          .from("goals")
-          .select("id, title, icon, duration, created_at")
-          .eq("user_id", userId)
-          .eq("status", "active")
-          .is("archived_at", null)
-          .is("deleted_at", null)
-          .order("created_at", { ascending: true }),
-        supabase
-          .from("proofs")
-          .select(
-            `
+      const [goalsResult, proofsResult, sessionsResult, deletedGoalsResult] =
+        await Promise.all([
+          supabase
+            .from("goals")
+            .select("id, title, icon, duration, created_at")
+            .eq("user_id", userId)
+            .eq("status", "active")
+            .is("archived_at", null)
+            .is("deleted_at", null)
+            .order("created_at", { ascending: true }),
+          supabase
+            .from("proofs")
+            .select(
+              `
             id,
             user_id,
             submitted_at,
@@ -344,28 +381,36 @@ export default function GroupMemberOverview({
               deleted_at
             )
           `,
-          )
-          .eq("user_id", userId)
-          .gte("submitted_at", start.toISOString())
-          .lt("submitted_at", end.toISOString())
-          .eq("goal.status", "done")
-          .is("goal.archived_at", null)
-          .is("goal.deleted_at", null)
-          .order("submitted_at", { ascending: false }),
-        supabase
-          .from("screen_sessions")
-          .select(
-            "id, started_at, actual_seconds, granted_seconds, reason",
-          )
-          .eq("user_id", userId)
-          .gte("started_at", start.toISOString())
-          .lt("started_at", end.toISOString())
-          .order("started_at", { ascending: false }),
-      ]);
+            )
+            .eq("user_id", userId)
+            .gte("submitted_at", start.toISOString())
+            .lt("submitted_at", end.toISOString())
+            .eq("goal.status", "done")
+            .is("goal.archived_at", null)
+            .is("goal.deleted_at", null)
+            .order("submitted_at", { ascending: false }),
+          supabase
+            .from("screen_sessions")
+            .select(
+              "id, started_at, actual_seconds, granted_seconds, reason",
+            )
+            .eq("user_id", userId)
+            .gte("started_at", start.toISOString())
+            .lt("started_at", end.toISOString())
+            .order("started_at", { ascending: false }),
+          supabase
+            .from("goals")
+            .select("id, title, icon, duration, deleted_at")
+            .eq("user_id", userId)
+            .eq("status", "deleted")
+            .gte("deleted_at", deletedCutoff)
+            .order("deleted_at", { ascending: false }),
+        ]);
 
       if (goalsResult.error) throw goalsResult.error;
       if (proofsResult.error) throw proofsResult.error;
       if (sessionsResult.error) throw sessionsResult.error;
+      if (deletedGoalsResult.error) throw deletedGoalsResult.error;
 
       const doneProofs = ((proofsResult.data ?? []) as ProofWithGoal[])
         .map((proof): DoneProof | null => {
@@ -446,6 +491,8 @@ export default function GroupMemberOverview({
         colour,
         todaySeconds,
         activeGoals: (goalsResult.data ?? []) as OverviewGoal[],
+        deletedGoals: ((deletedGoalsResult.data ?? []) as DeletedGoalRow[])
+          .filter((goal): goal is DeletedGoal => goal.deleted_at !== null),
         doneProofs,
         sessions,
         stories,
@@ -531,6 +578,7 @@ export default function GroupMemberOverview({
           colour: hint?.colour ?? Colours.fadedBrand,
           todaySeconds: 0,
           activeGoals: [],
+          deletedGoals: [],
           doneProofs: [],
           sessions: [],
           stories: [],
@@ -570,39 +618,47 @@ export default function GroupMemberOverview({
                   </View>
                 ) : null}
 
-                <View style={styles.profileHero}>
-                  <TouchableOpacity
-                    activeOpacity={hasStories ? 0.72 : 1}
-                    disabled={!hasStories}
-                    onPress={openStories}
-                  >
-                    <ProfileAvatar member={activeMember} />
-                  </TouchableOpacity>
-                  <Text style={styles.profileName} numberOfLines={1}>
-                    {activeMember.displayName}
-                  </Text>
-                  <Text style={styles.profileMeta}>
-                    {hasStories ? "Tap photo for proofs" : "No proofs today"}
-                  </Text>
-                </View>
-
-                <View style={styles.profileHeroStats}>
-                  <View style={styles.profileMainStat}>
-                    <Text
-                      style={styles.profileTime}
-                      numberOfLines={1}
-                      adjustsFontSizeToFit
-                      minimumFontScale={0.7}
+                <View style={styles.profileSummaryRow}>
+                  <View style={styles.profileHero}>
+                    <TouchableOpacity
+                      activeOpacity={hasStories ? 0.72 : 1}
+                      disabled={!hasStories}
+                      onPress={openStories}
                     >
-                      {formatDuration(activeMember.todaySeconds)}
-                    </Text>
-                    <Text style={styles.profileTimeLabel}>
-                      Distracting app time
+                      <ProfileAvatar
+                        member={activeMember}
+                        highlighted={hasStories}
+                      />
+                    </TouchableOpacity>
+                    <Text style={styles.profileName} numberOfLines={1}>
+                      {activeMember.displayName}
                     </Text>
                   </View>
-                  <View style={styles.profileSideStats}>
-                    <Stat value={activeMember.doneProofs.length} label="Done" />
-                    <Stat value={activeMember.activeGoals.length} label="Left" />
+
+                  <View style={styles.profileHeroStats}>
+                    <View style={styles.profileMainStat}>
+                      <Text
+                        style={styles.profileTime}
+                        numberOfLines={1}
+                        adjustsFontSizeToFit
+                        minimumFontScale={0.7}
+                      >
+                        {formatDuration(activeMember.todaySeconds)}
+                      </Text>
+                      <Text style={styles.profileTimeLabel}>
+                        Distracting app time
+                      </Text>
+                    </View>
+                    <View style={styles.profileSideStats}>
+                      <Stat
+                        value={activeMember.doneProofs.length}
+                        label="Done"
+                      />
+                      <Stat
+                        value={activeMember.activeGoals.length}
+                        label="Left"
+                      />
+                    </View>
                   </View>
                 </View>
 
@@ -668,6 +724,30 @@ export default function GroupMemberOverview({
                     ))
                   ) : (
                     <EmptyRow text="No app unlocks today." />
+                  )}
+                </View>
+
+                <View style={styles.overviewSection}>
+                  <View style={styles.sectionTitleRow}>
+                    <Text style={styles.overviewSectionTitle}>
+                      Deleted last 24h
+                    </Text>
+                    <Text style={styles.overviewSectionMeta}>
+                      {activeMember.deletedGoals.length}
+                    </Text>
+                  </View>
+                  {activeMember.deletedGoals.length > 0 ? (
+                    activeMember.deletedGoals.map((goal) => (
+                      <GoalOverviewRow
+                        key={goal.id}
+                        icon={goal.icon}
+                        title={goal.title}
+                        meta={`Deleted ${formatShortTime(goal.deleted_at)}`}
+                        deleted
+                      />
+                    ))
+                  ) : (
+                    <EmptyRow text="No deleted goals in the last 24h." />
                   )}
                 </View>
               </ScrollView>
@@ -744,9 +824,16 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.medium,
     fontSize: 12,
   },
+  profileSummaryRow: {
+    flexDirection: "row",
+    alignItems: "stretch",
+    gap: 14,
+  },
   profileHero: {
+    width: 112,
+    flexShrink: 0,
     alignItems: "center",
-    paddingTop: 6,
+    justifyContent: "center",
   },
   profileRing: {
     width: 96,
@@ -755,6 +842,9 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     alignItems: "center",
     justifyContent: "center",
+  },
+  profileRingMuted: {
+    borderColor: "transparent",
   },
   profileAvatar: {
     width: 84,
@@ -776,22 +866,21 @@ const styles = StyleSheet.create({
   profileName: {
     color: Colours.text,
     fontFamily: Fonts.bold,
-    fontSize: 24,
-    marginTop: 10,
-  },
-  profileMeta: {
-    color: Colours.secondaryText,
-    fontFamily: Fonts.medium,
-    fontSize: 12,
-    marginTop: 2,
+    fontSize: 18,
+    marginTop: 8,
+    textAlign: "center",
+    width: "100%",
   },
   profileHeroStats: {
+    flex: 1,
+    minWidth: 0,
     backgroundColor: Colours.card,
     borderRadius: 20,
     borderWidth: 1,
     borderColor: "#222222",
     paddingHorizontal: 16,
     paddingVertical: 15,
+    justifyContent: "center",
   },
   profileMainStat: {
     marginBottom: 14,
@@ -873,6 +962,10 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   goalRowTitleDone: {
+    color: Colours.secondaryText,
+    textDecorationLine: "line-through",
+  },
+  goalRowTitleDeleted: {
     color: Colours.secondaryText,
     textDecorationLine: "line-through",
   },
