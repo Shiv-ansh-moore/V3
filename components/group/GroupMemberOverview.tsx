@@ -477,6 +477,7 @@ export default function GroupMemberOverview({
             goalId: proof.goalId,
             goalTitle: proof.goalTitle,
             caption: proof.caption,
+            imagePath: proof.imagePath,
             imageUrl: signedImage?.signedUrl ?? null,
             submittedAt: proof.submitted_at,
             viewedByMe: false,

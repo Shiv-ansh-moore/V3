@@ -371,6 +371,7 @@ export default function Social({ active = true }: SocialProps) {
             goalId: proof.goal_id,
             goalTitle: proof.goal_title,
             caption: proof.caption,
+            imagePath: proof.image_path,
             imageUrl: signedImage?.signedUrl ?? null,
             submittedAt: proof.submitted_at,
             viewedByMe: proof.viewed_by_me,
@@ -763,12 +764,17 @@ export default function Social({ active = true }: SocialProps) {
       return;
     }
 
-    const currentMemberIndex = groupMembers.findIndex(
+    const storyMembers = groupMembers.filter(
+      (member) => (storiesByUser[member.id]?.length ?? 0) > 0,
+    );
+    const currentMemberIndex = storyMembers.findIndex(
       (member) => member.id === selectedStoryUserId,
     );
-    const nextMember = groupMembers
-      .slice(currentMemberIndex + 1)
-      .find((member) => (storiesByUser[member.id]?.length ?? 0) > 0);
+    const candidateMembers =
+      currentMemberIndex === -1
+        ? storyMembers
+        : storyMembers.slice(currentMemberIndex + 1);
+    const nextMember = candidateMembers[0] ?? null;
 
     if (!nextMember) {
       setSelectedStoryUserId(null);
@@ -1055,7 +1061,6 @@ export default function Social({ active = true }: SocialProps) {
       />
       {selectedStoryMember && (
         <StoryViewer
-          key={selectedStoryMember.id}
           visible={selectedStories.length > 0}
           memberName={selectedStoryMember.displayName}
           memberAvatarUrl={selectedStoryMember.avatarUrl}

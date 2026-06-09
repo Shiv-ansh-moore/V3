@@ -1,5 +1,7 @@
 import {
+  ActivityIndicator,
   Animated,
+  AppState,
   Easing,
   Modal,
   Pressable,
@@ -12,6 +14,7 @@ import {
 import React, {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -25,7 +28,11 @@ import { supabase } from "../../lib/supabase";
 import { useAuth } from "../../lib/AuthContext";
 
 const STORY_DURATION_MS = 5000;
+const STORY_TAP_MAX_MS = 300;
+const PROOF_IMAGE_URL_TTL_SECONDS = 60 * 60;
 const PROOF_EMOJIS = ["🔥", "💪", "👏", "🫡", "❤️"];
+
+type StoryImageStatus = "idle" | "loading" | "ready" | "error";
 
 export interface StoryProof {
   proofId: string;
@@ -34,6 +41,7 @@ export interface StoryProof {
   goalId: string;
   goalTitle: string;
   caption: string | null;
+  imagePath: string;
   imageUrl: string | null;
   submittedAt: string;
   viewedByMe: boolean;
@@ -63,6 +71,12 @@ function getInitial(displayName: string): string {
   return displayName.trim().charAt(0).toUpperCase() || "?";
 }
 
+function clampStoryIndex(index: number, storyCount: number): number {
+  if (storyCount <= 0) return 0;
+
+  return Math.min(Math.max(index, 0), storyCount - 1);
+}
+
 export default function StoryViewer({
   visible,
   memberName,
@@ -77,54 +91,147 @@ export default function StoryViewer({
 }: StoryViewerProps) {
   const { user } = useAuth();
   const [index, setIndex] = useState(initialIndex);
+  const [imageStatus, setImageStatus] =
+    useState<StoryImageStatus>("idle");
+  const [imageUrlOverrides, setImageUrlOverrides] = useState<
+    Record<string, string>
+  >({});
+  const [activeStorySetKey, setActiveStorySetKey] = useState("");
+  const [retryAttemptsByProofId, setRetryAttemptsByProofId] = useState<
+    Record<string, number>
+  >({});
+  const [retryingProofId, setRetryingProofId] = useState<string | null>(null);
   const progressAnimation = useRef(new Animated.Value(0)).current;
   const progressValueRef = useRef(0);
+  const imageStatusRef = useRef<StoryImageStatus>("idle");
   const isPausedRef = useRef(false);
+  const isAppActiveRef = useRef(true);
   const animationRunRef = useRef(0);
   const onCompleteRef = useRef(onComplete);
   const goNextRef = useRef<() => void>(() => {});
+  const tapPressStartedAtRef = useRef<number | null>(null);
+  const viewedProofIdsRef = useRef(new Set<string>());
+  const currentImageKeyRef = useRef<string | null>(null);
+  const currentProofIdRef = useRef<string | null>(null);
 
-  const current = stories[index] ?? null;
-  const storyImageUrlKey = useMemo(
-    () =>
-      stories
-        .map((story) => story.imageUrl)
-        .filter((url): url is string => Boolean(url))
-        .join("\n"),
+  const storySetKey = useMemo(
+    () => stories.map((story) => story.proofId).join("\n"),
     [stories],
   );
+  const activeIndex =
+    activeStorySetKey === storySetKey
+      ? clampStoryIndex(index, stories.length)
+      : clampStoryIndex(initialIndex, stories.length);
+  const current = stories[activeIndex] ?? null;
+  const currentProofId = current?.proofId ?? null;
+  const currentImageUrl = current
+    ? (imageUrlOverrides[current.proofId] ?? current.imageUrl)
+    : null;
+  const currentRetryAttempt = current
+    ? (retryAttemptsByProofId[current.proofId] ?? 0)
+    : 0;
+  const currentImageKey = current
+    ? `${current.proofId}:${currentImageUrl ?? "missing"}:${currentRetryAttempt}`
+    : null;
+  const isRetryingCurrent = current
+    ? retryingProofId === current.proofId
+    : false;
+
+  currentImageKeyRef.current = currentImageKey;
+  currentProofIdRef.current = currentProofId;
+
+  const storyImageUrlKey = useMemo(
+    () => {
+      const urls = stories
+        .map((story) => imageUrlOverrides[story.proofId] ?? story.imageUrl)
+        .filter((url): url is string => Boolean(url));
+
+      return Array.from(new Set(urls)).join("\n");
+    },
+    [imageUrlOverrides, stories],
+  );
+  const setImageStatusValue = useCallback((nextStatus: StoryImageStatus) => {
+    imageStatusRef.current = nextStatus;
+    setImageStatus(nextStatus);
+  }, []);
+
+  const stopProgressAtCurrentValue = useCallback(() => {
+    animationRunRef.current += 1;
+    progressAnimation.stopAnimation((value) => {
+      progressValueRef.current = Math.min(Math.max(value, 0), 1);
+    });
+  }, [progressAnimation]);
 
   useEffect(() => {
     onCompleteRef.current = onComplete;
   }, [onComplete]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!visible) return;
     animationRunRef.current += 1;
     isPausedRef.current = false;
     progressValueRef.current = 0;
     progressAnimation.stopAnimation();
     progressAnimation.setValue(0);
-    setIndex(initialIndex);
-  }, [initialIndex, progressAnimation, visible]);
+    setImageStatusValue("idle");
+    setActiveStorySetKey(storySetKey);
+    setIndex(clampStoryIndex(initialIndex, stories.length));
+  }, [
+    initialIndex,
+    progressAnimation,
+    setImageStatusValue,
+    stories.length,
+    storySetKey,
+    visible,
+  ]);
+
+  useLayoutEffect(() => {
+    if (!visible || !currentProofId) return;
+
+    animationRunRef.current += 1;
+    isPausedRef.current = false;
+    progressValueRef.current = 0;
+    progressAnimation.stopAnimation();
+    progressAnimation.setValue(0);
+    setImageStatusValue(currentImageUrl ? "loading" : "error");
+  }, [
+    currentProofId,
+    currentImageKey,
+    currentImageUrl,
+    progressAnimation,
+    setImageStatusValue,
+    visible,
+  ]);
 
   useEffect(() => {
-    if (!visible || !current || !user || current.viewedByMe) return;
+    if (
+      !visible ||
+      imageStatus !== "ready" ||
+      !current ||
+      !user ||
+      current.viewedByMe
+    ) {
+      return;
+    }
+
+    if (viewedProofIdsRef.current.has(current.proofId)) return;
+
+    const proofId = current.proofId;
+    viewedProofIdsRef.current.add(proofId);
+    onProofViewed(proofId);
 
     supabase
       .from("proof_views")
       .upsert(
-        { proof_id: current.proofId, viewer_id: user.id },
+        { proof_id: proofId, viewer_id: user.id },
         { ignoreDuplicates: true, onConflict: "viewer_id,proof_id" },
       )
       .then(({ error }) => {
         if (error) {
           console.log("[stories] mark viewed error:", error.message);
-          return;
         }
-        onProofViewed(current.proofId);
       });
-  }, [current, onProofViewed, user, visible]);
+  }, [current, imageStatus, onProofViewed, user, visible]);
 
   useEffect(() => {
     if (!visible || !storyImageUrlKey) return;
@@ -149,12 +256,12 @@ export default function StoryViewer({
 
   const goNext = useCallback(() => {
     resetProgress();
-    if (index >= stories.length - 1) {
+    if (activeIndex >= stories.length - 1) {
       requestAnimationFrame(() => onCompleteRef.current());
       return;
     }
-    setIndex(index + 1);
-  }, [index, resetProgress, stories.length]);
+    setIndex(activeIndex + 1);
+  }, [activeIndex, resetProgress, stories.length]);
 
   useEffect(() => {
     goNextRef.current = goNext;
@@ -162,7 +269,15 @@ export default function StoryViewer({
 
   const startProgressAnimation = useCallback(
     (fromValue = progressValueRef.current) => {
-      if (!visible || stories.length === 0 || isPausedRef.current) return;
+      if (
+        !visible ||
+        stories.length === 0 ||
+        isPausedRef.current ||
+        !isAppActiveRef.current ||
+        imageStatusRef.current !== "ready"
+      ) {
+        return;
+      }
 
       const normalizedValue = Math.min(Math.max(fromValue, 0), 1);
       const runId = animationRunRef.current + 1;
@@ -196,12 +311,12 @@ export default function StoryViewer({
 
   const goBack = useCallback(() => {
     resetProgress();
-    if (index === 0) {
+    if (activeIndex === 0) {
       requestAnimationFrame(() => startProgressAnimation(0));
       return;
     }
-    setIndex(index - 1);
-  }, [index, resetProgress, startProgressAnimation]);
+    setIndex(activeIndex - 1);
+  }, [activeIndex, resetProgress, startProgressAnimation]);
 
   const pauseProgress = useCallback(() => {
     if (!visible || stories.length === 0 || isPausedRef.current) return;
@@ -220,33 +335,200 @@ export default function StoryViewer({
     startProgressAnimation(progressValueRef.current);
   }, [startProgressAnimation]);
 
+  const handleTapZonePressIn = useCallback(() => {
+    tapPressStartedAtRef.current = Date.now();
+    pauseProgress();
+  }, [pauseProgress]);
+
+  const handleTapZonePressOut = useCallback(() => {
+    resumeProgress();
+  }, [resumeProgress]);
+
+  const handleTapZonePress = useCallback((action: () => void) => {
+    const startedAt = tapPressStartedAtRef.current;
+    tapPressStartedAtRef.current = null;
+
+    if (startedAt !== null && Date.now() - startedAt > STORY_TAP_MAX_MS) {
+      return;
+    }
+
+    action();
+  }, []);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (nextState) => {
+      const isActive = nextState === "active";
+      isAppActiveRef.current = isActive;
+
+      if (!isActive) {
+        stopProgressAtCurrentValue();
+        return;
+      }
+
+      if (!isPausedRef.current && imageStatusRef.current === "ready") {
+        startProgressAnimation(progressValueRef.current);
+      }
+    });
+
+    return () => subscription.remove();
+  }, [startProgressAnimation, stopProgressAtCurrentValue]);
+
   useEffect(() => {
     if (!visible || stories.length === 0) return;
 
-    isPausedRef.current = false;
-    progressValueRef.current = 0;
-    progressAnimation.setValue(0);
-    startProgressAnimation(0);
+    if (imageStatus !== "ready") {
+      stopProgressAtCurrentValue();
+      return;
+    }
+
+    startProgressAnimation(progressValueRef.current);
 
     return () => {
       animationRunRef.current += 1;
       progressAnimation.stopAnimation();
     };
   }, [
-    index,
+    currentImageKey,
+    imageStatus,
     progressAnimation,
     startProgressAnimation,
+    stopProgressAtCurrentValue,
     stories.length,
     visible,
+  ]);
+
+  const markImageReady = useCallback(
+    (imageKey: string | null) => {
+      if (!imageKey || currentImageKeyRef.current !== imageKey) return;
+
+      setImageStatusValue("ready");
+    },
+    [setImageStatusValue],
+  );
+
+  const handleImageLoadStart = useCallback(
+    (imageKey: string | null) => {
+      if (!imageKey || currentImageKeyRef.current !== imageKey) return;
+      if (imageStatusRef.current === "ready") return;
+
+      setImageStatusValue("loading");
+      stopProgressAtCurrentValue();
+    },
+    [setImageStatusValue, stopProgressAtCurrentValue],
+  );
+
+  const handleImageLoad = useCallback(
+    (imageKey: string | null) => {
+      requestAnimationFrame(() => markImageReady(imageKey));
+    },
+    [markImageReady],
+  );
+
+  const handleImageLoadEnd = useCallback(
+    (imageKey: string | null) => {
+      if (imageStatusRef.current === "error") return;
+
+      requestAnimationFrame(() => markImageReady(imageKey));
+    },
+    [markImageReady],
+  );
+
+  const handleImageError = useCallback(
+    (imageKey: string | null) => {
+      if (!imageKey || currentImageKeyRef.current !== imageKey) return;
+
+      setImageStatusValue("error");
+      stopProgressAtCurrentValue();
+    },
+    [setImageStatusValue, stopProgressAtCurrentValue],
+  );
+
+  useEffect(() => {
+    if (!visible || !currentImageKey || !currentImageUrl) return;
+
+    let isCancelled = false;
+    const imageKey = currentImageKey;
+
+    Image.prefetch(currentImageUrl, "memory-disk")
+      .then((prefetched) => {
+        if (
+          isCancelled ||
+          !prefetched ||
+          currentImageKeyRef.current !== imageKey ||
+          imageStatusRef.current === "ready"
+        ) {
+          return;
+        }
+
+        markImageReady(imageKey);
+      })
+      .catch((error: unknown) => {
+        console.log(
+          "[stories] current image prefetch error:",
+          error instanceof Error ? error.message : String(error),
+        );
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [currentImageKey, currentImageUrl, markImageReady, visible]);
+
+  const retryCurrentImage = useCallback(async () => {
+    if (!current || retryingProofId === current.proofId) return;
+
+    const proofId = current.proofId;
+    setRetryingProofId(proofId);
+    setImageStatusValue("loading");
+    stopProgressAtCurrentValue();
+
+    try {
+      const { data: signedImage, error: signedImageError } =
+        await supabase.storage
+          .from("proofs")
+          .createSignedUrl(current.imagePath, PROOF_IMAGE_URL_TTL_SECONDS);
+
+      if (signedImageError) throw signedImageError;
+      if (!signedImage?.signedUrl) {
+        throw new Error("No signed proof image URL returned.");
+      }
+
+      setImageUrlOverrides((currentOverrides) => ({
+        ...currentOverrides,
+        [proofId]: signedImage.signedUrl,
+      }));
+      setRetryAttemptsByProofId((currentAttempts) => ({
+        ...currentAttempts,
+        [proofId]: (currentAttempts[proofId] ?? 0) + 1,
+      }));
+    } catch (error) {
+      console.log(
+        "[stories] proof image retry error:",
+        error instanceof Error ? error.message : String(error),
+      );
+
+      if (currentProofIdRef.current === proofId) {
+        setImageStatusValue("error");
+      }
+    } finally {
+      setRetryingProofId((currentRetryingProofId) =>
+        currentRetryingProofId === proofId ? null : currentRetryingProofId,
+      );
+    }
+  }, [
+    current,
+    retryingProofId,
+    setImageStatusValue,
+    stopProgressAtCurrentValue,
   ]);
 
   const progressSegments = useMemo(
     () =>
       stories.map((story, storyIndex) => {
         const fill =
-          storyIndex < index ? (
+          storyIndex < activeIndex ? (
             <View style={[styles.progressFill, styles.progressFillComplete]} />
-          ) : storyIndex === index ? (
+          ) : storyIndex === activeIndex ? (
             <Animated.View
               style={[
                 styles.progressFill,
@@ -264,7 +546,7 @@ export default function StoryViewer({
           </View>
         );
       }),
-    [index, progressAnimation, stories],
+    [activeIndex, progressAnimation, stories],
   );
 
   if (!current) return null;
@@ -280,17 +562,57 @@ export default function StoryViewer({
         <SafeAreaView style={styles.container}>
           <View style={styles.flex}>
             <View style={styles.imageWrapper}>
-              {current.imageUrl ? (
+              {currentImageUrl ? (
                 <Image
-                  source={{ uri: current.imageUrl }}
+                  key={currentImageKey}
+                  source={{ uri: currentImageUrl }}
                   cachePolicy="memory-disk"
                   contentFit="cover"
+                  onDisplay={() => markImageReady(currentImageKey)}
+                  onError={() => handleImageError(currentImageKey)}
+                  onLoad={() => handleImageLoad(currentImageKey)}
+                  onLoadEnd={() => handleImageLoadEnd(currentImageKey)}
+                  onLoadStart={() => handleImageLoadStart(currentImageKey)}
                   priority="high"
+                  recyclingKey={currentImageKey}
                   style={styles.imagePlaceholder}
                 />
               ) : (
                 <View style={styles.imagePlaceholder} />
               )}
+
+              {imageStatus === "loading" ? (
+                <View style={styles.statusOverlay} pointerEvents="none">
+                  <ActivityIndicator color={Colours.text} />
+                  <Text style={styles.statusText}>Loading proof...</Text>
+                </View>
+              ) : null}
+
+              {imageStatus === "error" ? (
+                <View style={styles.errorOverlay}>
+                  <Text style={styles.errorTitle}>Proof image did not load</Text>
+                  <Text style={styles.errorText}>
+                    Retry the image or skip this proof.
+                  </Text>
+                  <View style={styles.errorActionRow}>
+                    <TouchableOpacity
+                      style={[styles.errorButton, styles.retryButton]}
+                      onPress={retryCurrentImage}
+                      disabled={isRetryingCurrent}
+                    >
+                      <Text style={styles.retryButtonText}>
+                        {isRetryingCurrent ? "Retrying..." : "Retry"}
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.errorButton}
+                      onPress={goNext}
+                    >
+                      <Text style={styles.errorButtonText}>Skip</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ) : null}
 
               <View style={styles.topOverlay} pointerEvents="box-none">
                 <View style={styles.progressRow}>{progressSegments}</View>
@@ -344,15 +666,17 @@ export default function StoryViewer({
               <View style={styles.tapZones} pointerEvents="box-none">
                 <Pressable
                   style={styles.tapZone}
-                  onPress={goBack}
-                  onPressIn={pauseProgress}
-                  onPressOut={resumeProgress}
+                  disabled={imageStatus === "error"}
+                  onPress={() => handleTapZonePress(goBack)}
+                  onPressIn={handleTapZonePressIn}
+                  onPressOut={handleTapZonePressOut}
                 />
                 <Pressable
                   style={styles.tapZone}
-                  onPress={goNext}
-                  onPressIn={pauseProgress}
-                  onPressOut={resumeProgress}
+                  disabled={imageStatus === "error"}
+                  onPress={() => handleTapZonePress(goNext)}
+                  onPressIn={handleTapZonePressIn}
+                  onPressOut={handleTapZonePressOut}
                 />
               </View>
             </View>
@@ -422,6 +746,7 @@ const styles = StyleSheet.create({
     right: 0,
     paddingHorizontal: 12,
     paddingTop: 12,
+    zIndex: 4,
   },
   progressRow: {
     flexDirection: "row",
@@ -517,9 +842,81 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     flexDirection: "row",
+    zIndex: 1,
   },
   tapZone: {
     flex: 1,
+  },
+  statusOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 20,
+    backgroundColor: "rgba(10, 10, 10, 0.58)",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    zIndex: 2,
+  },
+  statusText: {
+    fontFamily: Fonts.medium,
+    fontSize: 13,
+    color: Colours.text,
+  },
+  errorOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 20,
+    backgroundColor: "rgba(10, 10, 10, 0.78)",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 28,
+    zIndex: 3,
+  },
+  errorTitle: {
+    fontFamily: Fonts.bold,
+    fontSize: 18,
+    color: Colours.text,
+    textAlign: "center",
+  },
+  errorText: {
+    fontFamily: Fonts.regular,
+    fontSize: 13,
+    color: Colours.secondaryText,
+    textAlign: "center",
+    marginTop: 8,
+  },
+  errorActionRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 18,
+  },
+  errorButton: {
+    minWidth: 92,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: Colours.cardHighlight,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 16,
+  },
+  retryButton: {
+    backgroundColor: Colours.text,
+  },
+  errorButtonText: {
+    fontFamily: Fonts.semiBold,
+    fontSize: 13,
+    color: Colours.text,
+  },
+  retryButtonText: {
+    fontFamily: Fonts.semiBold,
+    fontSize: 13,
+    color: Colours.background,
   },
   bottomSection: {
     paddingTop: 16,
