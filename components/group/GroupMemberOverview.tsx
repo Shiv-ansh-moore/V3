@@ -97,6 +97,7 @@ interface GroupMemberOverviewProps {
   userId: string | null;
   hint?: GroupMemberOverviewHint;
   onClose: () => void;
+  onProofViewed?: (proofId: string) => void;
 }
 
 const DELETED_GOAL_VISIBLE_MS = 24 * 60 * 60 * 1000;
@@ -302,6 +303,7 @@ export default function GroupMemberOverview({
   userId,
   hint,
   onClose,
+  onProofViewed,
 }: GroupMemberOverviewProps) {
   const { group } = useAuth();
   const [member, setMember] = useState<MemberOverviewData | null>(null);
@@ -543,6 +545,8 @@ export default function GroupMemberOverview({
   }, [member, onClose]);
 
   const handleProofViewed = useCallback((proofId: string) => {
+    onProofViewed?.(proofId);
+
     setMember((current) =>
       current
         ? {
@@ -567,7 +571,7 @@ export default function GroupMemberOverview({
           }
         : current,
     );
-  }, []);
+  }, [onProofViewed]);
 
   const activeMember =
     member ??

@@ -9,6 +9,7 @@ import React, {
 import AvatarRow, { AvatarRowMember } from "./social/AvatarRow";
 import ChatBubble, { BubblePosition } from "./social/ChatBubble";
 import CompletedCard from "./social/CompletedCard";
+import UnviewedProofBar from "./social/UnviewedProofBar";
 import ScreenTimeLog from "./social/ScreenTimeLog";
 import LongPressSheet from "./social/LongPressSheet";
 import MessageInput, {
@@ -170,7 +171,7 @@ function buildReplyTo(
   let text: string;
   if (ref.kind === "message") {
     text = ref.text;
-  } else if (ref.kind === "completed") {
+  } else if (ref.kind === "completed" || ref.kind === "unviewedProof") {
     text = ref.goalTitle;
   } else {
     text = formatActivityText(ref.type, ref.app, ref.duration);
@@ -199,6 +200,8 @@ function buildReplyInfo(item: FeedItem): ReplyInfo {
     text = item.text;
   } else if (item.kind === "completed") {
     text = `Completed ${item.goalTitle}`;
+  } else if (item.kind === "unviewedProof") {
+    text = `Proof ${item.goalTitle}`;
   } else {
     text = formatActivityText(item.type, item.app, item.duration);
   }
@@ -386,6 +389,9 @@ export default function Social({ active = true }: SocialProps) {
         story,
       ];
     });
+    const storyByProofId = new Map(
+      signedStories.map((story) => [story.proofId, story]),
+    );
 
     const latestStoryTimeByUser = new Map<string, number>();
     signedStories.forEach((story) => {
@@ -535,16 +541,31 @@ export default function Social({ active = true }: SocialProps) {
 
         const goal = firstRelation(proof.goal);
         const photoUri = await getSignedProofImageUrl(proof.image_path);
-
-        return {
-          kind: "completed",
+        const goalTitle = goal?.title ?? "Goal";
+        const goalIcon = goal?.icon ?? "";
+        const proofFeedBase = {
           id: message.id,
+          proofId: proof.id,
           userId,
-          goalTitle: goal?.title ?? "Goal",
+          goalTitle,
+          goalIcon,
           photoUri,
           caption: proof.caption,
           timestamp: formatTimestamp(message.created_at),
           reactions,
+        };
+        const story = storyByProofId.get(proof.id);
+
+        if (userId !== user?.id && story && !story.viewedByMe) {
+          return {
+            kind: "unviewedProof",
+            ...proofFeedBase,
+          };
+        }
+
+        return {
+          kind: "completed",
+          ...proofFeedBase,
         };
       }),
     );
@@ -730,18 +751,25 @@ export default function Social({ active = true }: SocialProps) {
     void refreshFeed();
   }, [refreshFeed]);
 
-  const openStoriesForMember = useCallback(
-    (member: AvatarRowMember) => {
-      const stories = storiesByUser[member.id] ?? [];
+  const openStoriesForUserId = useCallback(
+    (userId: string) => {
+      const stories = storiesByUser[userId] ?? [];
       if (stories.length === 0) return;
 
       const firstUnseenIndex = stories.findIndex((story) => !story.viewedByMe);
       setSelectedStoryInitialIndex(
         firstUnseenIndex === -1 ? 0 : firstUnseenIndex,
       );
-      setSelectedStoryUserId(member.id);
+      setSelectedStoryUserId(userId);
     },
     [storiesByUser],
+  );
+
+  const openStoriesForMember = useCallback(
+    (member: AvatarRowMember) => {
+      openStoriesForUserId(member.id);
+    },
+    [openStoriesForUserId],
   );
 
   const closeStories = useCallback(() => {
@@ -790,6 +818,27 @@ export default function Social({ active = true }: SocialProps) {
   }, [groupMembers, selectedStoryUserId, storiesByUser]);
 
   const handleProofViewed = useCallback((proofId: string) => {
+    setFeed((currentFeed) =>
+      currentFeed.map((item): FeedItem => {
+        if (item.kind !== "unviewedProof" || item.proofId !== proofId) {
+          return item;
+        }
+
+        return {
+          kind: "completed",
+          id: item.id,
+          proofId: item.proofId,
+          userId: item.userId,
+          goalTitle: item.goalTitle,
+          goalIcon: item.goalIcon,
+          photoUri: item.photoUri,
+          caption: item.caption,
+          timestamp: item.timestamp,
+          reactions: item.reactions,
+        };
+      }),
+    );
+
     setStoriesByUser((currentStoriesByUser) => {
       for (const [userId, stories] of Object.entries(currentStoriesByUser)) {
         const storyIndex = stories.findIndex(
@@ -989,6 +1038,23 @@ export default function Social({ active = true }: SocialProps) {
         );
       }
 
+      if (item.kind === "unviewedProof") {
+        return (
+          <UnviewedProofBar
+            name={resolveUserName(item.userId)}
+            nameColour={resolveUserColour(item.userId)}
+            goalTitle={item.goalTitle}
+            goalIcon={item.goalIcon}
+            reactions={item.reactions}
+            currentUserId={user?.id}
+            onPress={() => openStoriesForUserId(item.userId)}
+            onDoubleTap={() => handleReply(item)}
+            onLongPress={() => handleLongPress(item)}
+            onNamePress={() => openMemberOverview(item.userId)}
+          />
+        );
+      }
+
       return null;
     },
     [
@@ -996,6 +1062,7 @@ export default function Social({ active = true }: SocialProps) {
       handleReply,
       handleLongPress,
       openMemberOverview,
+      openStoriesForUserId,
       resolveUserColour,
       resolveUserName,
       user?.id,
@@ -1078,6 +1145,7 @@ export default function Social({ active = true }: SocialProps) {
         userId={overviewUserId}
         hint={overviewHint}
         onClose={() => setOverviewUserId(null)}
+        onProofViewed={handleProofViewed}
       />
       <QuickProofGoalSheet
         visible={quickProofSheetVisible}

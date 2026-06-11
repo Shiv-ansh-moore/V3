@@ -42,15 +42,30 @@ export interface ActivityEvent {
 export interface CompletedGoal {
   kind: "completed";
   id: string;
+  proofId?: string;
   userId: string;
   goalTitle: string;
+  goalIcon?: string;
   photoUri: string | null;
   caption?: string | null;
   timestamp: string;
   reactions?: Reaction[];
 }
 
-export type FeedItem = ChatMessage | ActivityEvent | CompletedGoal;
+export interface UnviewedProof {
+  kind: "unviewedProof";
+  id: string;
+  proofId: string;
+  userId: string;
+  goalTitle: string;
+  goalIcon: string;
+  photoUri: string | null;
+  caption?: string | null;
+  timestamp: string;
+  reactions?: Reaction[];
+}
+
+export type FeedItem = ChatMessage | ActivityEvent | CompletedGoal | UnviewedProof;
 
 // ─── Users ────────────────────────────────────────────────
 

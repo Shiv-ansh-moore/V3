@@ -12,6 +12,7 @@ import React, { useEffect, useRef } from "react";
 import { Colours } from "../../constants/Colours";
 import { Fonts } from "../../constants/Fonts";
 import { FeedItem } from "../../testData/mockSocial";
+import GoalIcon from "../personal/GoalIcon";
 import {
   ArrowBendUpLeftIcon,
   LockSimpleIcon,
@@ -99,7 +100,7 @@ export default function LongPressSheet({
   if (!item) return null;
 
   const emojis =
-    item.kind === "completed"
+    item.kind === "completed" || item.kind === "unviewedProof"
       ? COMPLETED_EMOJIS
       : item.kind === "activity"
         ? ACTIVITY_EMOJIS
@@ -184,6 +185,43 @@ export default function LongPressSheet({
                     {item.caption ? (
                       <Text style={styles.quoteCaption}>{item.caption}</Text>
                     ) : null}
+                  </View>
+                </View>
+              </View>
+            )}
+
+            {item.kind === "unviewedProof" && (
+              <View style={styles.previewWrap}>
+                <View style={styles.quoteBox}>
+                  <View
+                    style={[styles.accentBar, { backgroundColor: userColour }]}
+                  />
+                  <View style={styles.quoteContent}>
+                    <View style={styles.quoteHeader}>
+                      <Text
+                        style={[styles.quoteName, { color: userColour }]}
+                        onPress={handleUserPress}
+                      >
+                        {userName}
+                      </Text>
+                      <Text style={styles.quoteTimestamp}>{item.timestamp}</Text>
+                    </View>
+                    <View style={styles.quoteProofBarRow}>
+                      <View style={styles.quoteProofIcon}>
+                        <GoalIcon
+                          name={item.goalIcon}
+                          size={20}
+                          color={Colours.brand}
+                          weight="fill"
+                        />
+                      </View>
+                      <View style={styles.quoteProofTextBlock}>
+                        <Text style={styles.quoteProofTitle} numberOfLines={1}>
+                          {item.goalTitle}
+                        </Text>
+                        <Text style={styles.quoteText}>Tap to view</Text>
+                      </View>
+                    </View>
                   </View>
                 </View>
               </View>
@@ -369,6 +407,22 @@ const styles = StyleSheet.create({
     color: Colours.secondaryText,
     marginTop: 1,
     width: 110,
+  },
+  quoteProofBarRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 5,
+  },
+  quoteProofIcon: {
+    width: 26,
+    height: 26,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 7,
+  },
+  quoteProofTextBlock: {
+    flex: 1,
+    minWidth: 0,
   },
   quoteActivityIcon: {
     alignSelf: "center",
