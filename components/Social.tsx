@@ -374,17 +374,7 @@ export default function Social({ active = true }: SocialProps) {
     const signedStories = await Promise.all(
       ((storyRows ?? []) as RecentProofRow[]).map(
         async (proof): Promise<StoryProof> => {
-          const { data: signedImage, error: signedImageError } =
-            await supabase.storage
-              .from("proofs")
-              .createSignedUrl(proof.image_path, 60 * 60);
-
-          if (signedImageError) {
-            console.log(
-              "[social] story proof image error:",
-              signedImageError.message,
-            );
-          }
+          const imageUrl = await getSignedProofImageUrl(proof.image_path);
 
           return {
             proofId: proof.proof_id,
@@ -394,7 +384,7 @@ export default function Social({ active = true }: SocialProps) {
             goalTitle: proof.goal_title,
             caption: proof.caption,
             imagePath: proof.image_path,
-            imageUrl: signedImage?.signedUrl ?? null,
+            imageUrl,
             submittedAt: proof.submitted_at,
             viewedByMe:
               proof.user_id === user?.id ? true : proof.viewed_by_me,

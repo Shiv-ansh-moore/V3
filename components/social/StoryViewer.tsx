@@ -21,7 +21,8 @@ import React, {
 } from "react";
 import { Image } from "expo-image";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
-import { XIcon } from "phosphor-react-native";
+import { PaperPlaneTiltIcon, XIcon } from "phosphor-react-native";
+import * as Haptics from "expo-haptics";
 import { Colours } from "../../constants/Colours";
 import { Fonts } from "../../constants/Fonts";
 import { supabase } from "../../lib/supabase";
@@ -30,7 +31,7 @@ import { useAuth } from "../../lib/AuthContext";
 const STORY_DURATION_MS = 5000;
 const STORY_TAP_MAX_MS = 300;
 const PROOF_IMAGE_URL_TTL_SECONDS = 60 * 60;
-const PROOF_EMOJIS = ["🔥", "💪", "👏", "🫡", "❤️"];
+const PROOF_EMOJIS = ["🔥", "💪", "👏", "🫡", "❤️", "😝"];
 
 type StoryImageStatus = "idle" | "loading" | "ready" | "error";
 
@@ -89,7 +90,7 @@ export default function StoryViewer({
   onProofViewed,
   onMemberPress,
 }: StoryViewerProps) {
-  const { user } = useAuth();
+  const { group, user } = useAuth();
   const [index, setIndex] = useState(initialIndex);
   const [imageStatus, setImageStatus] =
     useState<StoryImageStatus>("idle");
@@ -101,7 +102,17 @@ export default function StoryViewer({
     Record<string, number>
   >({});
   const [retryingProofId, setRetryingProofId] = useState<string | null>(null);
+  const [messageIdsByProofId, setMessageIdsByProofId] = useState<
+    Record<string, string>
+  >({});
+  const [activeReactionsByMessageId, setActiveReactionsByMessageId] = useState<
+    Record<string, string[]>
+  >({});
+  const [reactingEmoji, setReactingEmoji] = useState<string | null>(null);
+  const [replyText, setReplyText] = useState("");
+  const [sendingReply, setSendingReply] = useState(false);
   const progressAnimation = useRef(new Animated.Value(0)).current;
+  const replyInputRef = useRef<TextInput>(null);
   const progressValueRef = useRef(0);
   const imageStatusRef = useRef<StoryImageStatus>("idle");
   const isPausedRef = useRef(false);
@@ -113,6 +124,7 @@ export default function StoryViewer({
   const viewedProofIdsRef = useRef(new Set<string>());
   const currentImageKeyRef = useRef<string | null>(null);
   const currentProofIdRef = useRef<string | null>(null);
+  const imageResetKeyRef = useRef<string | null>(null);
 
   const storySetKey = useMemo(
     () => stories.map((story) => story.proofId).join("\n"),
@@ -124,6 +136,9 @@ export default function StoryViewer({
       : clampStoryIndex(initialIndex, stories.length);
   const current = stories[activeIndex] ?? null;
   const currentProofId = current?.proofId ?? null;
+  const currentMessageId = current
+    ? (current.messageId ?? messageIdsByProofId[current.proofId] ?? null)
+    : null;
   const currentImageUrl = current
     ? (imageUrlOverrides[current.proofId] ?? current.imageUrl)
     : null;
@@ -131,11 +146,21 @@ export default function StoryViewer({
     ? (retryAttemptsByProofId[current.proofId] ?? 0)
     : 0;
   const currentImageKey = current
-    ? `${current.proofId}:${currentImageUrl ?? "missing"}:${currentRetryAttempt}`
+    ? `${current.proofId}:${currentRetryAttempt}`
     : null;
   const isRetryingCurrent = current
     ? retryingProofId === current.proofId
     : false;
+  const currentActiveReactionEmojis = useMemo(
+    () =>
+      currentMessageId
+        ? (activeReactionsByMessageId[currentMessageId] ?? [])
+        : [],
+    [activeReactionsByMessageId, currentMessageId],
+  );
+  const canMutateCurrentProof = Boolean(user && group && currentMessageId);
+  const canSendReply =
+    canMutateCurrentProof && replyText.trim().length > 0 && !sendingReply;
 
   currentImageKeyRef.current = currentImageKey;
   currentProofIdRef.current = currentProofId;
@@ -174,6 +199,7 @@ export default function StoryViewer({
     progressAnimation.stopAnimation();
     progressAnimation.setValue(0);
     setImageStatusValue("idle");
+    imageResetKeyRef.current = null;
     setActiveStorySetKey(storySetKey);
     setIndex(clampStoryIndex(initialIndex, stories.length));
   }, [
@@ -186,8 +212,16 @@ export default function StoryViewer({
   ]);
 
   useLayoutEffect(() => {
-    if (!visible || !currentProofId) return;
+    if (!visible || !currentProofId || !currentImageKey) return;
 
+    if (imageResetKeyRef.current === currentImageKey) {
+      if (currentImageUrl && imageStatusRef.current === "error") {
+        setImageStatusValue("loading");
+      }
+      return;
+    }
+
+    imageResetKeyRef.current = currentImageKey;
     animationRunRef.current += 1;
     isPausedRef.current = false;
     progressValueRef.current = 0;
@@ -232,6 +266,75 @@ export default function StoryViewer({
         }
       });
   }, [current, imageStatus, onProofViewed, user, visible]);
+
+  useEffect(() => {
+    if (!visible || !current || !group || currentMessageId) return;
+
+    let isCancelled = false;
+    const proofId = current.proofId;
+
+    supabase
+      .from("messages")
+      .select("id")
+      .eq("group_id", group.id)
+      .eq("proof_id", proofId)
+      .eq("kind", "proof")
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (isCancelled) return;
+
+        if (error) {
+          console.log("[stories] proof message lookup error:", error.message);
+          return;
+        }
+
+        if (!data?.id) return;
+
+        setMessageIdsByProofId((currentMessageIds) => ({
+          ...currentMessageIds,
+          [proofId]: data.id,
+        }));
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [current, currentMessageId, group, visible]);
+
+  useEffect(() => {
+    if (!visible || !currentMessageId || !group || !user) return;
+
+    let isCancelled = false;
+    const messageId = currentMessageId;
+
+    supabase
+      .from("reactions")
+      .select("emoji")
+      .eq("message_id", messageId)
+      .eq("group_id", group.id)
+      .eq("user_id", user.id)
+      .then(({ data, error }) => {
+        if (isCancelled) return;
+
+        if (error) {
+          console.log("[stories] reaction fetch error:", error.message);
+          return;
+        }
+
+        setActiveReactionsByMessageId((currentReactions) => ({
+          ...currentReactions,
+          [messageId]: (data ?? []).map((reaction) => reaction.emoji),
+        }));
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [currentMessageId, group, user, visible]);
+
+  useEffect(() => {
+    setReplyText("");
+  }, [currentProofId, visible]);
 
   useEffect(() => {
     if (!visible || !storyImageUrlKey) return;
@@ -522,6 +625,79 @@ export default function StoryViewer({
     stopProgressAtCurrentValue,
   ]);
 
+  const handleStoryReact = useCallback(
+    async (emoji: string) => {
+      if (!user || !group || !currentMessageId || reactingEmoji) return;
+
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      setReactingEmoji(emoji);
+
+      const hasReaction = currentActiveReactionEmojis.includes(emoji);
+      const mutation = hasReaction
+        ? supabase
+            .from("reactions")
+            .delete()
+            .eq("message_id", currentMessageId)
+            .eq("group_id", group.id)
+            .eq("user_id", user.id)
+            .eq("emoji", emoji)
+        : supabase.from("reactions").insert({
+            message_id: currentMessageId,
+            group_id: group.id,
+            user_id: user.id,
+            emoji,
+          });
+
+      const { error } = await mutation;
+
+      if (error) {
+        console.log("[stories] reaction error:", error.message);
+        setReactingEmoji(null);
+        return;
+      }
+
+      setActiveReactionsByMessageId((currentReactions) => {
+        const currentEmojis = currentReactions[currentMessageId] ?? [];
+        const nextEmojis = hasReaction
+          ? currentEmojis.filter((currentEmoji) => currentEmoji !== emoji)
+          : [...currentEmojis, emoji];
+
+        return {
+          ...currentReactions,
+          [currentMessageId]: nextEmojis,
+        };
+      });
+
+      setReactingEmoji(null);
+    },
+    [currentActiveReactionEmojis, currentMessageId, group, reactingEmoji, user],
+  );
+
+  const handleSendReply = useCallback(async () => {
+    const body = replyText.trim();
+    if (!body || !user || !group || !currentMessageId || sendingReply) return;
+
+    setSendingReply(true);
+
+    const { error } = await supabase.from("messages").insert({
+      group_id: group.id,
+      sender_id: user.id,
+      kind: "text",
+      body,
+      reply_to_id: currentMessageId,
+    });
+
+    if (error) {
+      console.log("[stories] reply send error:", error.message);
+      setSendingReply(false);
+      return;
+    }
+
+    setReplyText("");
+    replyInputRef.current?.blur();
+    setSendingReply(false);
+  }, [currentMessageId, group, replyText, sendingReply, user]);
+
   const progressSegments = useMemo(
     () =>
       stories.map((story, storyIndex) => {
@@ -688,23 +864,58 @@ export default function StoryViewer({
                 </Text>
               ) : null}
 
-              <TextInput
-                style={styles.captionInput}
-                placeholder="Reply to proof..."
-                placeholderTextColor={Colours.secondaryText}
-                editable={false}
-              />
+              <View style={styles.replyRow}>
+                <TextInput
+                  ref={replyInputRef}
+                  style={styles.replyInput}
+                  placeholder={
+                    canMutateCurrentProof
+                      ? "Reply to proof..."
+                      : "Proof replies unavailable"
+                  }
+                  placeholderTextColor={Colours.secondaryText}
+                  value={replyText}
+                  onChangeText={setReplyText}
+                  editable={canMutateCurrentProof && !sendingReply}
+                  returnKeyType="send"
+                  onSubmitEditing={handleSendReply}
+                  onFocus={pauseProgress}
+                  onBlur={resumeProgress}
+                />
+                <TouchableOpacity
+                  style={[
+                    styles.sendButton,
+                    !canSendReply && styles.sendButtonDisabled,
+                  ]}
+                  disabled={!canSendReply}
+                  onPress={handleSendReply}
+                >
+                  <PaperPlaneTiltIcon
+                    size={18}
+                    color={canSendReply ? Colours.text : Colours.secondaryText}
+                    weight="fill"
+                  />
+                </TouchableOpacity>
+              </View>
 
               <View style={styles.reactionRow}>
-                {PROOF_EMOJIS.map((emoji) => (
-                  <TouchableOpacity
-                    key={emoji}
-                    style={styles.reactionButton}
-                    disabled
-                  >
-                    <Text style={styles.reactionText}>{emoji}</Text>
-                  </TouchableOpacity>
-                ))}
+                {PROOF_EMOJIS.map((emoji) => {
+                  const isActive = currentActiveReactionEmojis.includes(emoji);
+
+                  return (
+                    <TouchableOpacity
+                      key={emoji}
+                      style={[
+                        styles.reactionButton,
+                        isActive && styles.reactionButtonActive,
+                      ]}
+                      disabled={!canMutateCurrentProof || reactingEmoji !== null}
+                      onPress={() => handleStoryReact(emoji)}
+                    >
+                      <Text style={styles.reactionText}>{emoji}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
             </View>
           </View>
@@ -928,7 +1139,13 @@ const styles = StyleSheet.create({
     color: Colours.text,
     marginBottom: 10,
   },
-  captionInput: {
+  replyRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  replyInput: {
+    flex: 1,
     height: 40,
     backgroundColor: Colours.cardHighlight,
     borderRadius: 20,
@@ -937,9 +1154,20 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.regular,
     color: Colours.text,
   },
+  sendButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: Colours.brand,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  sendButtonDisabled: {
+    backgroundColor: Colours.cardHighlight,
+  },
   reactionRow: {
     flexDirection: "row",
-    gap: 12,
+    gap: 8,
     marginTop: 12,
   },
   reactionButton: {
@@ -949,6 +1177,12 @@ const styles = StyleSheet.create({
     backgroundColor: Colours.cardHighlight,
     justifyContent: "center",
     alignItems: "center",
+    borderWidth: 1.5,
+    borderColor: "transparent",
+  },
+  reactionButtonActive: {
+    backgroundColor: "rgba(255, 106, 0, 0.14)",
+    borderColor: Colours.brand,
   },
   reactionText: {
     fontSize: 22,
