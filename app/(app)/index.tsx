@@ -6,7 +6,7 @@ import Personal from "../../components/Personal";
 import Dashboard from "../../components/Dashboard";
 import TabBar from "../../components/TabBar";
 import { Colours } from "../../constants/Colours";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { requestAuthorization } from "../../modules/screen-time-locks";
 import { useLocalSearchParams } from "expo-router";
@@ -15,18 +15,33 @@ export default function MyPager() {
   const params = useLocalSearchParams<{ tab?: string | string[] }>();
   const tab = Array.isArray(params.tab) ? params.tab[0] : params.tab;
   const initialPage = tab === "social" ? 1 : 0;
-  const scrollPosition = useRef(new Animated.Value(0)).current;
+  const scrollPosition = useRef(new Animated.Value(initialPage)).current;
   const pagerRef = useRef<PagerView>(null);
+  const activePageRef = useRef(initialPage);
   const [activePage, setActivePage] = useState(initialPage);
+
+  const updateActivePage = useCallback((index: number) => {
+    activePageRef.current = index;
+    setActivePage(index);
+  }, []);
+
+  const selectPage = useCallback(
+    (index: number) => {
+      if (activePageRef.current === index) return;
+
+      updateActivePage(index);
+      pagerRef.current?.setPage(index);
+    },
+    [updateActivePage],
+  );
 
   useEffect(() => {
     if (tab !== "social") return;
 
-    setActivePage(1);
     requestAnimationFrame(() => {
-      pagerRef.current?.setPage(1);
+      selectPage(1);
     });
-  }, [tab]);
+  }, [selectPage, tab]);
 
   useEffect(() => {
     if (Platform.OS !== "ios") return;
@@ -41,16 +56,13 @@ export default function MyPager() {
       <SafeAreaView style={styles.container} edges={{ top: "additive" }}>
         <TabBar
           scrollPosition={scrollPosition}
-          onTabPress={(index) => {
-            setActivePage(index);
-            pagerRef.current?.setPage(index);
-          }}
+          onTabPress={selectPage}
         />
         <PagerView
           ref={pagerRef}
           style={styles.container}
           initialPage={initialPage}
-          onPageSelected={(e) => setActivePage(e.nativeEvent.position)}
+          onPageSelected={(e) => updateActivePage(e.nativeEvent.position)}
           onPageScroll={(e) => {
             const { position, offset } = e.nativeEvent;
             scrollPosition.setValue(Math.min(position + offset, 1));
