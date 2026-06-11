@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View } from "react-native";
 import React from "react";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import { CaretRightIcon } from "phosphor-react-native";
 import * as Haptics from "expo-haptics";
 import { Colours } from "../../constants/Colours";
 import { Fonts } from "../../constants/Fonts";
@@ -78,11 +79,14 @@ export default function UnviewedProofBar({
                 weight="fill"
               />
             </View>
-            <View style={styles.textBlock}>
-              <Text style={styles.title} numberOfLines={1}>
-                {goalTitle}
-              </Text>
-              <Text style={styles.subtitle}>Tap to view</Text>
+            <Text style={styles.title} numberOfLines={1}>
+              {goalTitle}
+            </Text>
+          </View>
+          <View style={styles.ctaWrap}>
+            <Text style={styles.cta}>Tap to view</Text>
+            <View style={styles.ctaIcon}>
+              <CaretRightIcon size={12} color={Colours.brand} weight="bold" />
             </View>
           </View>
         </View>
@@ -97,45 +101,61 @@ export default function UnviewedProofBar({
 const styles = StyleSheet.create({
   outer: {
     alignSelf: "stretch",
-    marginTop: 8,
+    marginTop: 7,
   },
   bar: {
     backgroundColor: Colours.card,
     borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "rgba(255, 106, 0, 0.26)",
     paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingVertical: 6,
+    position: "relative",
   },
   name: {
     alignSelf: "flex-start",
     fontFamily: Fonts.medium,
     fontSize: 12,
-    marginBottom: 3,
+    marginBottom: 2,
     maxWidth: "100%",
   },
   contentRow: {
     flexDirection: "row",
     alignItems: "center",
+    paddingRight: 82,
   },
   iconBox: {
-    width: 26,
-    height: 26,
-    alignItems: "center",
+    width: 22,
+    height: 22,
+    alignItems: "flex-start",
     justifyContent: "center",
     marginRight: 7,
   },
-  textBlock: {
+  title: {
     flex: 1,
     minWidth: 0,
-  },
-  title: {
     color: Colours.text,
     fontFamily: Fonts.medium,
     fontSize: 14,
   },
-  subtitle: {
-    color: Colours.secondaryText,
-    fontFamily: Fonts.regular,
+  ctaWrap: {
+    position: "absolute",
+    top: 0,
+    right: 12,
+    bottom: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  cta: {
+    color: Colours.brand,
+    fontFamily: Fonts.medium,
     fontSize: 12,
-    marginTop: 1,
+    lineHeight: 14,
+  },
+  ctaIcon: {
+    height: 14,
+    justifyContent: "center",
+    marginLeft: 2,
   },
 });
