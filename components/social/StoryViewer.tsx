@@ -21,7 +21,12 @@ import React, {
   useState,
 } from "react";
 import { Image } from "expo-image";
-import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
+import { KeyboardStickyView } from "react-native-keyboard-controller";
+import {
+  SafeAreaProvider,
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import { PaperPlaneTiltIcon, XIcon } from "phosphor-react-native";
 import * as Haptics from "expo-haptics";
 import { Colours } from "../../constants/Colours";
@@ -32,6 +37,7 @@ import { useAuth } from "../../lib/AuthContext";
 const STORY_DURATION_MS = 5000;
 const STORY_TAP_MAX_MS = 300;
 const KEYBOARD_DISMISS_ACTION_GUARD_MS = 350;
+const STORY_VIEWER_EDGE_PADDING = 12;
 const PROOF_IMAGE_URL_TTL_SECONDS = 60 * 60;
 const PROOF_EMOJIS = ["🔥", "💪", "👏", "🫡", "❤️", "😝"];
 
@@ -92,6 +98,7 @@ export default function StoryViewer({
   onProofViewed,
   onMemberPress,
 }: StoryViewerProps) {
+  const insets = useSafeAreaInsets();
   const { group, user } = useAuth();
   const [index, setIndex] = useState(initialIndex);
   const [imageStatus, setImageStatus] =
@@ -113,6 +120,7 @@ export default function StoryViewer({
   const [reactingEmoji, setReactingEmoji] = useState<string | null>(null);
   const [replyText, setReplyText] = useState("");
   const [sendingReply, setSendingReply] = useState(false);
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
   const progressAnimation = useRef(new Animated.Value(0)).current;
   const replyInputRef = useRef<TextInput>(null);
   const progressValueRef = useRef(0);
@@ -166,6 +174,9 @@ export default function StoryViewer({
   const canMutateCurrentProof = Boolean(user && group && currentMessageId);
   const canSendReply =
     canMutateCurrentProof && replyText.trim().length > 0 && !sendingReply;
+  const bottomControlPadding = keyboardVisible
+    ? STORY_VIEWER_EDGE_PADDING
+    : Math.max(insets.bottom, STORY_VIEWER_EDGE_PADDING);
 
   currentImageKeyRef.current = currentImageKey;
   currentProofIdRef.current = currentProofId;
@@ -195,6 +206,19 @@ export default function StoryViewer({
   useEffect(() => {
     onCompleteRef.current = onComplete;
   }, [onComplete]);
+
+  useEffect(() => {
+    const subscriptions = [
+      Keyboard.addListener("keyboardWillShow", () => setKeyboardVisible(true)),
+      Keyboard.addListener("keyboardDidShow", () => setKeyboardVisible(true)),
+      Keyboard.addListener("keyboardWillHide", () => setKeyboardVisible(false)),
+      Keyboard.addListener("keyboardDidHide", () => setKeyboardVisible(false)),
+    ];
+
+    return () => {
+      subscriptions.forEach((subscription) => subscription.remove());
+    };
+  }, []);
 
   useLayoutEffect(() => {
     if (!visible) return;
@@ -794,7 +818,7 @@ export default function StoryViewer({
       onRequestClose={onClose}
     >
       <SafeAreaProvider style={styles.absolute}>
-        <SafeAreaView style={styles.container}>
+        <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
           <View style={styles.flex}>
             <View style={styles.imageWrapper}>
               {currentImageUrl ? (
@@ -923,69 +947,81 @@ export default function StoryViewer({
               </View>
             </View>
 
-            <View style={styles.bottomSection}>
-              {current.caption ? (
-                <Text style={styles.captionText} numberOfLines={2}>
-                  {current.caption}
-                </Text>
-              ) : null}
+            <KeyboardStickyView style={styles.bottomSticky}>
+              <View
+                style={[
+                  styles.bottomSection,
+                  { paddingBottom: bottomControlPadding },
+                ]}
+              >
+                {current.caption ? (
+                  <Text style={styles.captionText} numberOfLines={2}>
+                    {current.caption}
+                  </Text>
+                ) : null}
 
-              <View style={styles.replyRow}>
-                <TextInput
-                  ref={replyInputRef}
-                  style={styles.replyInput}
-                  placeholder={
-                    canMutateCurrentProof
-                      ? "Reply to proof..."
-                      : "Proof replies unavailable"
-                  }
-                  placeholderTextColor={Colours.secondaryText}
-                  value={replyText}
-                  onChangeText={setReplyText}
-                  editable={canMutateCurrentProof && !sendingReply}
-                  returnKeyType="send"
-                  onSubmitEditing={handleSendReply}
-                  onFocus={handleReplyInputFocus}
-                  onBlur={handleReplyInputBlur}
-                />
-                <TouchableOpacity
-                  style={[
-                    styles.sendButton,
-                    !canSendReply && styles.sendButtonDisabled,
-                  ]}
-                  disabled={!canSendReply}
-                  onPress={handleSendReply}
-                >
-                  <PaperPlaneTiltIcon
-                    size={18}
-                    color={canSendReply ? Colours.text : Colours.secondaryText}
-                    weight="fill"
+                <View style={styles.replyRow}>
+                  <TextInput
+                    ref={replyInputRef}
+                    style={styles.replyInput}
+                    placeholder={
+                      canMutateCurrentProof
+                        ? "Reply to proof..."
+                        : "Proof replies unavailable"
+                    }
+                    placeholderTextColor={Colours.secondaryText}
+                    value={replyText}
+                    onChangeText={setReplyText}
+                    editable={canMutateCurrentProof && !sendingReply}
+                    returnKeyType="send"
+                    onSubmitEditing={handleSendReply}
+                    onFocus={handleReplyInputFocus}
+                    onBlur={handleReplyInputBlur}
                   />
-                </TouchableOpacity>
-              </View>
-
-              <View style={styles.reactionRow}>
-                {PROOF_EMOJIS.map((emoji) => {
-                  const isActive = currentActiveReactionEmojis.includes(emoji);
-
-                  return (
-                    <TouchableOpacity
-                      key={emoji}
-                      style={[
-                        styles.reactionButton,
-                        isActive && styles.reactionButtonActive,
-                      ]}
-                      disabled={!canMutateCurrentProof || reactingEmoji !== null}
-                      onPress={() =>
-                        runViewerAction(() => handleStoryReact(emoji))
+                  <TouchableOpacity
+                    style={[
+                      styles.sendButton,
+                      !canSendReply && styles.sendButtonDisabled,
+                    ]}
+                    disabled={!canSendReply}
+                    onPress={handleSendReply}
+                  >
+                    <PaperPlaneTiltIcon
+                      size={18}
+                      color={
+                        canSendReply ? Colours.text : Colours.secondaryText
                       }
-                    >
-                      <Text style={styles.reactionText}>{emoji}</Text>
-                    </TouchableOpacity>
-                  );
-                })}
+                      weight="fill"
+                    />
+                  </TouchableOpacity>
+                </View>
+
+                <View style={styles.reactionRow}>
+                  {PROOF_EMOJIS.map((emoji) => {
+                    const isActive =
+                      currentActiveReactionEmojis.includes(emoji);
+
+                    return (
+                      <TouchableOpacity
+                        key={emoji}
+                        style={[
+                          styles.reactionButton,
+                          isActive && styles.reactionButtonActive,
+                        ]}
+                        disabled={
+                          !canMutateCurrentProof || reactingEmoji !== null
+                        }
+                        onPress={() =>
+                          runViewerAction(() => handleStoryReact(emoji))
+                        }
+                      >
+                        <Text style={styles.reactionText}>{emoji}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
               </View>
-            </View>
+            </KeyboardStickyView>
           </View>
         </SafeAreaView>
       </SafeAreaProvider>
@@ -1004,7 +1040,8 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colours.background,
-    padding: 12,
+    paddingHorizontal: STORY_VIEWER_EDGE_PADDING,
+    paddingTop: STORY_VIEWER_EDGE_PADDING,
   },
   flex: {
     flex: 1,
@@ -1197,9 +1234,13 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: Colours.background,
   },
+  bottomSticky: {
+    marginHorizontal: -STORY_VIEWER_EDGE_PADDING,
+    paddingHorizontal: STORY_VIEWER_EDGE_PADDING,
+    backgroundColor: Colours.background,
+  },
   bottomSection: {
     paddingTop: 16,
-    paddingBottom: 12,
   },
   captionText: {
     fontFamily: Fonts.regular,
