@@ -17,6 +17,7 @@ interface CompletedCardProps {
   timestamp: string;
   reactions?: Reaction[];
   currentUserId?: string;
+  onPress?: () => void;
   onDoubleTap?: () => void;
   onLongPress?: () => void;
   onNamePress?: () => void;
@@ -31,6 +32,7 @@ export default function CompletedCard({
   timestamp,
   reactions,
   currentUserId,
+  onPress,
   onDoubleTap,
   onLongPress,
   onNamePress,
@@ -50,8 +52,17 @@ export default function CompletedCard({
     })
     .runOnJS(true);
 
+  const singleTap = Gesture.Tap()
+    .numberOfTaps(1)
+    .onEnd(() => {
+      onPress?.();
+    })
+    .runOnJS(true);
+
   return (
-    <GestureDetector gesture={Gesture.Race(longPress, doubleTap)}>
+    <GestureDetector
+      gesture={Gesture.Race(longPress, Gesture.Exclusive(doubleTap, singleTap))}
+    >
       <View style={styles.outer}>
         <View style={styles.container}>
           <View style={styles.nameRow}>

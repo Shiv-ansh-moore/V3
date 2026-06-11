@@ -43,11 +43,15 @@ export interface CompletedGoal {
   kind: "completed";
   id: string;
   proofId?: string;
+  messageId?: string | null;
   userId: string;
+  goalId?: string;
   goalTitle: string;
   goalIcon?: string;
+  imagePath?: string;
   photoUri: string | null;
   caption?: string | null;
+  submittedAt?: string;
   timestamp: string;
   reactions?: Reaction[];
 }
@@ -56,11 +60,15 @@ export interface UnviewedProof {
   kind: "unviewedProof";
   id: string;
   proofId: string;
+  messageId: string | null;
   userId: string;
+  goalId: string;
   goalTitle: string;
   goalIcon: string;
+  imagePath: string;
   photoUri: string | null;
   caption?: string | null;
+  submittedAt: string;
   timestamp: string;
   reactions?: Reaction[];
 }

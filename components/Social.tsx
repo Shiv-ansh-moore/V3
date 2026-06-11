@@ -70,6 +70,11 @@ type SocialMessageRow = Database["public"]["Tables"]["messages"]["Row"] & {
 
 type StoriesByUser = Record<string, StoryProof[]>;
 
+type SelectedStoryOverride = {
+  userId: string;
+  stories: StoryProof[];
+};
+
 interface SocialProps {
   active?: boolean;
 }
@@ -229,6 +234,8 @@ export default function Social({ active = true }: SocialProps) {
   const [feed, setFeed] = useState<FeedItem[]>([]);
   const [groupMembers, setGroupMembers] = useState<AvatarRowMember[]>([]);
   const [storiesByUser, setStoriesByUser] = useState<StoriesByUser>({});
+  const [selectedStoryOverride, setSelectedStoryOverride] =
+    useState<SelectedStoryOverride | null>(null);
   const [selectedStoryUserId, setSelectedStoryUserId] = useState<string | null>(
     null,
   );
@@ -247,9 +254,20 @@ export default function Social({ active = true }: SocialProps) {
   const visibleSessionIdsRef = useRef<Set<string>>(new Set());
   const reversedFeed = useMemo(() => [...feed].reverse(), [feed]);
   const selectedStoryMember =
-    groupMembers.find((member) => member.id === selectedStoryUserId) ?? null;
+    groupMembers.find((member) => member.id === selectedStoryUserId) ??
+    (selectedStoryUserId
+      ? {
+          id: selectedStoryUserId,
+          displayName: userNames[selectedStoryUserId] ?? "Unknown",
+          avatarUrl: userAvatars[selectedStoryUserId] ?? null,
+          colour: userColours[selectedStoryUserId] ?? Colours.secondaryText,
+          storyStatus: null,
+        }
+      : null);
   const selectedStories = selectedStoryUserId
-    ? (storiesByUser[selectedStoryUserId] ?? [])
+    ? selectedStoryOverride?.userId === selectedStoryUserId
+      ? selectedStoryOverride.stories
+      : (storiesByUser[selectedStoryUserId] ?? [])
     : [];
   const currentSheetItem = useMemo(() => {
     if (!sheetItem) return null;
@@ -322,6 +340,7 @@ export default function Social({ active = true }: SocialProps) {
       setGroupMembers([]);
       setMentionMembers([]);
       setStoriesByUser({});
+      setSelectedStoryOverride(null);
       setSelectedStoryUserId(null);
       return;
     }
@@ -377,7 +396,8 @@ export default function Social({ active = true }: SocialProps) {
             imagePath: proof.image_path,
             imageUrl: signedImage?.signedUrl ?? null,
             submittedAt: proof.submitted_at,
-            viewedByMe: proof.viewed_by_me,
+            viewedByMe:
+              proof.user_id === user?.id ? true : proof.viewed_by_me,
           };
         },
       ),
@@ -417,31 +437,29 @@ export default function Social({ active = true }: SocialProps) {
       const colour = GROUP_USER_COLOURS[index % GROUP_USER_COLOURS.length];
       groupMemberOrder.set(member.user_id, index);
 
-      if (member.user_id !== user?.id) {
-        nextGroupMembers.push({
+      nextGroupMembers.push({
+        id: member.user_id,
+        displayName,
+        avatarUrl: profile?.avatar_url ?? null,
+        colour,
+        storyStatus:
+          (nextStoriesByUser[member.user_id]?.length ?? 0) === 0
+            ? null
+            : nextStoriesByUser[member.user_id].some(
+                (story) => !story.viewedByMe,
+              )
+              ? "unseen"
+              : "seen",
+      });
+
+      if (member.user_id !== user?.id && username) {
+        nextMentionMembers.push({
           id: member.user_id,
+          username,
           displayName,
           avatarUrl: profile?.avatar_url ?? null,
           colour,
-          storyStatus:
-            (nextStoriesByUser[member.user_id]?.length ?? 0) === 0
-              ? null
-              : nextStoriesByUser[member.user_id].some(
-                  (story) => !story.viewedByMe,
-                )
-                ? "unseen"
-                : "seen",
         });
-
-        if (username) {
-          nextMentionMembers.push({
-            id: member.user_id,
-            username,
-            displayName,
-            avatarUrl: profile?.avatar_url ?? null,
-            colour,
-          });
-        }
       }
 
       nextUserNames[member.user_id] = displayName;
@@ -450,6 +468,9 @@ export default function Social({ active = true }: SocialProps) {
     });
 
     nextGroupMembers.sort((a, b) => {
+      if (a.id === user?.id && b.id !== user?.id) return 1;
+      if (b.id === user?.id && a.id !== user?.id) return -1;
+
       const aLatestStoryTime = latestStoryTimeByUser.get(a.id);
       const bLatestStoryTime = latestStoryTimeByUser.get(b.id);
 
@@ -546,11 +567,15 @@ export default function Social({ active = true }: SocialProps) {
         const proofFeedBase = {
           id: message.id,
           proofId: proof.id,
+          messageId: message.id,
           userId,
+          goalId: proof.goal_id,
           goalTitle,
           goalIcon,
+          imagePath: proof.image_path,
           photoUri,
           caption: proof.caption,
+          submittedAt: proof.submitted_at,
           timestamp: formatTimestamp(message.created_at),
           reactions,
         };
@@ -757,10 +782,52 @@ export default function Social({ active = true }: SocialProps) {
       if (stories.length === 0) return;
 
       const firstUnseenIndex = stories.findIndex((story) => !story.viewedByMe);
+      setSelectedStoryOverride(null);
       setSelectedStoryInitialIndex(
         firstUnseenIndex === -1 ? 0 : firstUnseenIndex,
       );
       setSelectedStoryUserId(userId);
+    },
+    [storiesByUser],
+  );
+
+  const openStoriesForProofCard = useCallback(
+    (item: Extract<FeedItem, { kind: "completed" }>) => {
+      if (!item.proofId) return;
+
+      const stories = storiesByUser[item.userId] ?? [];
+      const storyIndex = stories.findIndex(
+        (story) => story.proofId === item.proofId,
+      );
+
+      if (storyIndex !== -1) {
+        setSelectedStoryOverride(null);
+        setSelectedStoryInitialIndex(storyIndex);
+        setSelectedStoryUserId(item.userId);
+        return;
+      }
+
+      if (!item.goalId || !item.imagePath || !item.submittedAt) return;
+
+      setSelectedStoryOverride({
+        userId: item.userId,
+        stories: [
+          {
+            proofId: item.proofId,
+            userId: item.userId,
+            messageId: item.messageId ?? item.id,
+            goalId: item.goalId,
+            goalTitle: item.goalTitle,
+            caption: item.caption ?? null,
+            imagePath: item.imagePath,
+            imageUrl: item.photoUri,
+            submittedAt: item.submittedAt,
+            viewedByMe: true,
+          },
+        ],
+      });
+      setSelectedStoryInitialIndex(0);
+      setSelectedStoryUserId(item.userId);
     },
     [storiesByUser],
   );
@@ -773,6 +840,7 @@ export default function Social({ active = true }: SocialProps) {
   );
 
   const closeStories = useCallback(() => {
+    setSelectedStoryOverride(null);
     setSelectedStoryUserId(null);
   }, []);
 
@@ -805,6 +873,7 @@ export default function Social({ active = true }: SocialProps) {
     const nextMember = candidateMembers[0] ?? null;
 
     if (!nextMember) {
+      setSelectedStoryOverride(null);
       setSelectedStoryUserId(null);
       return;
     }
@@ -813,6 +882,7 @@ export default function Social({ active = true }: SocialProps) {
     const firstUnseenIndex = nextStories.findIndex(
       (story) => !story.viewedByMe,
     );
+    setSelectedStoryOverride(null);
     setSelectedStoryInitialIndex(firstUnseenIndex === -1 ? 0 : firstUnseenIndex);
     setSelectedStoryUserId(nextMember.id);
   }, [groupMembers, selectedStoryUserId, storiesByUser]);
@@ -828,11 +898,15 @@ export default function Social({ active = true }: SocialProps) {
           kind: "completed",
           id: item.id,
           proofId: item.proofId,
+          messageId: item.messageId,
           userId: item.userId,
+          goalId: item.goalId,
           goalTitle: item.goalTitle,
           goalIcon: item.goalIcon,
+          imagePath: item.imagePath,
           photoUri: item.photoUri,
           caption: item.caption,
+          submittedAt: item.submittedAt,
           timestamp: item.timestamp,
           reactions: item.reactions,
         };
@@ -1031,6 +1105,7 @@ export default function Social({ active = true }: SocialProps) {
             timestamp={item.timestamp}
             reactions={item.reactions}
             currentUserId={user?.id}
+            onPress={() => openStoriesForProofCard(item)}
             onDoubleTap={() => handleReply(item)}
             onLongPress={() => handleLongPress(item)}
             onNamePress={() => openMemberOverview(item.userId)}
@@ -1062,6 +1137,7 @@ export default function Social({ active = true }: SocialProps) {
       handleReply,
       handleLongPress,
       openMemberOverview,
+      openStoriesForProofCard,
       openStoriesForUserId,
       resolveUserColour,
       resolveUserName,
