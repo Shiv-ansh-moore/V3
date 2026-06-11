@@ -3,6 +3,7 @@ import {
   Animated,
   AppState,
   Easing,
+  Keyboard,
   Modal,
   Pressable,
   StyleSheet,
@@ -30,6 +31,7 @@ import { useAuth } from "../../lib/AuthContext";
 
 const STORY_DURATION_MS = 5000;
 const STORY_TAP_MAX_MS = 300;
+const KEYBOARD_DISMISS_ACTION_GUARD_MS = 350;
 const PROOF_IMAGE_URL_TTL_SECONDS = 60 * 60;
 const PROOF_EMOJIS = ["🔥", "💪", "👏", "🫡", "❤️", "😝"];
 
@@ -121,6 +123,9 @@ export default function StoryViewer({
   const onCompleteRef = useRef(onComplete);
   const goNextRef = useRef<() => void>(() => {});
   const tapPressStartedAtRef = useRef<number | null>(null);
+  const consumeNextTapZonePressRef = useRef(false);
+  const isReplyInputFocusedRef = useRef(false);
+  const replyInputBlurredAtRef = useRef(0);
   const viewedProofIdsRef = useRef(new Set<string>());
   const currentImageKeyRef = useRef<string | null>(null);
   const currentProofIdRef = useRef<string | null>(null);
@@ -438,16 +443,70 @@ export default function StoryViewer({
     startProgressAnimation(progressValueRef.current);
   }, [startProgressAnimation]);
 
-  const handleTapZonePressIn = useCallback(() => {
-    tapPressStartedAtRef.current = Date.now();
+  const dismissReplyKeyboard = useCallback((consumeTapZonePress = false) => {
+    const recentlyBlurred =
+      Date.now() - replyInputBlurredAtRef.current <
+      KEYBOARD_DISMISS_ACTION_GUARD_MS;
+
+    if (!isReplyInputFocusedRef.current && !recentlyBlurred) return false;
+
+    consumeNextTapZonePressRef.current = consumeTapZonePress;
+    tapPressStartedAtRef.current = null;
+
+    if (isReplyInputFocusedRef.current) {
+      Keyboard.dismiss();
+      replyInputRef.current?.blur();
+    }
+
+    return true;
+  }, []);
+
+  const handleReplyInputFocus = useCallback(() => {
+    isReplyInputFocusedRef.current = true;
+    replyInputBlurredAtRef.current = 0;
     pauseProgress();
   }, [pauseProgress]);
 
+  const handleReplyInputBlur = useCallback(() => {
+    isReplyInputFocusedRef.current = false;
+    replyInputBlurredAtRef.current = Date.now();
+    resumeProgress();
+  }, [resumeProgress]);
+
+  const runViewerAction = useCallback(
+    (action: () => void | Promise<void>) => {
+      if (dismissReplyKeyboard()) return;
+
+      void action();
+    },
+    [dismissReplyKeyboard],
+  );
+
+  const handleTapZonePressIn = useCallback(() => {
+    if (dismissReplyKeyboard(true)) return;
+
+    tapPressStartedAtRef.current = Date.now();
+    pauseProgress();
+  }, [dismissReplyKeyboard, pauseProgress]);
+
   const handleTapZonePressOut = useCallback(() => {
+    if (consumeNextTapZonePressRef.current) {
+      requestAnimationFrame(() => {
+        consumeNextTapZonePressRef.current = false;
+      });
+      return;
+    }
+
     resumeProgress();
   }, [resumeProgress]);
 
   const handleTapZonePress = useCallback((action: () => void) => {
+    if (consumeNextTapZonePressRef.current) {
+      consumeNextTapZonePressRef.current = false;
+      tapPressStartedAtRef.current = null;
+      return;
+    }
+
     const startedAt = tapPressStartedAtRef.current;
     tapPressStartedAtRef.current = null;
 
@@ -795,7 +854,11 @@ export default function StoryViewer({
                 <View style={styles.header}>
                   <Pressable
                     style={styles.headerIdentity}
-                    onPress={onMemberPress}
+                    onPress={
+                      onMemberPress
+                        ? () => runViewerAction(onMemberPress)
+                        : undefined
+                    }
                     disabled={!onMemberPress}
                   >
                     <View
@@ -833,7 +896,10 @@ export default function StoryViewer({
                       </Text>
                     </View>
                   </Pressable>
-                  <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+                  <TouchableOpacity
+                    style={styles.closeButton}
+                    onPress={() => runViewerAction(onClose)}
+                  >
                     <XIcon size={20} color={Colours.text} weight="bold" />
                   </TouchableOpacity>
                 </View>
@@ -879,8 +945,8 @@ export default function StoryViewer({
                   editable={canMutateCurrentProof && !sendingReply}
                   returnKeyType="send"
                   onSubmitEditing={handleSendReply}
-                  onFocus={pauseProgress}
-                  onBlur={resumeProgress}
+                  onFocus={handleReplyInputFocus}
+                  onBlur={handleReplyInputBlur}
                 />
                 <TouchableOpacity
                   style={[
@@ -910,7 +976,9 @@ export default function StoryViewer({
                         isActive && styles.reactionButtonActive,
                       ]}
                       disabled={!canMutateCurrentProof || reactingEmoji !== null}
-                      onPress={() => handleStoryReact(emoji)}
+                      onPress={() =>
+                        runViewerAction(() => handleStoryReact(emoji))
+                      }
                     >
                       <Text style={styles.reactionText}>{emoji}</Text>
                     </TouchableOpacity>
