@@ -10,7 +10,26 @@ export function getGoalOpenAgeLabel(
   const createdAtMs = new Date(createdAt).getTime();
   if (!Number.isFinite(createdAtMs)) return null;
 
-  const elapsedHours = Math.floor((nowMs - createdAtMs) / MS_PER_HOUR);
+  return getElapsedAgeLabel(nowMs - createdAtMs);
+}
+
+export function getProofLateLabel(
+  goalCreatedAt: string | null | undefined,
+  submittedAt: string | null | undefined,
+): string | null {
+  if (!goalCreatedAt || !submittedAt) return null;
+
+  const createdAtMs = new Date(goalCreatedAt).getTime();
+  const submittedAtMs = new Date(submittedAt).getTime();
+  if (!Number.isFinite(createdAtMs) || !Number.isFinite(submittedAtMs)) {
+    return null;
+  }
+
+  return getElapsedAgeLabel(submittedAtMs - createdAtMs);
+}
+
+function getElapsedAgeLabel(elapsedMs: number): string | null {
+  const elapsedHours = Math.floor(elapsedMs / MS_PER_HOUR);
   if (elapsedHours < OPEN_AGE_THRESHOLD_HOURS) return null;
 
   if (elapsedHours >= OPEN_AGE_DAY_THRESHOLD_HOURS) {

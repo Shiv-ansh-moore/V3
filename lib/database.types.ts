@@ -622,6 +622,7 @@ export type Database = {
         Args: { p_group_id: string }
         Returns: {
           caption: string | null
+          goal_created_at: string
           goal_id: string
           goal_title: string
           image_path: string

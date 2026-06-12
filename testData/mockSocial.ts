@@ -52,6 +52,7 @@ export interface CompletedGoal {
   photoUri: string | null;
   caption?: string | null;
   submittedAt?: string;
+  lateLabel?: string | null;
   timestamp: string;
   reactions?: Reaction[];
 }
@@ -69,6 +70,7 @@ export interface UnviewedProof {
   photoUri: string | null;
   caption?: string | null;
   submittedAt: string;
+  lateLabel?: string | null;
   timestamp: string;
   reactions?: Reaction[];
 }

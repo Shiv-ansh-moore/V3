@@ -53,6 +53,7 @@ export interface StoryProof {
   imagePath: string;
   imageUrl: string | null;
   submittedAt: string;
+  lateLabel?: string | null;
   viewedByMe: boolean;
 }
 
@@ -101,8 +102,7 @@ export default function StoryViewer({
   const insets = useSafeAreaInsets();
   const { group, user } = useAuth();
   const [index, setIndex] = useState(initialIndex);
-  const [imageStatus, setImageStatus] =
-    useState<StoryImageStatus>("idle");
+  const [imageStatus, setImageStatus] = useState<StoryImageStatus>("idle");
   const [imageUrlOverrides, setImageUrlOverrides] = useState<
     Record<string, string>
   >({});
@@ -181,16 +181,13 @@ export default function StoryViewer({
   currentImageKeyRef.current = currentImageKey;
   currentProofIdRef.current = currentProofId;
 
-  const storyImageUrlKey = useMemo(
-    () => {
-      const urls = stories
-        .map((story) => imageUrlOverrides[story.proofId] ?? story.imageUrl)
-        .filter((url): url is string => Boolean(url));
+  const storyImageUrlKey = useMemo(() => {
+    const urls = stories
+      .map((story) => imageUrlOverrides[story.proofId] ?? story.imageUrl)
+      .filter((url): url is string => Boolean(url));
 
-      return Array.from(new Set(urls)).join("\n");
-    },
-    [imageUrlOverrides, stories],
-  );
+    return Array.from(new Set(urls)).join("\n");
+  }, [imageUrlOverrides, stories]);
   const setImageStatusValue = useCallback((nextStatus: StoryImageStatus) => {
     imageStatusRef.current = nextStatus;
     setImageStatus(nextStatus);
@@ -413,10 +410,7 @@ export default function StoryViewer({
 
       const normalizedValue = Math.min(Math.max(fromValue, 0), 1);
       const runId = animationRunRef.current + 1;
-      const duration = Math.max(
-        0,
-        (1 - normalizedValue) * STORY_DURATION_MS,
-      );
+      const duration = Math.max(0, (1 - normalizedValue) * STORY_DURATION_MS);
 
       animationRunRef.current = runId;
       progressValueRef.current = normalizedValue;
@@ -849,7 +843,9 @@ export default function StoryViewer({
 
               {imageStatus === "error" ? (
                 <View style={styles.errorOverlay}>
-                  <Text style={styles.errorTitle}>Proof image did not load</Text>
+                  <Text style={styles.errorTitle}>
+                    Proof image did not load
+                  </Text>
                   <Text style={styles.errorText}>
                     Retry the image or skip this proof.
                   </Text>
@@ -870,6 +866,14 @@ export default function StoryViewer({
                       <Text style={styles.errorButtonText}>Skip</Text>
                     </TouchableOpacity>
                   </View>
+                </View>
+              ) : null}
+
+              {imageStatus === "ready" && current.lateLabel ? (
+                <View style={styles.lateWatermark} pointerEvents="none">
+                  <Text style={styles.lateLabel} numberOfLines={1}>
+                    {current.lateLabel}
+                  </Text>
                 </View>
               ) : null}
 
@@ -1141,6 +1145,35 @@ const styles = StyleSheet.create({
     color: Colours.text,
     opacity: 0.8,
     marginTop: 1,
+  },
+  lateWatermark: {
+    position: "absolute",
+    right: 18,
+    bottom: 18,
+    minHeight: 24,
+    minWidth: 46,
+    paddingHorizontal: 9,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: "rgba(255, 106, 0, 0.32)",
+    backgroundColor: "rgba(255, 106, 0, 0.14)",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 4,
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.45,
+    shadowRadius: 5,
+    elevation: 3,
+  },
+  lateLabel: {
+    color: Colours.brand,
+    fontFamily: Fonts.medium,
+    fontSize: 12,
+    textAlign: "center",
+    textShadowColor: "rgba(0, 0, 0, 0.72)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   closeButton: {
     width: 36,

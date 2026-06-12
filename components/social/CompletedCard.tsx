@@ -14,6 +14,7 @@ interface CompletedCardProps {
   goalTitle: string;
   photoUri: string | null;
   caption?: string | null;
+  lateLabel?: string | null;
   timestamp: string;
   reactions?: Reaction[];
   currentUserId?: string;
@@ -29,6 +30,7 @@ export default function CompletedCard({
   goalTitle,
   photoUri,
   caption,
+  lateLabel,
   timestamp,
   reactions,
   currentUserId,
@@ -86,6 +88,13 @@ export default function CompletedCard({
             ) : (
               <View style={styles.placeholder} />
             )}
+            {photoUri && lateLabel ? (
+              <View style={styles.lateWatermark}>
+                <Text style={styles.lateLabel} numberOfLines={1}>
+                  {lateLabel}
+                </Text>
+              </View>
+            ) : null}
           </View>
           <Text style={styles.goalTitle}>{goalTitle}</Text>
           {caption ? <Text style={styles.caption}>{caption}</Text> : null}
@@ -119,6 +128,34 @@ const styles = StyleSheet.create({
   name: {
     fontFamily: Fonts.medium,
     fontSize: 13,
+  },
+  lateWatermark: {
+    position: "absolute",
+    right: 9,
+    bottom: 9,
+    minHeight: 17,
+    minWidth: 32,
+    paddingHorizontal: 5,
+    borderRadius: 9,
+    borderWidth: 1,
+    borderColor: "rgba(255, 106, 0, 0.3)",
+    backgroundColor: "rgba(255, 106, 0, 0.12)",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.45,
+    shadowRadius: 5,
+    elevation: 3,
+  },
+  lateLabel: {
+    color: Colours.brand,
+    fontFamily: Fonts.medium,
+    fontSize: 9,
+    textAlign: "center",
+    textShadowColor: "rgba(0, 0, 0, 0.72)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   timestamp: {
     fontFamily: Fonts.regular,

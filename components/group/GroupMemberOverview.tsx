@@ -21,7 +21,10 @@ import { useAuth } from "../../lib/AuthContext";
 import { GROUP_USER_COLOURS } from "../../lib/groupColours";
 import type { Database } from "../../lib/database.types";
 import GoalIcon from "../personal/GoalIcon";
-import { getGoalOpenAgeLabel } from "../personal/goalOpenAge";
+import {
+  getGoalOpenAgeLabel,
+  getProofLateLabel,
+} from "../personal/goalOpenAge";
 import StoryViewer, { type StoryProof } from "../social/StoryViewer";
 
 type ProfileRow = Database["public"]["Tables"]["profiles"]["Row"];
@@ -40,11 +43,23 @@ type ProofWithGoal = Pick<
   goal:
     | Pick<
         GoalRow,
-        "id" | "title" | "icon" | "status" | "archived_at" | "deleted_at"
+        | "id"
+        | "title"
+        | "icon"
+        | "created_at"
+        | "status"
+        | "archived_at"
+        | "deleted_at"
       >
     | Pick<
         GoalRow,
-        "id" | "title" | "icon" | "status" | "archived_at" | "deleted_at"
+        | "id"
+        | "title"
+        | "icon"
+        | "created_at"
+        | "status"
+        | "archived_at"
+        | "deleted_at"
       >[]
     | null;
 };
@@ -64,6 +79,7 @@ type DoneProof = Pick<ProofRow, "id" | "submitted_at" | "caption"> & {
   goalId: string;
   goalTitle: string;
   goalIcon: string;
+  goalCreatedAt: string;
   imagePath: string;
 };
 type OverviewSession = Pick<
@@ -378,6 +394,7 @@ export default function GroupMemberOverview({
               id,
               title,
               icon,
+              created_at,
               status,
               archived_at,
               deleted_at
@@ -429,6 +446,7 @@ export default function GroupMemberOverview({
               goalId: goal.id,
               goalTitle: goal.title,
               goalIcon: goal.icon,
+              goalCreatedAt: goal.created_at,
               imagePath: proof.image_path,
             };
           }
@@ -482,6 +500,10 @@ export default function GroupMemberOverview({
             imagePath: proof.imagePath,
             imageUrl: signedImage?.signedUrl ?? null,
             submittedAt: proof.submitted_at,
+            lateLabel: getProofLateLabel(
+              proof.goalCreatedAt,
+              proof.submitted_at,
+            ),
             viewedByMe: false,
           };
         }),
@@ -681,6 +703,10 @@ export default function GroupMemberOverview({
                         icon={proof.goalIcon}
                         title={proof.goalTitle}
                         meta={formatShortTime(proof.submitted_at)}
+                        openAgeLabel={getProofLateLabel(
+                          proof.goalCreatedAt,
+                          proof.submitted_at,
+                        )}
                         done
                       />
                     ))

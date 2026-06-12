@@ -42,6 +42,7 @@ import {
   coerceMessageMentions,
   type MentionMember,
 } from "../lib/mentions";
+import { getProofLateLabel } from "./personal/goalOpenAge";
 
 type ProfileRow = Database["public"]["Tables"]["profiles"]["Row"];
 type ProofRow = Database["public"]["Tables"]["proofs"]["Row"];
@@ -386,6 +387,10 @@ export default function Social({ active = true }: SocialProps) {
             imagePath: proof.image_path,
             imageUrl,
             submittedAt: proof.submitted_at,
+            lateLabel: getProofLateLabel(
+              proof.goal_created_at,
+              proof.submitted_at,
+            ),
             viewedByMe:
               proof.user_id === user?.id ? true : proof.viewed_by_me,
           };
@@ -503,6 +508,8 @@ export default function Social({ active = true }: SocialProps) {
 
     const rows = [...((data ?? []) as SocialMessageRow[])].reverse();
 
+    const lateLabelByProofId = new Map<string, string | null>();
+
     const liveItems = await Promise.all(
       rows.map(async (message): Promise<FeedItem | null> => {
         const proof = firstRelation(message.proof);
@@ -554,6 +561,11 @@ export default function Social({ active = true }: SocialProps) {
         const photoUri = await getSignedProofImageUrl(proof.image_path);
         const goalTitle = goal?.title ?? "Goal";
         const goalIcon = goal?.icon ?? "";
+        const lateLabel = getProofLateLabel(
+          goal?.created_at,
+          proof.submitted_at,
+        );
+        lateLabelByProofId.set(proof.id, lateLabel);
         const proofFeedBase = {
           id: message.id,
           proofId: proof.id,
@@ -566,6 +578,7 @@ export default function Social({ active = true }: SocialProps) {
           photoUri,
           caption: proof.caption,
           submittedAt: proof.submitted_at,
+          lateLabel,
           timestamp: formatTimestamp(message.created_at),
           reactions,
         };
@@ -584,6 +597,15 @@ export default function Social({ active = true }: SocialProps) {
         };
       }),
     );
+
+    for (const [storyUserId, stories] of Object.entries(nextStoriesByUser)) {
+      nextStoriesByUser[storyUserId] = stories.map((story) => {
+        if (story.lateLabel) return story;
+
+        const lateLabel = lateLabelByProofId.get(story.proofId);
+        return lateLabel ? { ...story, lateLabel } : story;
+      });
+    }
 
     setUserNames(nextUserNames);
     setUserColours(nextUserColours);
@@ -791,7 +813,14 @@ export default function Social({ active = true }: SocialProps) {
       );
 
       if (storyIndex !== -1) {
-        setSelectedStoryOverride(null);
+        setSelectedStoryOverride({
+          userId: item.userId,
+          stories: stories.map((story) =>
+            story.proofId === item.proofId
+              ? { ...story, lateLabel: story.lateLabel ?? item.lateLabel }
+              : story,
+          ),
+        });
         setSelectedStoryInitialIndex(storyIndex);
         setSelectedStoryUserId(item.userId);
         return;
@@ -812,6 +841,7 @@ export default function Social({ active = true }: SocialProps) {
             imagePath: item.imagePath,
             imageUrl: item.photoUri,
             submittedAt: item.submittedAt,
+            lateLabel: item.lateLabel,
             viewedByMe: true,
           },
         ],
@@ -903,6 +933,7 @@ export default function Social({ active = true }: SocialProps) {
           photoUri: item.photoUri,
           caption: item.caption,
           submittedAt: item.submittedAt,
+          lateLabel: item.lateLabel,
           timestamp: item.timestamp,
           reactions: item.reactions,
         };
@@ -1098,6 +1129,7 @@ export default function Social({ active = true }: SocialProps) {
             goalTitle={item.goalTitle}
             photoUri={item.photoUri}
             caption={item.caption}
+            lateLabel={item.lateLabel}
             timestamp={item.timestamp}
             reactions={item.reactions}
             currentUserId={user?.id}
