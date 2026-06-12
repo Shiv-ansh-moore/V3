@@ -29,7 +29,7 @@ const normaliseUsername = (raw: string) =>
 const AVATAR_SIZE = 112;
 
 export default function CreateProfile() {
-  const { user, refreshProfile } = useAuth();
+  const { user, refreshProfile, signOut } = useAuth();
   const [displayName, setDisplayName] = useState("");
   const [username, setUsername] = useState("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
@@ -130,9 +130,12 @@ export default function CreateProfile() {
   const handleSignOut = async () => {
     if (loading || avatarUploading) return;
     setError(null);
-    const { error: signOutError } = await supabase.auth.signOut();
-    if (signOutError) {
-      setError(signOutError.message);
+    try {
+      await signOut();
+    } catch (signOutError) {
+      setError(
+        signOutError instanceof Error ? signOutError.message : "Sign out failed",
+      );
     }
   };
 

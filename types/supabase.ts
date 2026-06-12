@@ -317,7 +317,10 @@ export type Database = {
           app_version: string | null
           created_at: string
           device_id: string
+          disabled_at: string | null
+          disabled_reason: string | null
           enabled: boolean
+          expires_at: string
           expo_push_token: string
           id: string
           last_seen_at: string
@@ -329,7 +332,10 @@ export type Database = {
           app_version?: string | null
           created_at?: string
           device_id: string
+          disabled_at?: string | null
+          disabled_reason?: string | null
           enabled?: boolean
+          expires_at?: string
           expo_push_token: string
           id?: string
           last_seen_at?: string
@@ -341,7 +347,10 @@ export type Database = {
           app_version?: string | null
           created_at?: string
           device_id?: string
+          disabled_at?: string | null
+          disabled_reason?: string | null
           enabled?: boolean
+          expires_at?: string
           expo_push_token?: string
           id?: string
           last_seen_at?: string
@@ -668,7 +677,10 @@ export type Database = {
           app_version: string | null
           created_at: string
           device_id: string
+          disabled_at: string | null
+          disabled_reason: string | null
           enabled: boolean
+          expires_at: string
           expo_push_token: string
           id: string
           last_seen_at: string
@@ -682,6 +694,13 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      unregister_push_token: {
+        Args: {
+          p_device_id: string | null
+          p_expo_push_token: string | null
+        }
+        Returns: number
       }
       save_goal_deck: {
         Args: {

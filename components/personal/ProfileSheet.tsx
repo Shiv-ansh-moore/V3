@@ -47,11 +47,6 @@ import {
 } from "../../modules/screen-time-locks";
 import { supabase } from "../../lib/supabase";
 
-const handleSignOut = async () => {
-  const { error } = await supabase.auth.signOut();
-  if (error) console.log("Sign out failed:", error.message);
-};
-
 const PICKER_OPEN_HEIGHT = 0.7;
 const PICKER_SEARCH_HEIGHT = 0.48;
 const PROFILE_AVATAR_SIZE = 96;
@@ -87,7 +82,8 @@ interface ProfileSheetProps {
 }
 
 export default function ProfileSheet({ visible, onClose }: ProfileSheetProps) {
-  const { group, user, profile, refreshGroup, refreshProfile } = useAuth();
+  const { group, user, profile, refreshGroup, refreshProfile, signOut } =
+    useAuth();
   const { height: windowHeight } = useWindowDimensions();
   const searchInputRef = useRef<TextInput>(null);
   const profileInputRef = useRef<TextInput>(null);
@@ -124,6 +120,17 @@ export default function ProfileSheet({ visible, onClose }: ProfileSheetProps) {
       app.packageName.toLowerCase().includes(query)
     );
   });
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+    } catch (error) {
+      console.log(
+        "Sign out failed:",
+        error instanceof Error ? error.message : error,
+      );
+    }
+  };
   const canSaveProfile =
     displayName.trim().length > 0 && !profileSaving && !avatarUploading;
 

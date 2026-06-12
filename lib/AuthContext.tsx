@@ -9,6 +9,7 @@ import {
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "./supabase";
 import type { Database } from "./database.types";
+import { unregisterCurrentPushToken } from "./pushNotificationTokens";
 
 type Profile = Database["public"]["Tables"]["profiles"]["Row"];
 type Group = Database["public"]["Tables"]["groups"]["Row"];
@@ -22,6 +23,7 @@ type AuthContextValue = {
   groupLoading: boolean;
   refreshProfile: () => Promise<void>;
   refreshGroup: () => Promise<void>;
+  signOut: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -72,6 +74,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setGroup(g);
   }, [session?.user, fetchGroup]);
 
+  const signOut = useCallback(async () => {
+    try {
+      await unregisterCurrentPushToken();
+    } catch (error) {
+      console.log(
+        "[auth] push token unregister failed:",
+        error instanceof Error ? error.message : error,
+      );
+    }
+
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
+  }, []);
+
   // Session hydration + auth event subscription
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -79,9 +95,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSessionLoading(false);
     });
 
-    const { data } = supabase.auth.onAuthStateChange((event, newSession) => {
-      // TEMP — removed once full auth flow is stable
-      console.log("[auth]", event, newSession?.user?.id ?? null);
+    const { data } = supabase.auth.onAuthStateChange((_event, newSession) => {
       setSession(newSession);
     });
 
@@ -143,6 +157,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         groupLoading,
         refreshProfile,
         refreshGroup,
+        signOut,
       }}
     >
       {children}

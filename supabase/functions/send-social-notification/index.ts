@@ -131,6 +131,7 @@ Deno.serve(async (req) => {
         url: "/(app)?tab=social",
         type: eventType,
         groupId: typedMessage.group_id,
+        recipientUserId: token.user_id,
         messageId: typedMessage.id,
         proofId: typedMessage.proof_id,
         emoji: details.emoji,

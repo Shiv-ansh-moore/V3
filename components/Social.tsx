@@ -1,4 +1,12 @@
-import { StyleSheet, View, Platform, TextInput, Keyboard } from "react-native";
+import {
+  AppState,
+  StyleSheet,
+  View,
+  Platform,
+  TextInput,
+  Keyboard,
+} from "react-native";
+import * as Notifications from "expo-notifications";
 import React, {
   useMemo,
   useCallback,
@@ -43,6 +51,10 @@ import {
   type MentionMember,
 } from "../lib/mentions";
 import { getProofLateLabel } from "./personal/goalOpenAge";
+import {
+  dismissNonMentionNotificationAsync,
+  dismissNonMentionNotificationsAsync,
+} from "../lib/pushNotifications";
 
 type ProfileRow = Database["public"]["Tables"]["profiles"]["Row"];
 type ProofRow = Database["public"]["Tables"]["proofs"]["Row"];
@@ -253,6 +265,7 @@ export default function Social({ active = true }: SocialProps) {
     useState<ProofCameraTarget | null>(null);
   const signedProofImageUrlsRef = useRef(new Map<string, SignedProofImageUrl>());
   const visibleSessionIdsRef = useRef<Set<string>>(new Set());
+  const socialMessagesSubscriptionIdRef = useRef(0);
   const reversedFeed = useMemo(() => [...feed].reverse(), [feed]);
   const selectedStoryMember =
     groupMembers.find((member) => member.id === selectedStoryUserId) ??
@@ -677,6 +690,43 @@ export default function Social({ active = true }: SocialProps) {
   }, [active, refreshFeed]);
 
   useEffect(() => {
+    if (!active) return;
+
+    const sweepTimeouts: ReturnType<typeof setTimeout>[] = [];
+    const sweepNotifications = () => {
+      void dismissNonMentionNotificationsAsync();
+    };
+    const scheduleSweep = (delay: number) => {
+      const timeout = setTimeout(sweepNotifications, delay);
+      sweepTimeouts.push(timeout);
+    };
+
+    sweepNotifications();
+    scheduleSweep(250);
+    scheduleSweep(1000);
+
+    const appStateSubscription = AppState.addEventListener("change", (state) => {
+      if (state === "active") {
+        sweepNotifications();
+        scheduleSweep(250);
+        scheduleSweep(1000);
+      }
+    });
+
+    const notificationSubscription =
+      Notifications.addNotificationReceivedListener((notification) => {
+        void dismissNonMentionNotificationAsync(notification);
+        scheduleSweep(250);
+      });
+
+    return () => {
+      appStateSubscription.remove();
+      notificationSubscription.remove();
+      sweepTimeouts.forEach(clearTimeout);
+    };
+  }, [active]);
+
+  useEffect(() => {
     visibleSessionIdsRef.current = new Set(
       feed
         .filter(
@@ -690,8 +740,10 @@ export default function Social({ active = true }: SocialProps) {
   useEffect(() => {
     if (!active || !group) return;
 
+    let isClosed = false;
+    const subscriptionId = ++socialMessagesSubscriptionIdRef.current;
     const channel = supabase
-      .channel(`social-messages:${group.id}`)
+      .channel(`social-messages:${group.id}:${subscriptionId}`)
       .on(
         "postgres_changes",
         {
@@ -701,6 +753,7 @@ export default function Social({ active = true }: SocialProps) {
           filter: `group_id=eq.${group.id}`,
         },
         () => {
+          if (isClosed) return;
           void refreshFeed();
         },
       )
@@ -713,6 +766,7 @@ export default function Social({ active = true }: SocialProps) {
           filter: `group_id=eq.${group.id}`,
         },
         () => {
+          if (isClosed) return;
           scheduleReactionRefresh();
         },
       )
@@ -724,6 +778,7 @@ export default function Social({ active = true }: SocialProps) {
           table: "screen_sessions",
         },
         (payload) => {
+          if (isClosed) return;
           const sessionId = (payload.new as Partial<ScreenSessionRow>).id;
           if (!sessionId || visibleSessionIdsRef.current.has(sessionId)) {
             void refreshFeed();
@@ -731,12 +786,14 @@ export default function Social({ active = true }: SocialProps) {
         },
       )
       .subscribe((status) => {
+        if (isClosed) return;
         if (status === "CHANNEL_ERROR") {
           console.log("[social] realtime subscription error");
         }
       });
 
     return () => {
+      isClosed = true;
       void supabase.removeChannel(channel);
     };
   }, [active, group, refreshFeed, scheduleReactionRefresh]);

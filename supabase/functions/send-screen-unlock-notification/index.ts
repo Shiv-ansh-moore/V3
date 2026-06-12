@@ -104,6 +104,7 @@ Deno.serve(async (req) => {
         url: "/(app)?tab=social",
         type: "screen_unlock",
         groupId: message.group_id,
+        recipientUserId: token.user_id,
         messageId: message.id,
         sessionId: message.session_id,
       },

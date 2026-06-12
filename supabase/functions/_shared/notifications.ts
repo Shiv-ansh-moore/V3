@@ -107,6 +107,7 @@ export async function getEnabledPushTokens(
     .from("push_tokens")
     .select("id, user_id, expo_push_token")
     .eq("enabled", true)
+    .gt("expires_at", new Date().toISOString())
     .in("user_id", uniqueIds);
 
   if (error) throw error;
@@ -197,13 +198,18 @@ export async function recordDeliveries(
 export async function disablePushTokens(
   supabase: SupabaseClient,
   tokenIds: string[],
+  reason = "device_not_registered",
 ): Promise<void> {
   const uniqueIds = Array.from(new Set(tokenIds));
   if (uniqueIds.length === 0) return;
 
   const { error } = await supabase
     .from("push_tokens")
-    .update({ enabled: false })
+    .update({
+      enabled: false,
+      disabled_at: new Date().toISOString(),
+      disabled_reason: reason,
+    })
     .in("id", uniqueIds);
 
   if (error) throw error;

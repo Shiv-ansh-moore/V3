@@ -11,6 +11,21 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { requestAuthorization } from "../../modules/screen-time-locks";
 import { useLocalSearchParams } from "expo-router";
 
+let screenTimeAuthorizationPromise: Promise<void> | null = null;
+
+function ensureScreenTimeAuthorization() {
+  if (!screenTimeAuthorizationPromise) {
+    screenTimeAuthorizationPromise = requestAuthorization()
+      .then(() => undefined)
+      .catch((err) => {
+        screenTimeAuthorizationPromise = null;
+        console.error("Screen Time error:", err);
+      });
+  }
+
+  return screenTimeAuthorizationPromise;
+}
+
 export default function MyPager() {
   const params = useLocalSearchParams<{ tab?: string | string[] }>();
   const tab = Array.isArray(params.tab) ? params.tab[0] : params.tab;
@@ -46,9 +61,7 @@ export default function MyPager() {
   useEffect(() => {
     if (Platform.OS !== "ios") return;
 
-    requestAuthorization()
-      .then((result) => console.log("Screen Time:", result))
-      .catch((err) => console.error("Screen Time error:", err));
+    void ensureScreenTimeAuthorization();
   }, []);
 
   return (

@@ -1,3 +1,4 @@
+import "../lib/networkBootstrap";
 import { Stack, useRouter, useSegments } from "expo-router";
 import {
   useFonts,
