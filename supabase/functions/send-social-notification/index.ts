@@ -116,28 +116,32 @@ Deno.serve(async (req) => {
     }
 
     const actorName = normalizeDisplayName(actorProfile);
-    const messages = tokens.map((token) => ({
-      to: token.expo_push_token,
-      title: actorName,
-      body:
-        details.mentionBody && mentionedRecipientSet.has(token.user_id)
-          ? details.mentionBody
-          : details.body,
-      sound: "default" as const,
-      channelId: "social",
-      priority: "high" as const,
-      data: {
-        tab: "social",
-        url: "/(app)?tab=social",
-        type: eventType,
-        groupId: typedMessage.group_id,
-        recipientUserId: token.user_id,
-        messageId: typedMessage.id,
-        proofId: typedMessage.proof_id,
-        emoji: details.emoji,
-        isMention: mentionedRecipientSet.has(token.user_id),
-      },
-    }));
+    const messages = tokens.map((token) => {
+      const isMentionRecipient = mentionedRecipientSet.has(token.user_id);
+
+      return {
+        to: token.expo_push_token,
+        title: isMentionRecipient ? `${actorName} mentioned you` : actorName,
+        body:
+          details.mentionBody && isMentionRecipient
+            ? details.mentionBody
+            : details.body,
+        sound: "default" as const,
+        channelId: "social",
+        priority: "high" as const,
+        data: {
+          tab: "social",
+          url: "/(app)?tab=social",
+          type: eventType,
+          groupId: typedMessage.group_id,
+          recipientUserId: token.user_id,
+          messageId: typedMessage.id,
+          proofId: typedMessage.proof_id,
+          emoji: details.emoji,
+          isMention: isMentionRecipient,
+        },
+      };
+    });
 
     const tickets = await sendExpoPushMessages(messages);
     const invalidTokenIds = await recordDeliveries(supabase, {

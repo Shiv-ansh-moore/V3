@@ -1,4 +1,5 @@
 import {
+  ActivityIndicator,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -31,6 +32,7 @@ export interface ReplyInfo {
 export interface MessageSendPayload {
   text: string;
   mentions: MessageMention[];
+  replyToId?: string | null;
 }
 
 interface MessageInputProps {
@@ -62,15 +64,22 @@ export default function MessageInput({
   mentionMembers = [],
 }: MessageInputProps) {
   const [text, setText] = React.useState("");
-  const [sending, setSending] = React.useState(false);
+  const [pendingSendCount, setPendingSendCount] = React.useState(0);
+  const [showSendingStatus, setShowSendingStatus] = React.useState(false);
+  const [failedMessage, setFailedMessage] =
+    React.useState<MessageSendPayload | null>(null);
   const [selection, setSelection] = React.useState<InputSelection>({
     start: 0,
     end: 0,
   });
   const [forcedSelection, setForcedSelection] =
     React.useState<InputSelection>();
-  const canSend = text.trim().length > 0 && !sending;
+  const sendQueueRef = React.useRef<Promise<void>>(Promise.resolve());
+  const canSend = text.trim().length > 0;
   const replyUserId = replyingTo?.userId;
+  const isSending = pendingSendCount > 0;
+  const showStatusRow =
+    Boolean(failedMessage) || (isSending && showSendingStatus);
 
   React.useEffect(() => {
     if (!forcedSelection) return;
@@ -81,6 +90,19 @@ export default function MessageInput({
 
     return () => cancelAnimationFrame(frame);
   }, [forcedSelection]);
+
+  React.useEffect(() => {
+    if (!isSending) {
+      setShowSendingStatus(false);
+      return;
+    }
+
+    const timeout = setTimeout(() => {
+      setShowSendingStatus(true);
+    }, 650);
+
+    return () => clearTimeout(timeout);
+  }, [isSending]);
 
   const mentionTrigger = React.useMemo(() => {
     if (selection.start !== selection.end) return null;
@@ -101,27 +123,55 @@ export default function MessageInput({
       })
       .slice(0, 6);
   }, [mentionMembers, mentionTrigger]);
-  const showMentionPicker = mentionCandidates.length > 0 && !sending;
+  const showMentionPicker = mentionCandidates.length > 0;
 
-  const handleSend = async () => {
+  const enqueueMessageSend = React.useCallback(
+    (message: MessageSendPayload, clearCurrentFailure = false) => {
+      setPendingSendCount((count) => count + 1);
+      if (clearCurrentFailure) {
+        setFailedMessage(null);
+      }
+
+      sendQueueRef.current = sendQueueRef.current.then(async () => {
+        try {
+          await onSend?.(message);
+        } catch (error) {
+          console.log(
+            "[social] send failed:",
+            error instanceof Error ? error.message : error,
+          );
+          setFailedMessage(message);
+        } finally {
+          setPendingSendCount((count) => Math.max(0, count - 1));
+        }
+      });
+    },
+    [onSend],
+  );
+
+  const handleSend = () => {
     if (!canSend) return;
 
     const message = text.trim();
     const mentions = parseMessageMentions(message, mentionMembers);
-    setSending(true);
-    try {
-      await onSend?.({ text: message, mentions });
-      setText("");
-      setSelection({ start: 0, end: 0 });
-      setForcedSelection(undefined);
-    } catch (error) {
-      console.log(
-        "[social] send failed:",
-        error instanceof Error ? error.message : error,
-      );
-    } finally {
-      setSending(false);
-    }
+    const payload: MessageSendPayload = {
+      text: message,
+      mentions,
+      replyToId: replyingTo?.id ?? null,
+    };
+
+    setText("");
+    setSelection({ start: 0, end: 0 });
+    setForcedSelection(undefined);
+    onClearReply?.();
+    enqueueMessageSend(payload);
+    requestAnimationFrame(() => inputRef?.current?.focus());
+  };
+
+  const handleRetrySend = () => {
+    if (!failedMessage) return;
+
+    enqueueMessageSend(failedMessage, true);
   };
 
   const insertMention = (member: MentionMember) => {
@@ -232,6 +282,28 @@ export default function MessageInput({
           </ScrollView>
         </View>
       )}
+      {showStatusRow && (
+        <Pressable
+          style={styles.statusRow}
+          accessibilityRole={failedMessage ? "button" : undefined}
+          accessibilityLabel={
+            failedMessage ? "Message failed. Tap to retry." : "Sending message."
+          }
+          onPress={failedMessage ? handleRetrySend : undefined}
+          disabled={!failedMessage}
+        >
+          {isSending && showSendingStatus ? (
+            <ActivityIndicator size="small" color={Colours.brand} />
+          ) : null}
+          <Text
+            style={[styles.statusText, failedMessage && styles.failedStatusText]}
+          >
+            {isSending && showSendingStatus
+              ? "Sending..."
+              : "Message failed. Tap to retry."}
+          </Text>
+        </Pressable>
+      )}
       <View style={styles.container}>
         <Pressable
           style={styles.plusButton}
@@ -250,7 +322,6 @@ export default function MessageInput({
           value={text}
           onChangeText={setText}
           multiline
-          editable={!sending}
           onSubmitEditing={handleSend}
           onSelectionChange={(event) =>
             handleSelectionChange(event.nativeEvent.selection)
@@ -380,5 +451,22 @@ const styles = StyleSheet.create({
   },
   sendButtonDisabled: {
     backgroundColor: Colours.cardHighlight,
+  },
+  statusRow: {
+    minHeight: 24,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 19,
+    paddingTop: 6,
+    backgroundColor: Colours.background,
+  },
+  statusText: {
+    fontFamily: Fonts.regular,
+    fontSize: 12,
+    color: Colours.secondaryText,
+  },
+  failedStatusText: {
+    color: Colours.brand,
   },
 });

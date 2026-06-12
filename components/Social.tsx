@@ -101,6 +101,12 @@ const PROOF_IMAGE_URL_TTL_SECONDS = 60 * 60;
 const PROOF_IMAGE_URL_REFRESH_BUFFER_MS = 5 * 60 * 1000;
 const REACTION_REFRESH_DEBOUNCE_MS = 150;
 
+function createRealtimeChannelTopic(groupId: string) {
+  return `social-messages:${groupId}:${Date.now().toString(36)}:${Math.random()
+    .toString(36)
+    .slice(2, 10)}`;
+}
+
 function firstRelation<T>(relation: T | T[] | null): T | null {
   return Array.isArray(relation) ? (relation[0] ?? null) : relation;
 }
@@ -243,7 +249,7 @@ export default function Social({ active = true }: SocialProps) {
   const [replyingTo, setReplyingTo] = useState<ReplyInfo | null>(null);
   const [sheetItem, setSheetItem] = useState<FeedItem | null>(null);
   const [sheetVisible, setSheetVisible] = useState(false);
-  const { group, user } = useAuth();
+  const { group, user, profile } = useAuth();
   const [feed, setFeed] = useState<FeedItem[]>([]);
   const [groupMembers, setGroupMembers] = useState<AvatarRowMember[]>([]);
   const [storiesByUser, setStoriesByUser] = useState<StoriesByUser>({});
@@ -265,8 +271,14 @@ export default function Social({ active = true }: SocialProps) {
     useState<ProofCameraTarget | null>(null);
   const signedProofImageUrlsRef = useRef(new Map<string, SignedProofImageUrl>());
   const visibleSessionIdsRef = useRef<Set<string>>(new Set());
-  const socialMessagesSubscriptionIdRef = useRef(0);
   const reversedFeed = useMemo(() => [...feed].reverse(), [feed]);
+  const notificationMentionContext = useMemo(
+    () => ({
+      currentUserId: user?.id ?? null,
+      currentUsername: profile?.username ?? null,
+    }),
+    [profile?.username, user?.id],
+  );
   const selectedStoryMember =
     groupMembers.find((member) => member.id === selectedStoryUserId) ??
     (selectedStoryUserId
@@ -694,7 +706,7 @@ export default function Social({ active = true }: SocialProps) {
 
     const sweepTimeouts: ReturnType<typeof setTimeout>[] = [];
     const sweepNotifications = () => {
-      void dismissNonMentionNotificationsAsync();
+      void dismissNonMentionNotificationsAsync(notificationMentionContext);
     };
     const scheduleSweep = (delay: number) => {
       const timeout = setTimeout(sweepNotifications, delay);
@@ -715,7 +727,10 @@ export default function Social({ active = true }: SocialProps) {
 
     const notificationSubscription =
       Notifications.addNotificationReceivedListener((notification) => {
-        void dismissNonMentionNotificationAsync(notification);
+        void dismissNonMentionNotificationAsync(
+          notification,
+          notificationMentionContext,
+        );
         scheduleSweep(250);
       });
 
@@ -724,7 +739,7 @@ export default function Social({ active = true }: SocialProps) {
       notificationSubscription.remove();
       sweepTimeouts.forEach(clearTimeout);
     };
-  }, [active]);
+  }, [active, notificationMentionContext]);
 
   useEffect(() => {
     visibleSessionIdsRef.current = new Set(
@@ -741,60 +756,68 @@ export default function Social({ active = true }: SocialProps) {
     if (!active || !group) return;
 
     let isClosed = false;
-    const subscriptionId = ++socialMessagesSubscriptionIdRef.current;
-    const channel = supabase
-      .channel(`social-messages:${group.id}:${subscriptionId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "messages",
-          filter: `group_id=eq.${group.id}`,
-        },
-        () => {
-          if (isClosed) return;
-          void refreshFeed();
-        },
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "reactions",
-          filter: `group_id=eq.${group.id}`,
-        },
-        () => {
-          if (isClosed) return;
-          scheduleReactionRefresh();
-        },
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "screen_sessions",
-        },
-        (payload) => {
-          if (isClosed) return;
-          const sessionId = (payload.new as Partial<ScreenSessionRow>).id;
-          if (!sessionId || visibleSessionIdsRef.current.has(sessionId)) {
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+
+    try {
+      channel = supabase.channel(createRealtimeChannelTopic(group.id));
+      channel
+        .on(
+          "postgres_changes",
+          {
+            event: "INSERT",
+            schema: "public",
+            table: "messages",
+            filter: `group_id=eq.${group.id}`,
+          },
+          () => {
+            if (isClosed) return;
             void refreshFeed();
+          },
+        )
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "reactions",
+            filter: `group_id=eq.${group.id}`,
+          },
+          () => {
+            if (isClosed) return;
+            scheduleReactionRefresh();
+          },
+        )
+        .on(
+          "postgres_changes",
+          {
+            event: "UPDATE",
+            schema: "public",
+            table: "screen_sessions",
+          },
+          (payload) => {
+            if (isClosed) return;
+            const sessionId = (payload.new as Partial<ScreenSessionRow>).id;
+            if (!sessionId || visibleSessionIdsRef.current.has(sessionId)) {
+              void refreshFeed();
+            }
+          },
+        )
+        .subscribe((status) => {
+          if (isClosed) return;
+          if (status === "CHANNEL_ERROR") {
+            console.log("[social] realtime subscription error");
           }
-        },
-      )
-      .subscribe((status) => {
-        if (isClosed) return;
-        if (status === "CHANNEL_ERROR") {
-          console.log("[social] realtime subscription error");
-        }
-      });
+        });
+    } catch (error) {
+      console.log(
+        "[social] realtime subscription setup error:",
+        error instanceof Error ? error.message : error,
+      );
+    }
 
     return () => {
       isClosed = true;
-      void supabase.removeChannel(channel);
+      if (channel) void supabase.removeChannel(channel);
     };
   }, [active, group, refreshFeed, scheduleReactionRefresh]);
 
@@ -1095,7 +1118,7 @@ export default function Social({ active = true }: SocialProps) {
   }, [currentSheetItem, resolveUserColour, resolveUserName]);
 
   const handleSendMessage = useCallback(
-    async ({ text, mentions }: MessageSendPayload) => {
+    async ({ text, mentions, replyToId }: MessageSendPayload) => {
       if (!group || !user) {
         throw new Error("Cannot send without an active group and user.");
       }
@@ -1106,7 +1129,7 @@ export default function Social({ active = true }: SocialProps) {
         kind: "text",
         body: text,
         mention_entities: mentions as unknown as Json,
-        reply_to_id: replyingTo?.id ?? null,
+        reply_to_id: replyToId ?? null,
       });
 
       if (error) {
@@ -1114,10 +1137,9 @@ export default function Social({ active = true }: SocialProps) {
         throw error;
       }
 
-      setReplyingTo(null);
-      await refreshFeed();
+      void refreshFeed();
     },
-    [group, refreshFeed, replyingTo?.id, user],
+    [group, refreshFeed, user],
   );
 
   useEffect(() => {

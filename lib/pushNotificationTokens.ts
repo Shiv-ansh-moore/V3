@@ -9,14 +9,53 @@ const DEVICE_ID_KEY = "v3.pushNotifications.deviceId";
 const LAST_EXPO_PUSH_TOKEN_KEY = "v3.pushNotifications.lastExpoPushToken";
 const LAST_REGISTRATION_AT_KEY = "v3.pushNotifications.lastRegistrationAt";
 const REGISTRATION_REFRESH_MS = 24 * 60 * 60 * 1000;
+const REGISTRATION_RETRY_COOLDOWN_MS = 60 * 1000;
 
 type PushRegistration = {
   deviceId: string;
   expoPushToken: string;
 };
 
+let activeRegistrationPromise: Promise<boolean> | null = null;
+let lastRegistrationFailureAt = 0;
+
 export async function registerCurrentPushToken(): Promise<boolean> {
-  const registration = await getPushRegistration();
+  return runExclusiveRegistration(() => getPushRegistration());
+}
+
+export async function registerDevicePushToken(
+  devicePushToken: Notifications.DevicePushToken,
+): Promise<boolean> {
+  return runExclusiveRegistration(() => getPushRegistration(devicePushToken));
+}
+
+async function runExclusiveRegistration(
+  getRegistration: () => Promise<PushRegistration | null>,
+): Promise<boolean> {
+  if (activeRegistrationPromise) {
+    return activeRegistrationPromise.catch(() => false);
+  }
+
+  if (Date.now() - lastRegistrationFailureAt < REGISTRATION_RETRY_COOLDOWN_MS) {
+    return false;
+  }
+
+  activeRegistrationPromise = persistPushRegistration(getRegistration())
+    .catch((error) => {
+      lastRegistrationFailureAt = Date.now();
+      throw error;
+    })
+    .finally(() => {
+      activeRegistrationPromise = null;
+    });
+
+  return activeRegistrationPromise;
+}
+
+async function persistPushRegistration(
+  registrationPromise: Promise<PushRegistration | null>,
+): Promise<boolean> {
+  const registration = await registrationPromise;
   if (!registration) return false;
 
   const { error } = await supabase.rpc("register_push_token", {
@@ -32,6 +71,7 @@ export async function registerCurrentPushToken(): Promise<boolean> {
     [LAST_EXPO_PUSH_TOKEN_KEY, registration.expoPushToken],
     [LAST_REGISTRATION_AT_KEY, String(Date.now())],
   ]);
+  lastRegistrationFailureAt = 0;
   return true;
 }
 
@@ -74,7 +114,9 @@ export async function unregisterCurrentPushToken(): Promise<number> {
   return data ?? 0;
 }
 
-async function getPushRegistration(): Promise<PushRegistration | null> {
+async function getPushRegistration(
+  devicePushToken?: Notifications.DevicePushToken,
+): Promise<PushRegistration | null> {
   if (Platform.OS === "web") return null;
   if (!Device.isDevice) {
     console.log("[notifications] physical device required for push tokens");
@@ -112,7 +154,10 @@ async function getPushRegistration(): Promise<PushRegistration | null> {
 
   const [deviceId, token] = await Promise.all([
     getOrCreateDeviceId(),
-    Notifications.getExpoPushTokenAsync({ projectId }),
+    Notifications.getExpoPushTokenAsync({
+      projectId,
+      ...(devicePushToken ? { devicePushToken } : {}),
+    }),
   ]);
 
   return {
