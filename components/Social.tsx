@@ -850,8 +850,8 @@ export default function Social({ active = true }: SocialProps) {
       return;
     }
 
-    const storyMembers = groupMembers.filter(
-      (member) => (storiesByUser[member.id]?.length ?? 0) > 0,
+    const storyMembers = groupMembers.filter((member) =>
+      (storiesByUser[member.id] ?? []).some((story) => !story.viewedByMe),
     );
     const currentMemberIndex = storyMembers.findIndex(
       (member) => member.id === selectedStoryUserId,
@@ -872,8 +872,14 @@ export default function Social({ active = true }: SocialProps) {
     const firstUnseenIndex = nextStories.findIndex(
       (story) => !story.viewedByMe,
     );
+    if (firstUnseenIndex === -1) {
+      setSelectedStoryOverride(null);
+      setSelectedStoryUserId(null);
+      return;
+    }
+
     setSelectedStoryOverride(null);
-    setSelectedStoryInitialIndex(firstUnseenIndex === -1 ? 0 : firstUnseenIndex);
+    setSelectedStoryInitialIndex(firstUnseenIndex);
     setSelectedStoryUserId(nextMember.id);
   }, [groupMembers, selectedStoryUserId, storiesByUser]);
 
