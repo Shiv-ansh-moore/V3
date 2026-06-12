@@ -90,6 +90,7 @@ export default function ProfileSheet({ visible, onClose }: ProfileSheetProps) {
   const { group, user, profile, refreshGroup, refreshProfile } = useAuth();
   const { height: windowHeight } = useWindowDimensions();
   const searchInputRef = useRef<TextInput>(null);
+  const profileInputRef = useRef<TextInput>(null);
   const pickerHeightProgress = useRef(
     new Animated.Value(PICKER_OPEN_HEIGHT),
   ).current;
@@ -478,10 +479,20 @@ export default function ProfileSheet({ visible, onClose }: ProfileSheetProps) {
           </Pressable>
         </Pressable>
       ) : showPersonalSettings ? (
-        <Pressable style={styles.overlay} onPress={closePersonalSettings}>
+        <Pressable
+          style={styles.overlay}
+          onPress={() => {
+            if (profileInputRef.current?.isFocused()) {
+              Keyboard.dismiss();
+            } else {
+              closePersonalSettings();
+            }
+          }}
+        >
           <KeyboardAvoidingView
-            behavior={Platform.OS === "ios" ? "padding" : undefined}
+            behavior="position"
             style={styles.profileAvoidingView}
+            contentContainerStyle={styles.profileAvoidingContent}
           >
             <Pressable style={styles.sheet}>
               <Text style={styles.title}>Personal Settings</Text>
@@ -527,6 +538,7 @@ export default function ProfileSheet({ visible, onClose }: ProfileSheetProps) {
                 <View style={styles.fieldGroup}>
                   <Text style={styles.fieldLabel}>Display Name</Text>
                   <TextInput
+                    ref={profileInputRef}
                     value={displayName}
                     onChangeText={setDisplayName}
                     placeholder="Display name"
@@ -867,6 +879,10 @@ const styles = StyleSheet.create({
     color: "#FF5A5A",
   },
   profileAvoidingView: {
+    flex: 1,
+    width: "100%",
+  },
+  profileAvoidingContent: {
     flex: 1,
     justifyContent: "flex-end",
   },
